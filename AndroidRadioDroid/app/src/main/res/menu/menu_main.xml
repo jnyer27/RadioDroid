@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RadioDroid main menu — nicFW-specific items removed (band plan, tune/radio settings, etc.) -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search"
+        android:title="Search Channels"
+        android:icon="@drawable/ic_search"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_import_chirp"
+        android:title="Import CHIRP CSV from File…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_import_chirp_clipboard"
+        android:title="Import CHIRP CSV from Clipboard…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sort_by_group"
+        android:title="Sort Channels by Group…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_edit_group_labels"
+        android:title="Edit Group Labels…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_select_radio"
+        android:title="Select Radio Model…"
+        app:showAsAction="never" />
+
+</menu>

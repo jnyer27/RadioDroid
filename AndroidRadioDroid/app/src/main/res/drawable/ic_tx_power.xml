@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    RF transmit symbol (IEC 60417-6191 style):
+      - Horizontal ground line
+      - Vertical antenna mast
+      - Three concentric arcs radiating upward from the mast tip
+    Designed for 24 × 24 dp at 1× density.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?android:attr/textColorPrimaryInverse">
+
+    <!-- Ground line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M8,21 L16,21" />
+
+    <!-- Antenna mast (ground to tip) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M12,21 L12,14" />
+
+    <!-- Small inner arc  — radius 3, centred on mast tip (12, 14).
+         sweep-flag=1 (clockwise in SVG/Y-down coords) curves UPWARD through (12,11). -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M9,14 A3,3 0 0,1 15,14" />
+
+    <!-- Medium arc — radius 5, curves upward through (12,9) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M7,14 A5,5 0 0,1 17,14" />
+
+    <!-- Large outer arc — radius 7, curves upward through (12,7) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M5,14 A7,7 0 0,1 19,14" />
+
+</vector>

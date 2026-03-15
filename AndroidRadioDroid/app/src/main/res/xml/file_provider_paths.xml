@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!--
+        Covers getExternalFilesDir(null) — no WRITE_EXTERNAL_STORAGE needed on API 29+.
+        On API 24-28 we also declare WRITE_EXTERNAL_STORAGE in the manifest.
+    -->
+    <external-files-path name="eeprom_dumps" path="/" />
+</paths>

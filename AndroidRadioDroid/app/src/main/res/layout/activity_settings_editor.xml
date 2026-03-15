@@ -1,0 +1,1247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Radio Settings editor — reads and writes the nicFW 2.5 Settings block at 0x1900.
+    Mirrors the "Settings" tab in the nicFW Programmer desktop app.
+
+    56 fields across 10 sections:
+        Squelch & Audio, Display, TX Settings, RX & Tuning, Scan, VOX,
+        Tones & Keys, DTMF, System, Security
+
+    Unit notes for fractional fields:
+        Scan Range      raw × 10 kHz  → display as MHz  (÷ 100)
+        Scan Persist    raw × 0.1 s   → display as s    (÷ 10)
+        VOX Tail        raw × 0.1 s   → display as s    (÷ 10)
+        DTMF Seq Pause  raw × 0.1 s   → display as s    (÷ 10)
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:title="Radio Settings" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- Info banner -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="?android:attr/textColorSecondary"
+                android:text="General radio settings stored at EEPROM 0x1900. Tap Save Settings to write changes to the in-memory EEPROM, then use Save to Radio to upload to the device." />
+
+            <!-- ⚠ unconfirmed-offsets warning -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="8dp"
+                app:cardBackgroundColor="#FFF3CD"
+                app:strokeColor="#FFCC00"
+                app:strokeWidth="1dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:textSize="12sp"
+                    android:lineSpacingMultiplier="1.3"
+                    android:textColor="#7D5700"
+                    android:text="⚠  Fields marked ⚠ use EEPROM offsets or encodings not fully confirmed. Verify values match your radio before saving: Scrambler IF (3400/3500 Hz options unverified), TX Filter Trans (offset unconfirmed)." />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 1. SQUELCH &amp; AUDIO                                         -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SQUELCH &amp; AUDIO"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- Squelch -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Squelch (def: 2)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerSquelch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="72dp" />
+                        <ImageButton
+                            android:id="@+id/helpSquelch"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Sq Noise Level -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sq Noise Level" android:textSize="14sp" />
+                        <EditText android:id="@+id/editSqNoiseLev" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–255 (def: 0)" />
+                        <ImageButton
+                            android:id="@+id/helpSqNoiseLev"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Noise Ceiling -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Noise Ceiling" android:textSize="14sp" />
+                        <EditText android:id="@+id/editNoiseCeiling" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–255 (def: 0)" />
+                        <ImageButton
+                            android:id="@+id/helpNoiseCeiling"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Sq Tail Elim -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sq Tail Elim (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerSte" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpSte"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Mic Gain -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Mic Gain" android:textSize="14sp" />
+                        <EditText android:id="@+id/editMicGain" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–31 (def: 25)" />
+                        <ImageButton
+                            android:id="@+id/helpMicGain"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Noise Gate -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Noise Gate (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchNoiseGate" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpNoiseGate"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- RF Gain -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="RF Gain (def: AGC)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerRfGain" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpRfGain"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 2. DISPLAY                                                      -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DISPLAY"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- LCD Brightness -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LCD Brightness" android:textSize="14sp" />
+                        <EditText android:id="@+id/editLcdBrightness" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–35 (def: 28)" />
+                        <ImageButton
+                            android:id="@+id/helpLcdBrightness"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- LCD Timeout -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LCD Timeout (s, 0=Off)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editLcdTimeout" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0=Off (def: Off)" />
+                        <ImageButton
+                            android:id="@+id/helpLcdTimeout"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Heartbeat -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Heartbeat (0=Off)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editBreathe" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–30 (def: Off)" />
+                        <ImageButton
+                            android:id="@+id/helpBreathe"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Dim Brightness -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Dim Brightness (0=Off)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editLcdDim" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–14 (def: Off)" />
+                        <ImageButton
+                            android:id="@+id/helpLcdDim"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- LCD Gamma -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LCD Gamma" android:textSize="14sp" />
+                        <EditText android:id="@+id/editLcdGamma" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–255 (def: 0)" />
+                        <ImageButton
+                            android:id="@+id/helpLcdGamma"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- LCD Inverted -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="LCD Inverted (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchLcdInverted" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpLcdInverted"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- S-Bar Style -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="S-Bar Style (def: Segment)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerSBarStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpSBarStyle"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- S-Bar Persistent -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="S-Bar Persistent (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchSBarPersistent" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpSBarPersistent"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 3. TX SETTINGS                                                  -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="TX SETTINGS"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- TX Mod Meter -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="TX Mod Meter (def: On)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchTxModMeter" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpTxModMeter"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- TX Timeout -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="TX Timeout (s, 0=Off)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editTxTimeout" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0=Off (def: 120)" />
+                        <ImageButton
+                            android:id="@+id/helpTxTimeout"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- TX Sub Tone Deviation -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="TX Sub Tone Deviation" android:textSize="14sp" />
+                        <EditText android:id="@+id/editTxDeviation" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–127 (def: 64)" />
+                        <ImageButton
+                            android:id="@+id/helpTxDeviation"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- PTT Mode -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PTT Mode (def: Dual)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerPttMode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpPttMode"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- TX Filter Trans ⚠ -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="TX Filter Trans ⚠" android:textSize="14sp" />
+                        <EditText android:id="@+id/editTxFilterTrans" android:layout_width="100dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:gravity="end" android:hint="280.0 (default)" />
+                        <ImageButton
+                            android:id="@+id/helpTxFilterTrans"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- TX Current -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="TX Current (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchShowXmitCurrent" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpShowXmitCurrent"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Repeater Tone -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Repeater Tone (Hz)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editRepeaterTone" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="Hz (def: 1750)" />
+                        <ImageButton
+                            android:id="@+id/helpRepeaterTone"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 4. RX &amp; TUNING                                              -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="RX &amp; TUNING"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- Step -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Step (def: 5.0 kHz)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerStep" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="110dp" />
+                        <ImageButton
+                            android:id="@+id/helpStep"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AF Filters -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AF Filters (def: All)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerAfFilters" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="150dp" />
+                        <ImageButton
+                            android:id="@+id/helpAfFilters"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- IF Freq -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="IF Freq (def: 8.46 kHz)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerIfFreq" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="120dp" />
+                        <ImageButton
+                            android:id="@+id/helpIfFreq"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- RFi Comp -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="RFi Comp (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerRfiComp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="72dp" />
+                        <ImageButton
+                            android:id="@+id/helpRfiComp"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AGC 0 -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AGC 0" android:textSize="14sp" />
+                        <EditText android:id="@+id/editAgc0" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–63 (def: 24)" />
+                        <ImageButton
+                            android:id="@+id/helpAgc0"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AGC 1 -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AGC 1" android:textSize="14sp" />
+                        <EditText android:id="@+id/editAgc1" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–63 (def: 32)" />
+                        <ImageButton
+                            android:id="@+id/helpAgc1"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AGC 2 -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AGC 2" android:textSize="14sp" />
+                        <EditText android:id="@+id/editAgc2" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–63 (def: 37)" />
+                        <ImageButton
+                            android:id="@+id/helpAgc2"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AGC 3 -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AGC 3" android:textSize="14sp" />
+                        <EditText android:id="@+id/editAgc3" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–63 (def: 40)" />
+                        <ImageButton
+                            android:id="@+id/helpAgc3"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AM AGC Fix -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AM AGC Fix (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchAmAgcFix" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpAmAgcFix"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 5. SCAN                                                         -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SCAN"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- Dual Watch -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Dual Watch (def: On)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchDualWatch" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpDualWatch"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Scan Resume -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Scan Resume (s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editScanResume" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–30 (def: 10)" />
+                        <ImageButton
+                            android:id="@+id/helpScanResume"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Scan Range -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Scan Range (MHz)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editScanRange" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:gravity="end" android:hint="MHz (def: 1.00)" />
+                        <ImageButton
+                            android:id="@+id/helpScanRange"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Scan Persist -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Scan Persist (s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editScanPersist" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:gravity="end" android:hint="s (def: Off)" />
+                        <ImageButton
+                            android:id="@+id/helpScanPersist"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Scan Update -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Scan Update (×0.1 s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editScanUpdate" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="×0.1 s (def: 0)" />
+                        <ImageButton
+                            android:id="@+id/helpScanUpdate"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Ultrascan -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Ultrascan (0=Off, def: 7)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editUltraScan" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–7 (def: 7)" />
+                        <ImageButton
+                            android:id="@+id/helpUltraScan"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 6. VOX                                                          -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="VOX"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- VOX Level -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="VOX Level (0=Off, 1–15)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editVox" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–15 (def: Off)" />
+                        <ImageButton
+                            android:id="@+id/helpVox"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- VOX Tail -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="VOX Tail (s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editVoxTail" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:gravity="end" android:hint="s (def: 2.0)" />
+                        <ImageButton
+                            android:id="@+id/helpVoxTail"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 7. TONES &amp; KEYS                                             -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="TONES &amp; KEYS"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- Tone Monitor -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Tone Monitor (def: On)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerToneMonitor" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpToneMonitor"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Key Tones -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Key Tones (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerKeyTones" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="130dp" />
+                        <ImageButton
+                            android:id="@+id/helpKeyTones"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Sub-Tone Deviation -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Sub-Tone Deviation" android:textSize="14sp" />
+                        <EditText android:id="@+id/editSubToneDev" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–255 (def: 74)" />
+                        <ImageButton
+                            android:id="@+id/helpSubToneDev"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 8. DTMF                                                         -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DTMF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- DTMF Volume -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DTMF Volume" android:textSize="14sp" />
+                        <EditText android:id="@+id/editDtmfDev" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–255 (def: 80)" />
+                        <ImageButton
+                            android:id="@+id/helpDtmfDev"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- DTMF Speed -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DTMF Speed" android:textSize="14sp" />
+                        <EditText android:id="@+id/editDtmfSpeed" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–15 (def: 11)" />
+                        <ImageButton
+                            android:id="@+id/helpDtmfSpeed"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- DTMF Decode -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DTMF Decode (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerDtmfDecode" android:layout_width="140dp" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpDtmfDecode"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- DTMF Seq End Pause -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DTMF Seq End Pause (s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editDtmfSeqEndPause" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:gravity="end" android:hint="s (def: 1.0)" />
+                        <ImageButton
+                            android:id="@+id/helpDtmfSeqEndPause"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 9. SYSTEM                                                       -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SYSTEM"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- Battery Style -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Battery Style (def: Percent)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerBattStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="120dp" />
+                        <ImageButton
+                            android:id="@+id/helpBattStyle"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Bluetooth -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Bluetooth (def: On)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchBluetooth" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpBluetooth"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Power Save -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Power Save (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerPowerSave" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpPowerSave"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- DW Start Delay -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DW Start Delay (s)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editDwDelay" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–15 (def: 5)" />
+                        <ImageButton
+                            android:id="@+id/helpDwDelay"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- DW VFO Lock -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="DW VFO Lock (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchVfoLockActive" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpVfoLockActive"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- AllStar Link -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AllStar Link (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerAsl" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="100dp" />
+                        <ImageButton
+                            android:id="@+id/helpAsl"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Disable FM Tuner -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Disable FM Tuner (def: Off)" android:textSize="14sp" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchDisableFmt" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpDisableFmt"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- Scrambler IF ⚠  (Off / 2600–3500 Hz; 3400/3500 Hz options unverified) -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Scrambler IF ⚠ (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerScramblerIf" android:layout_width="140dp" android:layout_height="wrap_content" />
+                        <ImageButton
+                            android:id="@+id/helpScramblerIf"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- 10. SECURITY                                                    -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SECURITY"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:paddingStart="4dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="8dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <!-- PIN -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PIN (0–9999)" android:textSize="14sp" />
+                        <EditText android:id="@+id/editPin" android:layout_width="80dp" android:layout_height="wrap_content" android:inputType="number" android:gravity="end" android:hint="0–9999 (def: 1234)" />
+                        <ImageButton
+                            android:id="@+id/helpPin"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#1A000000" />
+
+                    <!-- PIN Action -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PIN Action (def: Off)" android:textSize="14sp" />
+                        <Spinner android:id="@+id/spinnerPinAction" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="110dp" />
+                        <ImageButton
+                            android:id="@+id/helpPinAction"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_help_hint"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Help" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ── Bottom action buttons ──────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnSettingsCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSettingsSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save Settings" />
+
+    </LinearLayout>
+
+</LinearLayout>

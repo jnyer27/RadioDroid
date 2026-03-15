@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RadioDroid</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connected">Connected: %1$s</string>
+    <string name="load_from_radio">Load from radio</string>
+    <string name="save_to_radio">Save to radio</string>
+    <string name="channels">Channels (1–198)</string>
+    <string name="channel_number">Ch %1$d</string>
+    <string name="empty_channel">Empty</string>
+    <string name="cloning">Cloning… %1$d / %2$d</string>
+    <string name="save_confirm_title">Save to radio?</string>
+    <string name="save_confirm_message">This will overwrite the radio memory. Continue?</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="edit_channel">Edit channel</string>
+    <string name="frequency_rx">RX Frequency (MHz)</string>
+    <string name="frequency_tx">TX / Offset</string>
+    <string name="channel_name">Name (max 12)</string>
+    <string name="power">Power</string>
+    <string name="mode">Mode</string>
+    <string name="bandwidth">Bandwidth</string>
+    <string name="duplex">Duplex</string>
+    <string name="ctcss_dcs">CTCSS / DCS</string>
+    <string name="groups">Groups</string>
+    <string name="tx_tone">TX Tone</string>
+    <string name="rx_tone">RX Tone</string>
+</resources>

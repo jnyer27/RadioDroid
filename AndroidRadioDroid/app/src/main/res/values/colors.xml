@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="secondary">#FF9800</color>
+    <color name="on_secondary">#000000</color>
+    <color name="empty_channel_bg">#E0E0E0</color>
+</resources>

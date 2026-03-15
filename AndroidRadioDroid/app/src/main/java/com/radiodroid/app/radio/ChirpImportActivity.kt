@@ -1,0 +1,302 @@
+package com.radiodroid.app
+
+import android.os.Build
+import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import com.radiodroid.app.databinding.ActivityChirpImportBinding
+import com.radiodroid.app.radio.ChirpCsvImporter
+import com.radiodroid.app.radio.EepromConstants
+import com.radiodroid.app.radio.EepromParser
+
+/**
+ * Shows a preview of channels parsed from a CHIRP CSV and lets the user:
+ *  1. Assign up to 4 groups to all imported channels at once.
+ *  2. Confirm the import, which writes channels into the first available empty
+ *     EEPROM slots without touching any used channel.
+ *
+ * Launched by [MainActivity] after the user picks a CSV file.
+ * Writes directly into [EepromHolder.eeprom]; MainActivity refreshes on resume.
+ */
+class ChirpImportActivity : AppCompatActivity() {
+
+    companion object {
+        /** Intent extra — the full text content of the CHIRP CSV file. */
+        const val EXTRA_CSV_TEXT = "csv_text"
+        /** Intent extra — optional comment column text shown in preview rows. */
+        const val EXTRA_COMMENTS = "csv_comments"
+    }
+
+    private lateinit var binding: ActivityChirpImportBinding
+
+    /** Parsed CHIRP entries (channel.number == 0 until slot is assigned). */
+    private lateinit var entries: List<ChirpCsvImporter.ChirpEntry>
+
+    /** Comment strings parallel to [entries] (may be empty strings). */
+    private var comments: List<String> = emptyList()
+
+    /** Channel numbers of empty slots in slot order (1-based). */
+    private lateinit var emptySlots: List<Int>
+
+    /** Valid starting indices into [emptySlots] from which all entries fit. */
+    private lateinit var validStartIndices: List<Int>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityChirpImportBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
+            insets
+        }
+
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
+        // ── Guard: need EEPROM loaded ─────────────────────────────────────────
+        val eep = EepromHolder.eeprom
+        if (eep == null) {
+            Toast.makeText(this, "No EEPROM loaded — load from radio first", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        // ── Parse CSV ─────────────────────────────────────────────────────────
+        val csvText = intent.getStringExtra(EXTRA_CSV_TEXT) ?: ""
+        entries = ChirpCsvImporter.parse(csvText)
+
+        @Suppress("UNCHECKED_CAST", "DEPRECATION")
+        comments = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getSerializableExtra(EXTRA_COMMENTS, ArrayList::class.java) as? ArrayList<String>
+        } else {
+            intent.getSerializableExtra(EXTRA_COMMENTS) as? ArrayList<String>
+        } ?: List(entries.size) { "" }
+
+        if (entries.isEmpty()) {
+            Toast.makeText(this, "No valid channels found in CSV", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        // ── Find empty slots ──────────────────────────────────────────────────
+        emptySlots = EepromParser.parseAllChannels(eep)
+            .filter { it.empty }
+            .map { it.number }
+
+        validStartIndices = if (entries.size <= emptySlots.size) {
+            (0..emptySlots.size - entries.size).toList()
+        } else {
+            emptyList()
+        }
+
+        val canImport = minOf(entries.size, emptySlots.size)
+
+        // ── Summary text ──────────────────────────────────────────────────────
+        binding.textImportSummary.text = buildString {
+            appendLine("${entries.size} channel(s) in CSV · ${emptySlots.size} empty slot(s) available")
+            if (canImport == 0) {
+                append("⚠ No empty slots — cannot import. Save existing channels to radio first.")
+            } else if (entries.size > emptySlots.size) {
+                append("⚠ Only $canImport of ${entries.size} channels will be imported (not enough empty slots)")
+            } else {
+                append("✓ All ${entries.size} channels will be imported")
+            }
+        }
+
+        // ── Group spinners ────────────────────────────────────────────────────
+        setupGroupSpinners()
+
+        // ── TX Power spinner ──────────────────────────────────────────────────
+        setupPowerSpinner()
+
+        // ── Starting channel spinner ──────────────────────────────────────────
+        setupStartSlotSpinner()
+
+        // ── Preview rows ──────────────────────────────────────────────────────
+        buildPreview()
+
+        // ── Buttons ───────────────────────────────────────────────────────────
+        binding.btnImportCancel.setOnClickListener { finish() }
+        binding.btnImportConfirm.isEnabled = canImport > 0
+        binding.btnImportConfirm.setOnClickListener { doImport(eep) }
+    }
+
+    // ── TX Power spinner ──────────────────────────────────────────────────────
+
+    /**
+     * "From CSV" (position 0) preserves the power value parsed from each CSV row.
+     * Any other position selects a value from [EepromConstants.POWERLEVEL_LIST] and
+     * overrides the power on every imported channel uniformly.
+     */
+    private fun setupPowerSpinner() {
+        val items = listOf("From CSV") + EepromConstants.POWERLEVEL_LIST
+        binding.spinnerImportPower.adapter =
+            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
+        // Default to "From CSV" (index 0)
+        binding.spinnerImportPower.setSelection(0)
+    }
+
+    // ── Group spinners ────────────────────────────────────────────────────────
+
+    private fun setupGroupSpinners() {
+        val labels = EepromHolder.groupLabels
+        val items: List<String> = buildList {
+            add("None")
+            EepromConstants.GROUP_LETTERS.forEachIndexed { i, letter ->
+                val label = labels.getOrNull(i)?.trim() ?: ""
+                add(if (label.isEmpty()) letter else "$letter – $label")
+            }
+        }
+        val makeAdapter = {
+            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
+        }
+        listOf(
+            binding.spinnerImportGroup1,
+            binding.spinnerImportGroup2,
+            binding.spinnerImportGroup3,
+            binding.spinnerImportGroup4
+        ).forEach { it.adapter = makeAdapter() }
+    }
+
+    // ── Starting channel spinner ──────────────────────────────────────────────
+
+    private fun setupStartSlotSpinner() {
+        if (validStartIndices.isEmpty()) {
+            binding.labelStartSlot.visibility = View.GONE
+            binding.spinnerStartSlot.visibility = View.GONE
+            return
+        }
+        val labels = validStartIndices.map { "Ch ${emptySlots[it]}" }
+        binding.spinnerStartSlot.adapter =
+            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, labels)
+        binding.spinnerStartSlot.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: AdapterView<*>?, view: View?, position: Int, id: Long
+                ) = buildPreview()
+                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            }
+    }
+
+    /** Destination slot list based on the current starting channel spinner selection. */
+    private fun currentSlots(): List<Int> {
+        if (validStartIndices.isEmpty()) return emptySlots.take(entries.size)
+        val startIdx = validStartIndices.getOrElse(
+            binding.spinnerStartSlot.selectedItemPosition) { 0 }
+        return emptySlots.subList(startIdx, startIdx + entries.size)
+    }
+
+    // ── Preview list ──────────────────────────────────────────────────────────
+
+    private fun buildPreview() {
+        val slots     = currentSlots()
+        val canImport = slots.size
+        val container = binding.previewContainer
+        container.removeAllViews()
+
+        for (i in 0 until canImport) {
+            val entry = entries[i]
+            val slot  = slots[i]
+            val ch    = entry.channel
+
+            val row = layoutInflater.inflate(R.layout.item_import_preview, container, false)
+
+            row.findViewById<TextView>(R.id.importSlot).text = "→ Ch $slot"
+            row.findViewById<TextView>(R.id.importName).text =
+                ch.name.ifBlank { "(no name)" }
+            row.findViewById<TextView>(R.id.importFreq).text =
+                "%.4f MHz".format(ch.freqRxHz / 1_000_000.0)
+
+            // Tone summary
+            val toneText = buildString {
+                val tx = ch.displayTxTone()
+                val rx = ch.displayRxTone()
+                if (tx.isNotEmpty()) append("T: $tx  ")
+                if (rx.isNotEmpty()) append("R: $rx")
+            }.trim()
+            val toneView = row.findViewById<TextView>(R.id.importTone)
+            if (toneText.isNotEmpty()) toneView.text = toneText
+            else toneView.visibility = View.GONE
+
+            // Comment (CSV Location + optional comment column)
+            val comment = comments.getOrNull(i)?.trim() ?: ""
+            val commentView = row.findViewById<TextView>(R.id.importComment)
+            val commentText = buildString {
+                append("CSV #${entry.csvLocation}")
+                if (comment.isNotEmpty()) append(" · $comment")
+            }
+            commentView.text = commentText
+
+            container.addView(row)
+        }
+
+        // Warn about channels that won't fit
+        if (entries.size > emptySlots.size) {
+            val skipped = entries.size - emptySlots.size
+            val warn = TextView(this)
+            warn.text = "($skipped channel(s) skipped — not enough empty slots)"
+            @Suppress("DEPRECATION")
+            warn.setTextColor(resources.getColor(android.R.color.holo_orange_dark))
+            warn.setPadding(8, 12, 8, 4)
+            container.addView(warn)
+        }
+    }
+
+    // ── Import action ─────────────────────────────────────────────────────────
+
+    private fun doImport(eep: ByteArray) {
+        val slots     = currentSlots()
+        val canImport = slots.size
+
+        // Read group selections
+        fun groupAt(spinner: Spinner) =
+            EepromConstants.GROUPS_LIST.getOrNull(spinner.selectedItemPosition) ?: "None"
+
+        val g1 = groupAt(binding.spinnerImportGroup1)
+        val g2 = groupAt(binding.spinnerImportGroup2)
+        val g3 = groupAt(binding.spinnerImportGroup3)
+        val g4 = groupAt(binding.spinnerImportGroup4)
+
+        // Position 0 = "From CSV" (no override); positions 1+ map to POWERLEVEL_LIST index 0+
+        val powerPos = binding.spinnerImportPower.selectedItemPosition
+        val powerOverride: String? = if (powerPos > 0)
+            EepromConstants.POWERLEVEL_LIST.getOrNull(powerPos - 1)
+        else null
+
+        for (i in 0 until canImport) {
+            val slot = slots[i]
+            val ch   = entries[i].channel.copy(
+                number = slot,
+                group1 = g1,
+                group2 = g2,
+                group3 = g3,
+                group4 = g4,
+                power  = powerOverride ?: entries[i].channel.power,
+            )
+            EepromParser.writeChannel(eep, ch)
+        }
+
+        // Persist in EepromHolder so MainActivity picks it up on resume
+        EepromHolder.eeprom = eep
+
+        Toast.makeText(
+            this,
+            "Imported $canImport channel(s). Tap Save to upload to radio.",
+            Toast.LENGTH_LONG
+        ).show()
+
+        setResult(RESULT_OK)
+        finish()
+    }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Reusable row for the Group Label editor: letter badge + text input -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginBottom="8dp">
+
+    <!-- Group letter badge -->
+    <TextView
+        android:id="@+id/groupLetter"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        android:background="@android:color/transparent"
+        android:text="A" />
+
+    <!-- Label text field (max 5 chars — 6th EEPROM byte is the null terminator) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:hint="Label (max 5 chars)"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/groupLabelInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLength="5"
+            android:maxLines="1"
+            android:inputType="text|textCapCharacters" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>

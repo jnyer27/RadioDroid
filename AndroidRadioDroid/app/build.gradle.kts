@@ -1,0 +1,70 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    id("com.chaquo.python")
+}
+
+android {
+    namespace = "com.radiodroid.app"
+    compileSdk = libs.versions.compileSdk.get().toInt()
+
+    defaultConfig {
+        applicationId = "com.radiodroid.app"
+        minSdk = libs.versions.minSdk.get().toInt()
+        targetSdk = libs.versions.targetSdk.get().toInt()
+        versionCode = 1
+        versionName = "1.0.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        viewBinding = true
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        buildPython("C:/Users/jason/AppData/Local/Programs/Python/Python312/python.exe")
+        version = "3.12"
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+dependencies {
+    testImplementation(libs.junit)
+    implementation(libs.core.ktx)
+    implementation(libs.appcompat)
+    implementation(libs.material)
+    implementation(libs.constraintlayout)
+    implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.coordinatorlayout)
+    implementation(libs.recyclerview)
+    implementation(libs.kotlinx.coroutines.android)
+    // USB OTG serial (Kotlin/Java side)
+    implementation("com.github.mik3y:usb-serial-for-android:3.7.3")
+}

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Lightbulb with "?" — context help indicator icon (24×24dp).
+    Gray (#9E9E9E) baked in; no runtime tint needed.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!--
+        Lightbulb outline:
+          - Round bulb (top): arc from ~220° to ~320°, radius ≈7
+          - Straight sides down to the base collar
+          - Base collar: two short horizontal lines
+          - Base cap: short rectangle at bottom
+        Drawn as a single compound path.
+    -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF9E9E9E"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="
+            M9,17 L9,19 Q9,20 10,20 L14,20 Q15,20 15,19 L15,17
+            M10,21 L14,21
+            M9,17 C6.5,15.6 5,13 5,10 A7,7 0 1,1 19,10 C19,13 17.5,15.6 15,17
+        " />
+
+    <!-- Question mark inside the bulb -->
+    <path
+        android:fillColor="#FF9E9E9E"
+        android:pathData="
+            M11.3,13.5 L12.7,13.5 L12.7,14.8 L11.3,14.8 Z
+            M12,7.5 C10.62,7.5 9.5,8.62 9.5,10 L10.9,10
+            C10.9,9.4 11.4,8.9 12,8.9 C12.6,8.9 13.1,9.4 13.1,10
+            C13.1,10.6 12.7,11.0 12.2,11.3 C11.5,11.7 11.3,12.2 11.3,12.8
+            L12.7,12.8 C12.7,12.4 12.9,12.1 13.4,11.8
+            C14.1,11.4 14.5,10.75 14.5,10
+            C14.5,8.62 13.38,7.5 12,7.5 Z
+        " />
+</vector>

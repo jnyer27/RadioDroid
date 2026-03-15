@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:title="Sort Channels by Group" />
+
+    <!-- Instruction / summary -->
+    <TextView
+        android:id="@+id/textSortSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:textSize="13sp"
+        android:lineSpacingMultiplier="1.3" />
+
+    <!-- Draggable group list (fills remaining space) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerSortGroups"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp" />
+
+    <!-- Footer: notes about ungrouped and empty slots -->
+    <TextView
+        android:id="@+id/textSortFooter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:lineSpacingMultiplier="1.3" />
+
+    <!-- Sticky bottom buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnSortCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSortConfirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sort Channels" />
+
+    </LinearLayout>
+
+</LinearLayout>

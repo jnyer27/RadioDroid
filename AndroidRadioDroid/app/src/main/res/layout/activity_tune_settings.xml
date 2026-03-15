@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tune Settings editor — reads and writes the 5-byte calibration block at 0x1DFB.
+    Mirrors the "Tuning2 → Tune Settings" tab of the nicFW Programmer desktop app.
+
+    Fields exposed:
+        VHF Power Setting Cap  (maxPowerSettingVHF  @ 0x1DFF)
+        UHF Power Setting Cap  (maxPowerSettingUHF  @ 0x1DFD)
+        XTAL 671               (xtal671             @ 0x1DFB, signed)
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:title="Tune Settings" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- ── Info banner ───────────────────────────────────────────── -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="12dp"
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="?android:attr/textColorSecondary"
+                android:text="Per-radio calibration values stored at EEPROM 0x1DFB. The radio enforces the VHF/UHF power caps at transmit time — stored channel power bytes are NOT changed. XTAL 671 corrects crystal oscillator error." />
+
+            <!-- ── ⚠ Clone warning ───────────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="8dp"
+                app:cardBackgroundColor="#FFF3CD"
+                app:strokeColor="#FFCC00"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:textSize="12sp"
+                    android:lineSpacingMultiplier="1.4"
+                    android:textColor="#7D5700"
+                    android:text="⚠  These are per-radio values. Cloning an EEPROM from another radio will copy them. Set these values individually for each physical radio." />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Protect Tune Settings ──────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardProtect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="8dp"
+                app:cardBackgroundColor="#E8F5E9"
+                app:strokeColor="#4CAF50"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="12dp"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Protect Tune Settings"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="#1B5E20" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="When on, these fields are read-only — changes are NOT written. Write to Radio auto-reads target calibration."
+                            android:textSize="12sp"
+                            android:lineSpacingMultiplier="1.3"
+                            android:textColor="#2E7D32" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchProtectTune"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp" />
+
+                    <ImageButton
+                        android:id="@+id/helpProtectTune"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="4dp"
+                        android:src="@drawable/ic_help_hint"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Help" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VHF Power Setting Cap                                      -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="VHF Power Setting Cap"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingBottom="2dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Maximum raw power byte allowed on VHF (136–174 MHz). Radio silently clamps channel TX power to this value."
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="?android:attr/textColorSecondary"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="16dp">
+
+                <android.widget.NumberPicker
+                    android:id="@+id/pickerVhfCap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/textVhfCapWatts"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="≈ 5.0 W"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorPrimary" />
+
+                <ImageButton
+                    android:id="@+id/helpVhfCap"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/ic_help_hint"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Help" />
+
+            </LinearLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- UHF Power Setting Cap                                      -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="UHF Power Setting Cap"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingBottom="2dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Maximum raw power byte allowed on UHF (400–480 MHz). Radio silently clamps channel TX power to this value."
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="?android:attr/textColorSecondary"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="16dp">
+
+                <android.widget.NumberPicker
+                    android:id="@+id/pickerUhfCap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/textUhfCapWatts"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="≈ 5.0 W"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorPrimary" />
+
+                <ImageButton
+                    android:id="@+id/helpUhfCap"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/ic_help_hint"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Help" />
+
+            </LinearLayout>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- XTAL 671                                                   -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="XTAL 671 (Crystal Calibration)"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:paddingBottom="2dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Signed crystal offset (-128 to +127). Use the XTAL 671 Calculator (⋮ menu) to compute this value from a measured frequency error."
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.3"
+                android:textColor="?android:attr/textColorSecondary"
+                android:paddingBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="4dp">
+
+                <android.widget.NumberPicker
+                    android:id="@+id/pickerXtal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/textXtalHint"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text=""
+                    android:textSize="13sp"
+                    android:lineSpacingMultiplier="1.3"
+                    android:textColor="?android:attr/textColorSecondary" />
+
+                <ImageButton
+                    android:id="@+id/helpXtal671"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/ic_help_hint"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Help" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ── Bottom action buttons ──────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/btnTuneCancel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnTuneSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save Tune Settings" />
+
+    </LinearLayout>
+
+</LinearLayout>
