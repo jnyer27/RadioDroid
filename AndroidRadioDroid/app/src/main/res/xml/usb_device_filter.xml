@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    USB device filter for RadioDroid.
+
+    Lists common USB-to-serial adapter VID/PID combos used by handheld radios.
+    Android uses this to decide whether to show "Open RadioDroid?" when a USB
+    device is plugged in.  Users can also connect from within the app via the
+    USB OTG menu option — the filter list here does not restrict which devices
+    can be opened programmatically.
+
+    Common chips:
+      CP210x (Silicon Labs)  — VID 0x10C4, PID 0xEA60
+      FTDI FT232             — VID 0x0403, PID 0x6001
+      CH340/CH341            — VID 0x1A86, PID 0x7523
+      Prolific PL2303        — VID 0x067B, PID 0x2303
+      Kenwood KPG-22U        — VID 0x0404, PID 0x0232 (FTDI variant)
+-->
+<resources>
+    <!-- Silicon Labs CP210x (most common — Baofeng, TYT, Retevis, etc.) -->
+    <usb-device vendor-id="4292" product-id="60000" />
+
+    <!-- FTDI FT232RL -->
+    <usb-device vendor-id="1027" product-id="24577" />
+
+    <!-- WCH CH340/CH341 -->
+    <usb-device vendor-id="6790" product-id="29987" />
+
+    <!-- Prolific PL2303 -->
+    <usb-device vendor-id="1659" product-id="8963" />
+</resources>

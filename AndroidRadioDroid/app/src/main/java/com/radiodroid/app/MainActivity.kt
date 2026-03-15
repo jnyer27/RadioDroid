@@ -1,10 +1,15 @@
 package com.radiodroid.app
 
 import android.Manifest
+import android.app.PendingIntent
 import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -27,12 +32,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.hoho.android.usbserial.driver.UsbSerialDriver
 import com.radiodroid.app.bluetooth.BleManager
 import com.radiodroid.app.bluetooth.BtSerialManager
+import com.radiodroid.app.bridge.BleBridge
+import com.radiodroid.app.bridge.ChirpBridge
+import com.radiodroid.app.bridge.UsbSerialBridge
 import com.radiodroid.app.databinding.ActivityMainBinding
 import android.text.Editable
 import android.text.TextWatcher
-import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 import com.radiodroid.app.radio.ChirpCsvExporter
@@ -57,18 +65,27 @@ class MainActivity : AppCompatActivity() {
     // Classic Bluetooth SPP (fallback for older radios / already-paired devices)
     private lateinit var btManager: BtSerialManager
 
-    // BLE — primary connection method for nicFW TD-H3
+    // BLE — primary wireless connection method
     private lateinit var bleManager: BleManager
 
-    /** Whichever connection (BLE or SPP) is currently active. Null when disconnected. */
+    // USB OTG serial bridge
+    private lateinit var usbBridge: UsbSerialBridge
+
+    // BLE → LocalSocket relay (created after BLE connects, before Python talks to it)
+    private var bleBridge: BleBridge? = null
+
+    /** Whichever BLE/SPP stream is active. Null when disconnected. */
     private var activeStream: RadioStream? = null
     private var activeDeviceName: String? = null
 
-    /** Currently selected radio model (set by RadioSelectActivity). */
+    /** Currently selected radio model (set by RadioSelectActivity or restored from prefs). */
     private var selectedRadio: RadioInfo? = null
 
     /** Serial port string for the active connection ("android://radiodroid_ble" etc.). */
     private var activePort: String? = null
+
+    /** Pending USB permission BroadcastReceiver — unregistered after one use. */
+    private var usbPermissionReceiver: BroadcastReceiver? = null
 
     private var eeprom: ByteArray? = null
     private var channelList: List<Channel> = emptyList()
@@ -115,6 +132,26 @@ class MainActivity : AppCompatActivity() {
         if (results.values.any { !it }) {
             Toast.makeText(this, "Bluetooth permission required", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // ─── Radio select launcher ────────────────────────────────────────────────
+    /**
+     * Receives the radio model chosen in [RadioSelectActivity].
+     * Extracts vendor / model / baudRate and stores in [selectedRadio], then
+     * updates the connection status bar so the user can see the active selection.
+     */
+    private val radioSelectLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val data     = result.data ?: return@registerForActivityResult
+        val vendor   = data.getStringExtra(RadioSelectActivity.EXTRA_VENDOR)    ?: return@registerForActivityResult
+        val model    = data.getStringExtra(RadioSelectActivity.EXTRA_MODEL)     ?: return@registerForActivityResult
+        val baudRate = data.getIntExtra(RadioSelectActivity.EXTRA_BAUD_RATE, 9600)
+        selectedRadio = RadioInfo(vendor, model, baudRate)
+        updateConnectionUi()
+        invalidateOptionsMenu()
+        Toast.makeText(this, "Radio: $vendor $model", Toast.LENGTH_SHORT).show()
     }
 
     // ─── CHIRP CSV import ─────────────────────────────────────────────────────
@@ -225,8 +262,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         setSupportActionBar(binding.toolbar)
-        btManager = BtSerialManager(this)
+        btManager  = BtSerialManager(this)
         bleManager = BleManager(this)
+        usbBridge  = UsbSerialBridge(this)
+
+        // Restore last selected radio so the user doesn't have to re-pick on every launch
+        val prefs = getSharedPreferences(RadioSelectActivity.PREFS_FILE, MODE_PRIVATE)
+        val lastVendor = prefs.getString(RadioSelectActivity.PREF_VENDOR, null)
+        val lastModel  = prefs.getString(RadioSelectActivity.PREF_MODEL,  null)
+        if (lastVendor != null && lastModel != null) {
+            val lastBaud = prefs.getInt(RadioSelectActivity.PREF_BAUD, 9600)
+            selectedRadio = RadioInfo(lastVendor, lastModel, lastBaud)
+        }
 
         binding.recyclerChannels.layoutManager = LinearLayoutManager(this)
         binding.recyclerChannels.adapter = adapter
@@ -499,7 +546,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.action_select_radio -> {
-                startActivity(Intent(this, RadioSelectActivity::class.java))
+                radioSelectLauncher.launch(Intent(this, RadioSelectActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -523,6 +570,9 @@ class MainActivity : AppCompatActivity() {
         scanTimeoutHandler.removeCallbacks(stopScanRunnable)
         bleManager.stopScan()
         bleManager.disconnect()
+        bleBridge?.close()
+        usbBridge.close()
+        usbPermissionReceiver?.let { runCatching { unregisterReceiver(it) } }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -552,29 +602,135 @@ class MainActivity : AppCompatActivity() {
     // Connection management
     // ─────────────────────────────────────────────────────────────────────────
 
-    private fun isAnyConnected() = activeStream != null
+    /**
+     * True when any transport is active:
+     *  - [activePort] is set  → USB OTG or BLE (via BleBridge LocalSocket)
+     *  - [activeStream] only  → Classic SPP (no Python CHIRP port yet; download
+     *                           will fail gracefully if no port)
+     */
+    private fun isAnyConnected() = activePort != null || activeStream != null
 
     private fun disconnectAll() {
         bleManager.disconnect()
         btManager.disconnect()
-        activeStream = null
+        usbBridge.close()
+        bleBridge?.close()
+        bleBridge     = null
+        activeStream  = null
+        activePort    = null
         activeDeviceName = null
     }
 
     /**
-     * Shows the top-level connection picker: BLE scan (primary) or Classic SPP (fallback).
+     * Shows the top-level connection picker:
+     *  - BLE scan (primary for most radios)
+     *  - USB OTG via usb-serial-for-android  ← new Phase 1 path
+     *  - Classic SPP (fallback for legacy paired devices)
      */
     private fun showConnectPicker() {
         AlertDialog.Builder(this)
             .setTitle("Connect to radio")
-            .setItems(arrayOf("Scan for Radio  (BLE)", "Paired Devices  (Classic BT)")) { _, which ->
+            .setItems(arrayOf(
+                "Scan for Radio  (BLE)",
+                "USB OTG  (cable)",
+                "Paired Devices  (Classic BT)"
+            )) { _, which ->
                 when (which) {
                     0 -> startBleScan()
-                    1 -> showPairedDevicePicker()
+                    1 -> startUsbConnection()
+                    2 -> showPairedDevicePicker()
                 }
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // USB OTG connection flow
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Enumerates USB serial devices via [UsbSerialBridge.listDrivers()].
+     * If a device is found, requests USB permission then opens the LocalSocket relay.
+     */
+    private fun startUsbConnection() {
+        val drivers = usbBridge.listDrivers()
+        when {
+            drivers.isEmpty() -> Toast.makeText(
+                this,
+                "No USB serial device found — connect radio via OTG cable and try again.",
+                Toast.LENGTH_LONG
+            ).show()
+
+            drivers.size == 1 -> requestUsbPermission(drivers[0])
+
+            else -> {
+                // Multiple USB devices — let the user pick
+                val names = drivers.map { it.device.deviceName }.toTypedArray()
+                AlertDialog.Builder(this)
+                    .setTitle("Select USB device")
+                    .setItems(names) { _, which -> requestUsbPermission(drivers[which]) }
+                    .setNegativeButton(getString(R.string.cancel), null)
+                    .show()
+            }
+        }
+    }
+
+    /**
+     * Requests Android USB host permission for [driver].
+     * If already granted, opens the bridge immediately.
+     * Otherwise registers a one-shot BroadcastReceiver for the result.
+     */
+    private fun requestUsbPermission(driver: UsbSerialDriver) {
+        val manager = getSystemService(USB_SERVICE) as UsbManager
+        if (manager.hasPermission(driver.device)) {
+            openUsbBridge(driver)
+            return
+        }
+        // One-shot receiver — unregisters itself after the permission dialog resolves
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                if (intent.action != ACTION_USB_PERMISSION) return
+                val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                unregisterReceiver(this)
+                usbPermissionReceiver = null
+                runOnUiThread {
+                    if (granted) {
+                        openUsbBridge(driver)
+                    } else {
+                        Toast.makeText(this@MainActivity, "USB permission denied", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        usbPermissionReceiver = receiver
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            PendingIntent.FLAG_IMMUTABLE else 0
+        val permIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), flags)
+        registerReceiver(receiver, IntentFilter(ACTION_USB_PERMISSION))
+        manager.requestPermission(driver.device, permIntent)
+    }
+
+    /**
+     * Opens [driver] at the selected radio's baud rate and starts the LocalSocket
+     * relay so Python's AndroidSerial can talk to it via "android://radiodroid_usb".
+     */
+    private fun openUsbBridge(driver: UsbSerialDriver) {
+        val radio = selectedRadio ?: run {
+            Toast.makeText(this,
+                "Select a radio model first (⋮ → Select Radio Model…)", Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            usbBridge.close()          // clean up any prior open
+            val port = usbBridge.openSocketBridge(driver, radio.baudRate)
+            activePort       = port
+            activeDeviceName = "USB: ${driver.device.deviceName}"
+            updateConnectionUi()
+            Toast.makeText(this, "USB connected — ${driver.device.deviceName}", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "USB open failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -660,8 +816,13 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 result.fold(
                     onSuccess = { stream ->
-                        activeStream = stream
+                        activeStream     = stream
                         activeDeviceName = bleManager.deviceName()
+                        // Open a LocalSocket relay so Python's AndroidSerial can reach the BLE stream
+                        bleBridge?.close()
+                        val bridge = BleBridge(bleManager)
+                        bleBridge  = bridge
+                        activePort = bridge.openSocketBridge()
                         updateConnectionUi()
                         Toast.makeText(this, "Connected via BLE", Toast.LENGTH_SHORT).show()
                     },
@@ -723,15 +884,23 @@ class MainActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun updateConnectionUi() {
-        val connected = isAnyConnected()
-        binding.statusText.text = if (connected) {
-            getString(R.string.status_connected, activeDeviceName ?: "Radio")
-        } else {
-            getString(R.string.status_disconnected)
+        val connected  = isAnyConnected()
+        val radioLabel = selectedRadio?.displayName
+
+        binding.statusText.text = when {
+            connected && radioLabel != null ->
+                getString(R.string.status_connected, "$radioLabel via ${activeDeviceName ?: "radio"}")
+            connected ->
+                getString(R.string.status_connected, activeDeviceName ?: "radio")
+            radioLabel != null ->
+                "$radioLabel — not connected"
+            else ->
+                getString(R.string.status_disconnected)
         }
         binding.btnConnect.text =
             if (connected) getString(R.string.disconnect) else getString(R.string.connect)
-        binding.btnLoad.isEnabled = connected
+        // Load requires an active port AND a selected radio; save requires channels loaded
+        binding.btnLoad.isEnabled = connected && selectedRadio != null
         binding.btnSave.isEnabled = connected && EepromHolder.channels.isNotEmpty()
     }
 
@@ -1357,5 +1526,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Constants
+    // ─────────────────────────────────────────────────────────────────────────
+
+    companion object {
+        /** Broadcast action for USB host permission results. */
+        private const val ACTION_USB_PERMISSION = "com.radiodroid.app.USB_PERMISSION"
     }
 }

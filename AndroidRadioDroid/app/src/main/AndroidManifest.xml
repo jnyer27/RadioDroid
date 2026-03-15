@@ -28,7 +28,19 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="false">
+            <!--
+                Optional: auto-launch MainActivity when a USB serial device is plugged in.
+                The device_filter.xml restricts this to common radio VID/PID combinations.
+                Users can also connect from within the app via the USB OTG menu option.
+            -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter" />
+        </activity>
         <activity android:name=".ChannelEditActivity" android:exported="false" />
         <activity android:name=".ChannelSortActivity" android:exported="false" />
         <activity android:name=".GroupLabelEditActivity" android:exported="false" />
