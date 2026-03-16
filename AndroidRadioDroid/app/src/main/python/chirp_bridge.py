@@ -286,11 +286,18 @@ def load_custom_driver(path: str) -> list:
     return result
 
 
-def upload(vendor: str, model: str, port: str, baudrate: int, channels: list):
+def upload(vendor: str, model: str, port: str, baudrate: int, channels):
     """Upload channel list back to the radio."""
     _ensure_drivers()
     from chirp import chirp_common
     from serial_shim import AndroidSerial
+
+    # Normalize to native Python list-of-dicts.
+    # When called from Kotlin via callAttr(), 'channels' arrives as a Chaquopy-
+    # wrapped Java ArrayList<LinkedHashMap>.  dict(ch) builds a real Python dict
+    # from any mapping (Java Map supports the Python mapping protocol in Chaquopy),
+    # so all subsequent ch.get(key, default) calls use Python dict semantics.
+    channels = [dict(ch) for ch in channels]
 
     radio_cls  = _find_radio_cls(vendor, model)
     radio      = radio_cls(None)
