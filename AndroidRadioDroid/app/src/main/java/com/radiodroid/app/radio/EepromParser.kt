@@ -19,9 +19,18 @@ object EepromParser {
     fun parseAllChannels(@Suppress("UNUSED_PARAMETER") eep: ByteArray): List<Channel> =
         EepromHolder.channels.toList()
 
-    /** Return the channel for [number] (1-based) from the in-memory list. */
+    /**
+     * Return the channel for [number] (1-based) from the in-memory list.
+     *
+     * Returns a defensive COPY so that ChannelEditActivity can mutate its local
+     * instance without also mutating the object the RecyclerView adapter already
+     * holds.  When [writeChannel] stores the edited copy back and MainActivity's
+     * onResume() calls adapter.submitList(), DiffUtil compares the old (unmutated)
+     * reference against the new (written-back copy) by value — letting it detect
+     * the change and refresh only the affected card.
+     */
     fun parseChannel(@Suppress("UNUSED_PARAMETER") eep: ByteArray, number: Int): Channel? =
-        EepromHolder.channels.getOrNull(number - 1)
+        EepromHolder.channels.getOrNull(number - 1)?.copy()
 
     /**
      * Write [ch] back into the in-memory channel list.

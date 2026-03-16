@@ -137,11 +137,13 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/textLabelPower"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/power"
             android:layout_marginTop="16dp" />
         <LinearLayout
+            android:id="@+id/rowPower"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
@@ -175,11 +177,13 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/textLabelMode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/mode"
             android:layout_marginTop="12dp" />
         <LinearLayout
+            android:id="@+id/rowMode"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
@@ -201,11 +205,13 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/textLabelBandwidth"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/bandwidth"
             android:layout_marginTop="12dp" />
         <LinearLayout
+            android:id="@+id/rowBandwidth"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
@@ -229,6 +235,7 @@
         <!-- ── TX Tone ─────────────────────────────────────────────────────── -->
 
         <TextView
+            android:id="@+id/textLabelTxTone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/tx_tone"
@@ -236,6 +243,7 @@
             android:layout_marginTop="16dp" />
 
         <LinearLayout
+            android:id="@+id/rowTxTone"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
@@ -259,6 +267,7 @@
         <!-- ── RX Tone ─────────────────────────────────────────────────────── -->
 
         <TextView
+            android:id="@+id/textLabelRxTone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/rx_tone"
@@ -266,6 +275,7 @@
             android:layout_marginTop="12dp" />
 
         <LinearLayout
+            android:id="@+id/rowRxTone"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
@@ -289,6 +299,7 @@
         <!-- ── Groups ─────────────────────────────────────────────────────── -->
 
         <TextView
+            android:id="@+id/textLabelGroups"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Groups"
@@ -297,6 +308,7 @@
 
         <!-- Row 1: Group 1 + Group 2 -->
         <LinearLayout
+            android:id="@+id/rowGroups1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -352,6 +364,7 @@
 
         <!-- Row 2: Group 3 + Group 4 -->
         <LinearLayout
+            android:id="@+id/rowGroups2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -392,6 +405,7 @@
 
         <!-- ── Busy Lock ──────────────────────────────────────────────────── -->
         <LinearLayout
+            android:id="@+id/sectionBusyLock"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:orientation="horizontal"
