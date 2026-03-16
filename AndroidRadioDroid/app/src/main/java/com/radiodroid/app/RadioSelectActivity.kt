@@ -314,12 +314,30 @@ class RadioSelectActivity : AppCompatActivity() {
             .apply()
     }
 
+    /**
+     * Deliver the selected radio to whatever started this activity:
+     *
+     *  - If started for result by [MainActivity] (user changing radio model):
+     *    call setResult + finish so the [radioSelectLauncher] callback fires.
+     *
+     *  - If started as the launcher entry point (no calling activity):
+     *    navigate directly to [MainActivity].  MainActivity reads the persisted
+     *    radio from SharedPreferences in its own onCreate — persistLastRadio()
+     *    is always called before deliverResult() for list selections, so the
+     *    prefs are already up-to-date by the time MainActivity starts.
+     */
     private fun deliverResult(radio: RadioInfo) {
-        setResult(RESULT_OK, Intent().apply {
-            putExtra(EXTRA_VENDOR,    radio.vendor)
-            putExtra(EXTRA_MODEL,     radio.model)
-            putExtra(EXTRA_BAUD_RATE, radio.baudRate)
-        })
+        if (callingActivity != null) {
+            // Launched for result (radio model change from within MainActivity)
+            setResult(RESULT_OK, Intent().apply {
+                putExtra(EXTRA_VENDOR,    radio.vendor)
+                putExtra(EXTRA_MODEL,     radio.model)
+                putExtra(EXTRA_BAUD_RATE, radio.baudRate)
+            })
+        } else {
+            // Launched as app entry point — start MainActivity directly
+            startActivity(Intent(this, MainActivity::class.java))
+        }
         finish()
     }
 
