@@ -9,6 +9,7 @@
 .cxx
 *.jks
 *.keystore
+AndroidRadioDroid/app/keystore.properties
 AndroidRadioDroid/app/build/
 AndroidRadioDroid/build/
 AndroidRadioDroid/local.properties

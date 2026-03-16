@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,6 +10,22 @@ plugins {
 android {
     namespace = "com.radiodroid.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
+
+    signingConfigs {
+        create("release") {
+            val keystorePropsFile = project.file("keystore.properties")
+            if (keystorePropsFile.exists()) {
+                val keystoreProps = Properties()
+                keystoreProps.load(keystorePropsFile.inputStream())
+                storeFile = project.file(keystoreProps["storeFile"]!!.toString())
+                storePassword = keystoreProps["storePassword"]!!.toString()
+                keyAlias = keystoreProps["keyAlias"]!!.toString()
+                keyPassword = keystoreProps["keyPassword"]!!.toString()
+            }
+        }
+    }
+    val releaseSigning = signingConfigs.getByName("release")
+    val hasReleaseSigning = releaseSigning.storeFile?.exists() == true
 
     defaultConfig {
         applicationId = "com.radiodroid.app"
@@ -24,6 +41,7 @@ android {
 
     buildTypes {
         release {
+            if (hasReleaseSigning) signingConfig = releaseSigning
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
