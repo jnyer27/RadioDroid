@@ -176,28 +176,35 @@ def get_radio_list():
 
 
 def _memory_to_dict(mem) -> dict:
-    tmode  = getattr(mem, "tmode",  "") or ""
-    duplex = getattr(mem, "duplex", "") or ""
-    freq   = getattr(mem, "freq",   0)  or 0
-    offset = getattr(mem, "offset", 0)  or 0
+    tmode    = getattr(mem, "tmode",  "") or ""
+    duplex   = getattr(mem, "duplex", "") or ""
+    freq     = getattr(mem, "freq",   0)  or 0
+    offset   = getattr(mem, "offset", 0)  or 0
+    # dtcs_polarity is a two-char string e.g. "NN", "RN".
+    # Split into per-side values so the app can display/edit them independently.
+    dtcs_pol = getattr(mem, "dtcs_polarity", "NN") or "NN"
+    tx_pol   = dtcs_pol[0:1] if dtcs_pol else "N"
+    rx_pol   = dtcs_pol[1:2] if len(dtcs_pol) > 1 else "N"
     return {
-        "number":       mem.number,
-        "name":         getattr(mem, "name", "") or "",
-        "freq":         freq,
-        "tx_freq":      freq + (offset if duplex == "+" else -offset if duplex == "-" else 0),
-        "duplex":       duplex,
-        "offset":       offset,
-        "power":        str(getattr(mem, "power", "1") or "1"),
-        "mode":         getattr(mem, "mode", "FM") or "FM",
-        "tx_tone_mode": tmode if tmode in ("Tone", "TSQL", "DTCS") else "",
-        "tx_tone_val":  (getattr(mem, "rtone", 0.0) if tmode in ("Tone", "TSQL")
-                         else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
-        "rx_tone_mode": ("TSQL" if tmode == "TSQL" else
-                         "DTCS" if tmode == "DTCS" else ""),
-        "rx_tone_val":  (getattr(mem, "ctone", 0.0) if tmode == "TSQL"
-                         else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
-        "empty":        getattr(mem, "empty", False),
-        "skip":         getattr(mem, "skip",  "") or "",
+        "number":            mem.number,
+        "name":              getattr(mem, "name", "") or "",
+        "freq":              freq,
+        "tx_freq":           freq + (offset if duplex == "+" else -offset if duplex == "-" else 0),
+        "duplex":            duplex,
+        "offset":            offset,
+        "power":             str(getattr(mem, "power", "1") or "1"),
+        "mode":              getattr(mem, "mode", "FM") or "FM",
+        "tx_tone_mode":      tmode if tmode in ("Tone", "TSQL", "DTCS") else "",
+        "tx_tone_val":       (getattr(mem, "rtone", 0.0) if tmode in ("Tone", "TSQL")
+                              else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
+        "tx_tone_polarity":  tx_pol,
+        "rx_tone_mode":      ("TSQL" if tmode == "TSQL" else
+                              "DTCS" if tmode == "DTCS" else ""),
+        "rx_tone_val":       (getattr(mem, "ctone", 0.0) if tmode == "TSQL"
+                              else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
+        "rx_tone_polarity":  rx_pol,
+        "empty":             getattr(mem, "empty", False),
+        "skip":              getattr(mem, "skip",  "") or "",
     }
 
 
@@ -307,17 +314,74 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
     radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=0.5)
     try:
         radio.sync_in()   # Read first to preserve settings/cal blocks
+        features = radio.get_features()
+
         for ch in channels:
+            number = int(ch.get("number") or 0)
+
+            # ── Empty slot: erase on radio so deleted channels aren't left behind ──
             if ch.get("empty"):
+                try:
+                    radio.erase_memory(number)
+                except Exception:
+                    # Some drivers don't implement erase_memory(); try set_memory
+                    # with mem.empty = True as a fallback.
+                    try:
+                        _m = chirp_common.Memory(number)
+                        _m.empty = True
+                        radio.set_memory(_m)
+                    except Exception:
+                        pass  # driver doesn't support erasing — leave as-is
                 continue
+
             mem        = chirp_common.Memory()
-            mem.number = ch["number"]
-            mem.name   = ch.get("name", "")
-            mem.freq   = ch.get("freq", 0)
-            mem.duplex = ch.get("duplex", "")
-            mem.offset = ch.get("offset", 0)
-            mem.mode   = ch.get("mode", "FM")
+            mem.number = number
+            mem.name   = ch.get("name", "") or ""
+            mem.freq   = int(ch.get("freq")   or 0)
+            mem.duplex = ch.get("duplex", "") or ""
+            mem.offset = int(ch.get("offset") or 0)
+            mem.mode   = ch.get("mode", "FM") or "FM"
+
+            # ── Tone / CTCSS / DCS ───────────────────────────────────────────────
+            # tx_tone_mode drives mem.tmode; values mirror CHIRP's own tmode strings.
+            tmode = ch.get("tx_tone_mode", "") or ""
+            if tmode == "Tone":
+                mem.tmode = "Tone"
+                mem.rtone = float(ch.get("tx_tone_val") or 88.5)
+            elif tmode == "TSQL":
+                mem.tmode = "TSQL"
+                mem.rtone = float(ch.get("tx_tone_val") or 88.5)
+                mem.ctone = float(ch.get("rx_tone_val") or 88.5)
+            elif tmode == "DTCS":
+                mem.tmode = "DTCS"
+                mem.dtcs  = int(ch.get("tx_tone_val") or 23)
+                # Polarity is stored as two chars "NN"/"NR"/"RN"/"RR" in CHIRP.
+                # tx_tone_polarity / rx_tone_polarity default to "N" (normal).
+                tx_pol = (ch.get("tx_tone_polarity") or "N")[:1]
+                rx_pol = (ch.get("rx_tone_polarity") or "N")[:1]
+                mem.dtcs_polarity = tx_pol + rx_pol
+            else:
+                mem.tmode = ""
+
+            # ── Power level ──────────────────────────────────────────────────────
+            # CHIRP uses driver-specific PowerLevel objects.  Try to match the
+            # stored string (e.g. "High", "Low", "5W") against the driver's list.
+            # If no match, leave mem.power = None — the driver will use its default.
+            power_str = ch.get("power", "") or ""
+            if power_str and features.valid_power_levels:
+                matched = next(
+                    (p for p in features.valid_power_levels if str(p) == power_str),
+                    None
+                )
+                if matched:
+                    mem.power = matched
+
+            # ── Scan skip ────────────────────────────────────────────────────────
+            # "S" = skip, "P" = priority (radio-dependent), "" = never skip.
+            mem.skip = ch.get("skip", "") or ""
+
             radio.set_memory(mem)
+
         radio.sync_out()
     finally:
         radio.pipe.close()

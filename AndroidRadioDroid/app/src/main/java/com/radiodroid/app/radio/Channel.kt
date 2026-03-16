@@ -68,19 +68,21 @@ data class Channel(
             // object to int"), so use toString() comparison instead.
             val isEmpty = obj.callAttr("get", "empty")?.toString() == "True"
             return Channel(
-                number      = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
-                empty       = isEmpty,
-                freqRxHz    = obj.callAttr("get", "freq")?.toLong() ?: 0L,
-                freqTxHz    = obj.callAttr("get", "tx_freq")?.toLong() ?: 0L,
-                duplex      = obj.callAttr("get", "duplex")?.toString() ?: "",
-                offsetHz    = obj.callAttr("get", "offset")?.toLong() ?: 0L,
-                power       = obj.callAttr("get", "power")?.toString() ?: "1",
-                name        = obj.callAttr("get", "name")?.toString() ?: "",
-                mode        = obj.callAttr("get", "mode")?.toString() ?: "FM",
-                txToneMode  = obj.callAttr("get", "tx_tone_mode")?.toString()?.ifEmpty { null },
-                txToneVal   = obj.callAttr("get", "tx_tone_val")?.toDouble(),
-                rxToneMode  = obj.callAttr("get", "rx_tone_mode")?.toString()?.ifEmpty { null },
-                rxToneVal   = obj.callAttr("get", "rx_tone_val")?.toDouble(),
+                number          = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
+                empty           = isEmpty,
+                freqRxHz        = obj.callAttr("get", "freq")?.toLong() ?: 0L,
+                freqTxHz        = obj.callAttr("get", "tx_freq")?.toLong() ?: 0L,
+                duplex          = obj.callAttr("get", "duplex")?.toString() ?: "",
+                offsetHz        = obj.callAttr("get", "offset")?.toLong() ?: 0L,
+                power           = obj.callAttr("get", "power")?.toString() ?: "1",
+                name            = obj.callAttr("get", "name")?.toString() ?: "",
+                mode            = obj.callAttr("get", "mode")?.toString() ?: "FM",
+                txToneMode      = obj.callAttr("get", "tx_tone_mode")?.toString()?.ifEmpty { null },
+                txToneVal       = obj.callAttr("get", "tx_tone_val")?.toDouble(),
+                txTonePolarity  = obj.callAttr("get", "tx_tone_polarity")?.toString()?.ifEmpty { null },
+                rxToneMode      = obj.callAttr("get", "rx_tone_mode")?.toString()?.ifEmpty { null },
+                rxToneVal       = obj.callAttr("get", "rx_tone_val")?.toDouble(),
+                rxTonePolarity  = obj.callAttr("get", "rx_tone_polarity")?.toString()?.ifEmpty { null },
             )
         }
     }
