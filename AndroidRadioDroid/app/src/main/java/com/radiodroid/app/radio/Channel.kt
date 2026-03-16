@@ -63,7 +63,10 @@ data class Channel(
          * Python dict.get(key) — the correct lookup for dict-backed objects.
          */
         fun fromPyObject(slotNumber: Int, obj: PyObject): Channel {
-            val isEmpty = obj.callAttr("get", "empty")?.toInt()?.let { it != 0 } ?: false
+            // Python returns a bool (True/False) for "empty"; Chaquopy refuses to
+            // convert Python bool → Java int via toInt() ("could not convert boolean
+            // object to int"), so use toString() comparison instead.
+            val isEmpty = obj.callAttr("get", "empty")?.toString() == "True"
             return Channel(
                 number      = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
                 empty       = isEmpty,
