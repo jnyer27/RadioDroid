@@ -157,7 +157,9 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 EepromHolder.radioFeatures = ChirpBridge.getRadioFeatures(selectedRadio!!)
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
+                // Catch Throwable (not just Exception) — Chaquopy may surface
+                // driver import failures as java.lang.Error subclasses.
                 EepromHolder.radioFeatures = com.radiodroid.app.model.RadioFeatures.DEFAULT
             }
         }

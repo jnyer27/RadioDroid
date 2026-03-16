@@ -80,16 +80,29 @@ class UsbSerialBridge(private val context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             // Accept data and control connections concurrently — Python may
             // connect to them in either order; async lets both proceed in parallel.
-            val dataDeferred = async { serverSocket!!.accept() }
-            val ctrlDeferred = async { ctrlServerSocket!!.accept() }
+            //
+            // IMPORTANT: wrap the entire accept/await block in try-catch.
+            // If close() is called before Python connects, serverSocket.close()
+            // unblocks accept() with a SocketException.  That exception propagates
+            // through dataDeferred.await() into this launch block.  Without a
+            // try-catch here the unstructured CoroutineScope has no exception
+            // handler and the exception crashes the app via the default thread
+            // uncaught exception handler.
+            try {
+                val dataDeferred = async { serverSocket!!.accept() }
+                val ctrlDeferred = async { ctrlServerSocket!!.accept() }
 
-            val dataSocket = dataDeferred.await()
-            val ctrlSocket = ctrlDeferred.await()
+                val dataSocket = dataDeferred.await()
+                val ctrlSocket = ctrlDeferred.await()
 
-            client     = dataSocket
-            ctrlClient = ctrlSocket
+                client     = dataSocket
+                ctrlClient = ctrlSocket
 
-            startRelay(port, dataSocket, ctrlSocket)
+                startRelay(port, dataSocket, ctrlSocket)
+            } catch (_: Exception) {
+                // Server socket was closed before Python connected (normal on
+                // disconnect or reconnect before sync_in() runs).  Nothing to relay.
+            }
         }
 
         return "android://$socketName"

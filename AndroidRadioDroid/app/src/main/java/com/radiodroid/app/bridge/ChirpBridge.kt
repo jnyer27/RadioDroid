@@ -32,7 +32,9 @@ object ChirpBridge {
                 val json = bridge.callAttr("get_radio_features", radio.vendor, radio.model)
                     ?.toString() ?: return@withContext RadioFeatures.DEFAULT
                 RadioFeatures.fromJson(json)
-            } catch (e: Exception) {
+            } catch (_: Throwable) {
+                // Catch Throwable — Chaquopy can surface Python/JVM errors as
+                // java.lang.Error subclasses (e.g. if a driver import fails hard).
                 RadioFeatures.DEFAULT
             }
         }
