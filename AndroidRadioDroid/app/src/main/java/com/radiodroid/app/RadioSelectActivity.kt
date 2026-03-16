@@ -2,17 +2,20 @@ package com.radiodroid.app
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityRadioSelectBinding
 import com.radiodroid.app.model.RadioInfo
+import com.radiodroid.app.radio.CustomDriverManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -20,18 +23,37 @@ import kotlinx.coroutines.withContext
 /**
  * Radio model selection screen.
  *
- * Loads the full CHIRP driver list from [ChirpBridge.getRadioList()], shows it in a
+ * Loads the full CHIRP driver list from [ChirpBridge.getRadioList], shows it in a
  * searchable RecyclerView grouped by vendor, remembers the last selection in
  * SharedPreferences, and returns the chosen [RadioInfo] to the caller via
  * [EXTRA_VENDOR] / [EXTRA_MODEL] / [EXTRA_BAUD_RATE] Intent extras.
+ *
+ * Custom driver sideloading:
+ *   The FAB ("Load .py Driver") launches the system file picker for *.py files.
+ *   The selected file is copied to app-private internal storage by [CustomDriverManager],
+ *   then loaded into the CHIRP driver registry via [ChirpBridge.loadCustomDriver].
+ *   Newly registered radios are appended to [allRadios] and the list refreshes
+ *   immediately.  Previously sideloaded drivers are re-registered on every cold
+ *   start via [loadSavedCustomDrivers].
  */
 class RadioSelectActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRadioSelectBinding
     private lateinit var radioListAdapter: RadioListAdapter
+    private lateinit var customDriverManager: CustomDriverManager
 
-    /** Full sorted radio list loaded from CHIRP drivers. */
-    private var allRadios: List<RadioInfo> = emptyList()
+    /** Full sorted radio list (built-in + any loaded custom drivers). */
+    private var allRadios: MutableList<RadioInfo> = mutableListOf()
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // File picker launcher — picks a .py file for custom driver sideloading
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private val pickDriverFile = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) importCustomDriver(uri)
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Lifecycle
@@ -45,9 +67,12 @@ class RadioSelectActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        customDriverManager = CustomDriverManager(this)
+
         setupLastRadioButton()
         setupSearch()
         setupRecyclerView()
+        setupFab()
         loadRadioList()
     }
 
@@ -92,6 +117,24 @@ class RadioSelectActivity : AppCompatActivity() {
         binding.recyclerRadios.adapter = radioListAdapter
     }
 
+    /**
+     * FAB opens the system file picker, filtered to Python source files.
+     * Multiple MIME types are listed because Android file providers vary in how
+     * they describe .py files (text/plain, text/x-python, application/octet-stream).
+     */
+    private fun setupFab() {
+        binding.fabLoadDriver.setOnClickListener {
+            pickDriverFile.launch(
+                arrayOf(
+                    "text/x-python",
+                    "text/plain",
+                    "application/octet-stream",
+                    "*/*"           // last resort so the user can still navigate to .py
+                )
+            )
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Load radio list from CHIRP
     // ─────────────────────────────────────────────────────────────────────────
@@ -111,22 +154,124 @@ class RadioSelectActivity : AppCompatActivity() {
             result.fold(
                 onSuccess = { radios ->
                     allRadios = radios.sortedWith(compareBy({ it.vendor }, { it.model }))
-                    if (allRadios.isEmpty()) {
-                        binding.emptyText.text    = "No radios found — check that CHIRP drivers are bundled."
-                        binding.emptyText.visibility = View.VISIBLE
+                        .toMutableList()
+
+                    // Re-register any custom drivers saved from previous sessions
+                    loadSavedCustomDrivers()
+
+                    showList()
+                },
+                onFailure = { e ->
+                    binding.emptyText.text       = "Failed to load radio list:\n${e.message}"
+                    binding.emptyText.visibility = View.VISIBLE
+                    Toast.makeText(
+                        this@RadioSelectActivity,
+                        "Failed to load radio list: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            )
+        }
+    }
+
+    /**
+     * Re-register all .py driver files previously imported in past sessions.
+     * Any newly registered radios are merged into [allRadios].
+     * Failures are logged as toasts but do not block the rest of the list.
+     */
+    private fun loadSavedCustomDrivers() {
+        val saved = customDriverManager.listDriverFiles()
+        if (saved.isEmpty()) return
+
+        lifecycleScope.launch {
+            for (file in saved) {
+                runCatching {
+                    val newRadios = ChirpBridge.loadCustomDriver(file.absolutePath)
+                    mergeRadios(newRadios)
+                }.onFailure { e ->
+                    Toast.makeText(
+                        this@RadioSelectActivity,
+                        "Warning: could not reload ${file.name}: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            showList()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Custom driver import (triggered by FAB → file picker result)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun importCustomDriver(uri: Uri) {
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            runCatching {
+                // 1. Copy file to internal storage
+                val file = customDriverManager.importDriver(uri)
+
+                // 2. Load it into CHIRP registry via Python
+                val newRadios = ChirpBridge.loadCustomDriver(file.absolutePath)
+                Pair(file.name, newRadios)
+            }.fold(
+                onSuccess = { (fileName, newRadios) ->
+                    binding.progressBar.visibility = View.GONE
+                    if (newRadios.isEmpty()) {
+                        Toast.makeText(
+                            this@RadioSelectActivity,
+                            "$fileName loaded — no new radios registered.\n" +
+                            "Check that the file uses @directory.register.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
-                        binding.emptyText.visibility      = View.GONE
-                        binding.recyclerRadios.visibility = View.VISIBLE
-                        applyFilter(binding.searchEditText.text?.toString() ?: "")
+                        mergeRadios(newRadios)
+                        showList()
+                        Toast.makeText(
+                            this@RadioSelectActivity,
+                            "$fileName: added ${newRadios.size} radio model(s)",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 },
                 onFailure = { e ->
-                    binding.emptyText.text    = "Failed to load radio list:\n${e.message}"
-                    binding.emptyText.visibility = View.VISIBLE
-                    Toast.makeText(this@RadioSelectActivity,
-                        "Failed to load radio list: ${e.message}", Toast.LENGTH_LONG).show()
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(
+                        this@RadioSelectActivity,
+                        "Failed to load driver: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // List helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Merge [newRadios] into [allRadios], avoiding duplicates, re-sort. */
+    private fun mergeRadios(newRadios: List<RadioInfo>) {
+        val existing = allRadios.map { "${it.vendor}|${it.model}" }.toHashSet()
+        for (r in newRadios) {
+            if ("${r.vendor}|${r.model}" !in existing) {
+                allRadios.add(r)
+                existing.add("${r.vendor}|${r.model}")
+            }
+        }
+        allRadios.sortWith(compareBy({ it.vendor }, { it.model }))
+    }
+
+    private fun showList() {
+        if (allRadios.isEmpty()) {
+            binding.emptyText.text           = "No radios found — check that CHIRP drivers are bundled."
+            binding.emptyText.visibility      = View.VISIBLE
+            binding.recyclerRadios.visibility = View.GONE
+        } else {
+            binding.emptyText.visibility      = View.GONE
+            binding.recyclerRadios.visibility = View.VISIBLE
+            applyFilter(binding.searchEditText.text?.toString() ?: "")
         }
     }
 
@@ -138,7 +283,6 @@ class RadioSelectActivity : AppCompatActivity() {
         if (allRadios.isEmpty()) return
         val q = query.trim()
         if (q.isBlank()) {
-            // No query — full grouped list with vendor headers
             radioListAdapter.submitGroupedList(allRadios, isFiltered = false)
             binding.emptyText.visibility      = View.GONE
             binding.recyclerRadios.visibility = View.VISIBLE
@@ -147,11 +291,10 @@ class RadioSelectActivity : AppCompatActivity() {
                 r.vendor.contains(q, ignoreCase = true) || r.model.contains(q, ignoreCase = true)
             }
             if (filtered.isEmpty()) {
-                binding.emptyText.text           = "No results for \"$q\""
+                binding.emptyText.text            = "No results for \"$q\""
                 binding.emptyText.visibility      = View.VISIBLE
                 binding.recyclerRadios.visibility = View.GONE
             } else {
-                // isFiltered = true → show vendor subtitle on each row instead of headers
                 radioListAdapter.submitGroupedList(filtered, isFiltered = true)
                 binding.emptyText.visibility      = View.GONE
                 binding.recyclerRadios.visibility = View.VISIBLE

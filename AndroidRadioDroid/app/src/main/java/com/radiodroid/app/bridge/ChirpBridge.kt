@@ -35,6 +35,21 @@ object ChirpBridge {
         }
 
     /**
+     * Dynamically load a custom CHIRP driver .py file from device storage.
+     *
+     * @param path  Absolute path to the .py file in app-private internal storage.
+     * @return      Newly registered [RadioInfo] entries (may be empty if the file
+     *              registered no new classes, e.g. a helper-only module).
+     * @throws      Exception if the Python module fails to load or register.
+     */
+    suspend fun loadCustomDriver(path: String): List<RadioInfo> =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("load_custom_driver", path)
+                  .asList()
+                  .map { RadioInfo.fromPyObject(it) }
+        }
+
+    /**
      * Uploads modified channels back to the radio.
      */
     suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>) =

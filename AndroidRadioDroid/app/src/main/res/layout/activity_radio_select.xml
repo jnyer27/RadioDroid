@@ -79,7 +79,24 @@
             android:layout_weight="1"
             android:clipToPadding="false"
             android:paddingTop="4dp"
+            android:paddingBottom="80dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
     </LinearLayout>
+
+    <!--
+        FAB: Load a custom CHIRP driver .py file from device storage.
+        Anchored to the bottom-right corner, inside CoordinatorLayout so it
+        floats over the RecyclerView without obscuring the last list item
+        (paddingBottom="80dp" on the RecyclerView compensates).
+    -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fabLoadDriver"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:text="Load .py Driver"
+        app:icon="@android:drawable/ic_input_add" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

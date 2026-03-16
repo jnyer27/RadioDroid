@@ -227,6 +227,65 @@ def download(vendor: str, model: str, port: str, baudrate: int) -> list:
     return channels
 
 
+def load_custom_driver(path: str) -> list:
+    """
+    Dynamically load a custom CHIRP driver .py file from device internal storage.
+
+    The file must use the standard CHIRP @directory.register decorator on its
+    radio class(es).  The function imports the module, lets the decorator fire,
+    then returns a list of {vendor, model, baud_rate} dicts for each newly
+    registered class so the UI can append them to the radio list immediately.
+
+    Args:
+        path: Absolute path to the .py file on the device filesystem
+              (e.g. /data/data/com.radiodroid.app/files/custom_drivers/myradio.py)
+
+    Returns:
+        List of {vendor, model, baud_rate} for newly registered radio classes.
+
+    Raises:
+        ValueError:  if the spec cannot be built (bad path / not a .py file)
+        Exception:   any exception raised by the driver module itself on import
+    """
+    import importlib.util
+    from chirp import directory
+
+    # Ensure built-in drivers are loaded first so custom driver can import
+    # chirp_common, etc. without triggering a circular load.
+    _ensure_drivers()
+
+    before = set(directory.DRV_TO_RADIO.keys())
+
+    module_name = "_radiodroid_custom_" + os.path.splitext(os.path.basename(path))[0]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ValueError("Cannot create module spec from path: %s" % path)
+
+    mod = importlib.util.module_from_spec(spec)
+    # Make chirp packages available inside the custom module's namespace
+    import sys as _sys
+    _sys.modules[module_name] = mod
+    spec.loader.exec_module(mod)
+
+    after = set(directory.DRV_TO_RADIO.keys())
+    new_keys = after - before
+
+    result = []
+    for key in sorted(new_keys):
+        cls = directory.DRV_TO_RADIO[key]
+        vendor = getattr(cls, "VENDOR", None)
+        model  = getattr(cls, "MODEL",  None)
+        if vendor and model:
+            result.append({
+                "vendor":    vendor,
+                "model":     model,
+                "baud_rate": getattr(cls, "BAUD_RATE", 9600),
+            })
+    LOG.info("load_custom_driver: loaded %s — %d new radio(s) registered",
+             os.path.basename(path), len(result))
+    return result
+
+
 def upload(vendor: str, model: str, port: str, baudrate: int, channels: list):
     """Upload channel list back to the radio."""
     _ensure_drivers()
