@@ -41,12 +41,17 @@ def _ensure_drivers():
     """
     Import every module in chirp/drivers/ so their @register decorators fire.
 
-    Two strategies are tried in order, because Chaquopy's AssetFinder does not
-    support pkgutil.iter_modules():
+    Three strategies are tried in priority order:
 
-    1. os.listdir(__path__[0])  — primary; works on Android because Chaquopy
-       extracts Python source to device internal storage before the app starts.
-    2. pkgutil.iter_modules()   — fallback; works on desktop / standard CPython.
+    1. chirp_driver_list.DRIVER_MODULES  — PREFERRED on Android.
+       A static list generated at Gradle build time by the generateChirpDriverList
+       task.  Immune to Chaquopy's zip-backed AssetFinder; no filesystem I/O needed.
+
+    2. os.listdir(__path__[0])  — fallback for dev/desktop where the list hasn't
+       been generated yet (plain CPython, running from source).
+
+    3. pkgutil.iter_modules()   — last-resort fallback; works on standard CPython
+       installations.
     """
     global _drivers_loaded
     if _drivers_loaded:
@@ -54,18 +59,33 @@ def _ensure_drivers():
     _drivers_loaded = True
 
     try:
-        import chirp.drivers as _drv_pkg
+        import chirp.drivers as _drv_pkg  # noqa: F401 — side-effects matter
     except Exception as e:
         LOG.error("Cannot import chirp.drivers: %s", e)
         return
 
     from chirp import directory
 
-    # ── Strategy 1: os.listdir on the extracted package directory ────────────
-    # Chaquopy guarantees __path__[0] is a real filesystem path after extraction.
-    _loaded_by_listdir = False
+    # ── Strategy 1: static build-time list (Android / Chaquopy) ─────────────
     try:
-        drv_dir = _drv_pkg.__path__[0]
+        from chirp_driver_list import DRIVER_MODULES
+        LOG.debug("_ensure_drivers: using static list (%d modules)", len(DRIVER_MODULES))
+        for name in DRIVER_MODULES:
+            try:
+                importlib.import_module("chirp.drivers." + name)
+            except Exception as e:
+                LOG.debug("Skipping driver %s: %s", name, e)
+        if directory.DRV_TO_RADIO:
+            LOG.debug("_ensure_drivers: %d radios registered via static list",
+                      len(directory.DRV_TO_RADIO))
+            return
+    except ImportError:
+        LOG.debug("chirp_driver_list not found — falling back to filesystem scan")
+
+    # ── Strategy 2: os.listdir (desktop / source checkout) ──────────────────
+    try:
+        import chirp.drivers as _drv_pkg2
+        drv_dir = _drv_pkg2.__path__[0]
         names = set()
         for fname in os.listdir(drv_dir):
             if fname.startswith("_"):
@@ -79,21 +99,24 @@ def _ensure_drivers():
                 importlib.import_module("chirp.drivers." + name)
             except Exception as e:
                 LOG.debug("Skipping driver %s: %s", name, e)
-        _loaded_by_listdir = bool(names)
+        if directory.DRV_TO_RADIO:
+            LOG.debug("_ensure_drivers: %d radios registered via os.listdir",
+                      len(directory.DRV_TO_RADIO))
+            return
     except Exception as e:
-        LOG.debug("os.listdir strategy failed (%s), trying pkgutil", e)
+        LOG.debug("os.listdir strategy failed (%s)", e)
 
-    if directory.DRV_TO_RADIO:
-        return
-
-    # ── Strategy 2: pkgutil (desktop fallback) ───────────────────────────────
+    # ── Strategy 3: pkgutil (last resort) ───────────────────────────────────
     try:
         import pkgutil
-        for _finder, _name, _ispkg in pkgutil.iter_modules(_drv_pkg.__path__):
+        import chirp.drivers as _drv_pkg3
+        for _finder, _name, _ispkg in pkgutil.iter_modules(_drv_pkg3.__path__):
             try:
                 importlib.import_module("chirp.drivers." + _name)
             except Exception as e:
                 LOG.debug("Skipping driver %s: %s", _name, e)
+        LOG.debug("_ensure_drivers: %d radios registered via pkgutil",
+                  len(directory.DRV_TO_RADIO))
     except Exception as e:
         LOG.debug("pkgutil strategy failed: %s", e)
 
