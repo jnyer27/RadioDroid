@@ -10,6 +10,7 @@ import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -78,30 +79,38 @@ class UsbSerialBridge(private val context: Context) {
         ctrlServerSocket = LocalServerSocket(ctrlSocketName)
 
         CoroutineScope(Dispatchers.IO).launch {
-            // Accept data and control connections concurrently — Python may
-            // connect to them in either order; async lets both proceed in parallel.
+            // Accept connections in a loop so Python can reconnect between operations
+            // (e.g. download followed immediately by upload without disconnect).
+            // Each download/upload opens a fresh AndroidSerial(), does its work,
+            // then closes the sockets.  Without the loop, the second connect hangs
+            // because nobody calls accept() again after the first relay exits.
             //
-            // IMPORTANT: wrap the entire accept/await block in try-catch.
-            // If close() is called before Python connects, serverSocket.close()
-            // unblocks accept() with a SocketException.  That exception propagates
-            // through dataDeferred.await() into this launch block.  Without a
-            // try-catch here the unstructured CoroutineScope has no exception
-            // handler and the exception crashes the app via the default thread
-            // uncaught exception handler.
+            // startRelay() is non-blocking (it launches coroutines and returns), so
+            // the loop immediately circles back to accept() and waits for the next
+            // Python connection — which is correct; Python will not connect again
+            // until the previous close() has returned.
+            //
+            // IMPORTANT: wrap the entire loop in try-catch.  If close() is called
+            // while blocked in accept(), serverSocket.close() unblocks with a
+            // SocketException.  Without a catch here the unstructured CoroutineScope
+            // has no handler and the exception crashes the app.
             try {
-                val dataDeferred = async { serverSocket!!.accept() }
-                val ctrlDeferred = async { ctrlServerSocket!!.accept() }
+                while (serverSocket != null && ctrlServerSocket != null) {
+                    val dataDeferred = async { serverSocket!!.accept() }
+                    val ctrlDeferred = async { ctrlServerSocket!!.accept() }
 
-                val dataSocket = dataDeferred.await()
-                val ctrlSocket = ctrlDeferred.await()
+                    val dataSocket = dataDeferred.await()
+                    val ctrlSocket = ctrlDeferred.await()
 
-                client     = dataSocket
-                ctrlClient = ctrlSocket
+                    client     = dataSocket
+                    ctrlClient = ctrlSocket
 
-                startRelay(port, dataSocket, ctrlSocket)
+                    startRelay(port, dataSocket, ctrlSocket)
+                    // startRelay returned — Python closed this connection.
+                    // Loop back to accept the next one (next download/upload).
+                }
             } catch (_: Exception) {
-                // Server socket was closed before Python connected (normal on
-                // disconnect or reconnect before sync_in() runs).  Nothing to relay.
+                // Server socket was closed (normal on disconnect or USB unplug).
             }
         }
 
@@ -110,7 +119,24 @@ class UsbSerialBridge(private val context: Context) {
 
     // ── Relay ─────────────────────────────────────────────────────────────────
 
-    private fun startRelay(
+    /**
+     * Runs the three relay directions (USB RX→socket, socket→USB TX, control)
+     * concurrently and **suspends until all three have exited**.
+     *
+     * This is intentionally a suspend function rather than a fire-and-forget
+     * launcher.  Making it blocking lets the accept() loop in openSocketBridge()
+     * wait for the previous relay to be fully torn down before accepting the
+     * next Python connection.  Without this guarantee, a download immediately
+     * followed by an upload races: two relay instances share the USB port
+     * simultaneously, each consuming bytes the other needs — causing intermittent
+     * protocol errors on upload.
+     *
+     * coroutineScope {} keeps all three children in the same structured scope:
+     *  - It suspends until all three children complete normally (break from loop).
+     *  - If the parent coroutine is cancelled (e.g. close() closes the server
+     *    socket), cancellation propagates here and tears down all children.
+     */
+    private suspend fun startRelay(
         port:       UsbSerialPort,
         dataSocket: LocalSocket,
         ctrlSocket: LocalSocket,
@@ -118,71 +144,86 @@ class UsbSerialBridge(private val context: Context) {
         val toSocket   = dataSocket.outputStream
         val fromSocket = dataSocket.inputStream
 
-        // USB RX → socket  (radio → Python)
-        CoroutineScope(Dispatchers.IO).launch {
-            val buf = ByteArray(512)
-            while (true) {
-                val n = try {
-                    // Short read timeout (50 ms) keeps the loop responsive;
-                    // returns 0 if nothing arrived — loop continues immediately.
-                    port.read(buf, 50)
-                } catch (e: Exception) { break }
-                if (n > 0) {
-                    try {
-                        toSocket.write(buf, 0, n)
-                        toSocket.flush()
+        // Shared stop flag.  Set by Socket→USB TX when Python closes the data
+        // socket (fromSocket EOF).  Read by USB RX→socket so it exits the polling
+        // loop even when the radio is silent (port.read returning 0 every 50 ms
+        // — if n==0 the loop never tries toSocket.write so it never discovers the
+        // socket is closed; without this flag coroutineScope would hang forever).
+        val stopped = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        coroutineScope {
+            // USB RX → socket  (radio → Python)
+            launch {
+                val buf = ByteArray(512)
+                while (!stopped.get()) {
+                    val n = try {
+                        // Short read timeout (50 ms) keeps the loop responsive and
+                        // gives stopped.get() a chance to be re-checked quickly.
+                        port.read(buf, 50)
                     } catch (e: Exception) { break }
-                }
-            }
-        }
-
-        // Socket → USB TX  (Python → radio)
-        CoroutineScope(Dispatchers.IO).launch {
-            val buf = ByteArray(512)
-            while (true) {
-                val n = try {
-                    fromSocket.read(buf)
-                } catch (e: Exception) { break }
-                if (n < 0) break
-                try {
-                    port.write(buf.copyOf(n), 500)
-                } catch (e: Exception) { break }
-            }
-        }
-
-        // Control channel  (Python → Kotlin commands)
-        // Currently handles: BAUD:<baud>\n
-        CoroutineScope(Dispatchers.IO).launch {
-            val reader = ctrlSocket.inputStream.bufferedReader()
-            val writer = ctrlSocket.outputStream.bufferedWriter()
-            try {
-                while (true) {
-                    val line = reader.readLine() ?: break
-                    when {
-                        line.startsWith("BAUD:") -> {
-                            val baud = line.removePrefix("BAUD:").trim().toIntOrNull()
-                            if (baud != null && baud > 0) {
-                                try {
-                                    port.setParameters(
-                                        baud, 8,
-                                        UsbSerialPort.STOPBITS_1,
-                                        UsbSerialPort.PARITY_NONE,
-                                    )
-                                } catch (e: Exception) {
-                                    // Log but continue — reply OK so Python doesn't hang
-                                }
-                            }
-                            // ACK: Python blocks on this until baud is set
-                            writer.write("OK\n")
-                            writer.flush()
-                        }
-                        // Future commands: PARITY, STOPBITS, etc.
+                    if (n > 0) {
+                        try {
+                            toSocket.write(buf, 0, n)
+                            toSocket.flush()
+                        } catch (e: Exception) { break }
                     }
                 }
-            } catch (_: Exception) {
-                // Control channel closed (normal on disconnect)
+            }
+
+            // Socket → USB TX  (Python → radio)
+            launch {
+                val buf = ByteArray(512)
+                while (true) {
+                    val n = try {
+                        fromSocket.read(buf)
+                    } catch (e: Exception) { break }
+                    if (n < 0) break
+                    try {
+                        port.write(buf.copyOf(n), 500)
+                    } catch (e: Exception) { break }
+                }
+                // Python closed its end → signal the USB RX coroutine to stop.
+                // Without this, USB RX loops calling port.read(50ms) indefinitely
+                // when the radio is quiet, stalling coroutineScope forever and
+                // preventing the accept() loop from accepting the next operation.
+                stopped.set(true)
+            }
+
+            // Control channel  (Python → Kotlin commands)
+            // Currently handles: BAUD:<baud>\n
+            launch {
+                val reader = ctrlSocket.inputStream.bufferedReader()
+                val writer = ctrlSocket.outputStream.bufferedWriter()
+                try {
+                    while (true) {
+                        val line = reader.readLine() ?: break
+                        when {
+                            line.startsWith("BAUD:") -> {
+                                val baud = line.removePrefix("BAUD:").trim().toIntOrNull()
+                                if (baud != null && baud > 0) {
+                                    try {
+                                        port.setParameters(
+                                            baud, 8,
+                                            UsbSerialPort.STOPBITS_1,
+                                            UsbSerialPort.PARITY_NONE,
+                                        )
+                                    } catch (e: Exception) {
+                                        // Log but continue — reply OK so Python doesn't hang
+                                    }
+                                }
+                                // ACK: Python blocks on this until baud is set
+                                writer.write("OK\n")
+                                writer.flush()
+                            }
+                            // Future commands: PARITY, STOPBITS, etc.
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Control channel closed (normal on disconnect)
+                }
             }
         }
+        // All three relay coroutines have exited — safe to accept next connection.
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────

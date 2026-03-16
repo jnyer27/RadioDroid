@@ -347,6 +347,37 @@ def get_radio_features(vendor: str, model: str) -> str:
     })
 
 
+def _drain_pipe(pipe, drain_timeout: float = 0.15):
+    """
+    Consume any residual bytes left in the pipe's receive buffer.
+
+    Called between sync_in() and sync_out() during upload.  Desktop CHIRP
+    closes and reopens the serial port between those two phases, which
+    implicitly discards leftover bytes.  Our persistent LocalSocket bridge
+    keeps the connection open, so we must drain manually.
+
+    Without this, sync_out()'s _do_ident() handshake reads stale "end of
+    session" bytes sent by the radio at the tail of sync_in(), sees an
+    unexpected byte in the response, and raises an immediate protocol error
+    (e.g. "not the amount of data we want" / "Invalid model").
+    """
+    old_timeout = pipe.timeout
+    try:
+        pipe.timeout = drain_timeout
+        drained = 0
+        while True:
+            chunk = pipe.read(256)
+            if not chunk:
+                break
+            drained += len(chunk)
+        if drained:
+            LOG.debug("_drain_pipe: discarded %d stale byte(s) after sync_in", drained)
+    except Exception as e:
+        LOG.debug("_drain_pipe: %s (ignored)", e)
+    finally:
+        pipe.timeout = old_timeout
+
+
 def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str):
     """Upload channel list back to the radio.
 
@@ -368,6 +399,12 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
     radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=0.5)
     try:
         radio.sync_in()   # Read first to preserve settings/cal blocks
+
+        # Drain residual bytes the radio sent at the end of its sync_in
+        # session.  Desktop CHIRP implicitly discards them by closing and
+        # reopening the serial port; our persistent socket must do it manually.
+        _drain_pipe(radio.pipe)
+
         features = radio.get_features()
 
         for ch in channels:
@@ -462,5 +499,8 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
             radio.set_memory(mem)
 
         radio.sync_out()
+    except Exception:
+        LOG.exception("upload() failed for %s %s on %s", vendor, model, port)
+        raise
     finally:
         radio.pipe.close()

@@ -67,6 +67,10 @@ data class Channel(
             // convert Python bool → Java int via toInt() ("could not convert boolean
             // object to int"), so use toString() comparison instead.
             val isEmpty = obj.callAttr("get", "empty")?.toString() == "True"
+            // CHIRP encodes narrow FM as mode="NFM"; there is no separate bandwidth
+            // field in the Memory object.  Map NFM→Narrow so the adapter can show "N".
+            val rawMode   = obj.callAttr("get", "mode")?.toString() ?: "FM"
+            val bandwidth = if (rawMode == "NFM") "Narrow" else "Wide"
             return Channel(
                 number          = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
                 empty           = isEmpty,
@@ -76,7 +80,8 @@ data class Channel(
                 offsetHz        = obj.callAttr("get", "offset")?.toLong() ?: 0L,
                 power           = obj.callAttr("get", "power")?.toString() ?: "1",
                 name            = obj.callAttr("get", "name")?.toString() ?: "",
-                mode            = obj.callAttr("get", "mode")?.toString() ?: "FM",
+                mode            = rawMode,
+                bandwidth       = bandwidth,
                 txToneMode      = obj.callAttr("get", "tx_tone_mode")?.toString()?.ifEmpty { null },
                 txToneVal       = obj.callAttr("get", "tx_tone_val")?.toDouble(),
                 txTonePolarity  = obj.callAttr("get", "tx_tone_polarity")?.toString()?.ifEmpty { null },

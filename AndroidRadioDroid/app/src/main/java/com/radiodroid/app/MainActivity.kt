@@ -284,6 +284,16 @@ class MainActivity : AppCompatActivity() {
         if (lastVendor != null && lastModel != null) {
             val lastBaud = prefs.getInt(RadioSelectActivity.PREF_BAUD, 9600)
             selectedRadio = RadioInfo(lastVendor, lastModel, lastBaud)
+            // Fetch driver features so the channel editor can show/hide and
+            // populate spinners correctly on first launch (when radioSelectLauncher
+            // never fires because RadioSelectActivity started us directly).
+            lifecycleScope.launch {
+                try {
+                    EepromHolder.radioFeatures = ChirpBridge.getRadioFeatures(selectedRadio!!)
+                } catch (_: Throwable) {
+                    EepromHolder.radioFeatures = com.radiodroid.app.model.RadioFeatures.DEFAULT
+                }
+            }
         }
 
         binding.recyclerChannels.layoutManager = LinearLayoutManager(this)
@@ -718,7 +728,14 @@ class MainActivity : AppCompatActivity() {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
             PendingIntent.FLAG_IMMUTABLE else 0
         val permIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), flags)
-        registerReceiver(receiver, IntentFilter(ACTION_USB_PERMISSION))
+        // API 34+ requires RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED.
+        // USB permission results come from the system, so NOT_EXPORTED is correct.
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            IntentFilter(ACTION_USB_PERMISSION),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         manager.requestPermission(driver.device, permIntent)
     }
 
@@ -1205,11 +1222,17 @@ class MainActivity : AppCompatActivity() {
 
         val channels = EepromParser.parseAllChannels(eep)
 
+        // Use the driver's actual power level names so the bulk picker matches
+        // the channel editor exactly.  Fall back to the generic list when the
+        // driver has no discrete power concept (features not yet loaded).
+        val driverLevels = EepromHolder.radioFeatures.validPowerLevels
+        val powerList = driverLevels.ifEmpty { EepromConstants.POWERLEVEL_LIST }
+
         // Pre-select the current power of the first non-empty selected channel
         val firstNonEmpty = channels.firstOrNull { it.number in selected && !it.empty }
-        val defaultIdx = EepromConstants.POWERLEVEL_LIST
-            .indexOf(firstNonEmpty?.power ?: "1")
-            .coerceAtLeast(1)           // fallback to "1" watt if not found
+        val defaultIdx = powerList
+            .indexOf(firstNonEmpty?.power ?: "")
+            .coerceAtLeast(0)
 
         // Determine applicable VHF/UHF cap(s) for the selected channels so we can
         // advise the user when the chosen value would exceed the radio's cap.
@@ -1227,47 +1250,14 @@ class MainActivity : AppCompatActivity() {
             else             -> 255
         }
 
-        // NumberPicker shows the full value string (incl. 3-digit levels) in a
-        // scrollable wheel — avoids the truncation that occurs with a Spinner dropdown.
+        // NumberPicker shows the full value string in a scrollable wheel.
         val picker = android.widget.NumberPicker(this).apply {
             minValue = 0
-            maxValue = EepromConstants.POWERLEVEL_LIST.size - 1
-            displayedValues = EepromConstants.POWERLEVEL_LIST.toTypedArray()
+            maxValue = powerList.size - 1
+            displayedValues = powerList.toTypedArray()
             value = defaultIdx
             wrapSelectorWheel = false
         }
-
-        // Advisory TextView — hidden until the picker exceeds the effective cap
-        val capPx = (12 * resources.displayMetrics.density).toInt()
-        val advisoryView = android.widget.TextView(this).apply {
-            textSize = 12f
-            setTextColor(android.graphics.Color.parseColor("#E65100"))
-            setPadding(capPx, capPx / 2, capPx, 0)
-            visibility = android.view.View.GONE
-        }
-
-        // Helper to refresh the advisory whenever the picker value changes
-        fun refreshAdvisory(pickerPosition: Int) {
-            val powerStr = EepromConstants.POWERLEVEL_LIST.getOrNull(pickerPosition) ?: "N/T"
-            val raw = powerStr.toIntOrNull() ?: 0
-            if (raw > 0 && raw > effectiveCap) {
-                val capWatts = EepromConstants.powerToWatts(effectiveCap.toString())
-                val bandDesc = when {
-                    hasVhf && hasUhf ->
-                        if (vhfCap <= uhfCap) "VHF cap ($vhfCap ≈ $capWatts)"
-                        else                  "UHF cap ($uhfCap ≈ $capWatts)"
-                    hasVhf -> "VHF cap ($vhfCap ≈ $capWatts)"
-                    else   -> "UHF cap ($uhfCap ≈ $capWatts)"
-                }
-                advisoryView.text = "⚠ Exceeds $bandDesc — radio will clamp at TX time"
-                advisoryView.visibility = android.view.View.VISIBLE
-            } else {
-                advisoryView.visibility = android.view.View.GONE
-            }
-        }
-
-        picker.setOnValueChangedListener { _, _, newVal -> refreshAdvisory(newVal) }
-        refreshAdvisory(defaultIdx)   // evaluate immediately for the pre-seeded value
 
         // Centre the wheel horizontally inside the dialog with comfortable padding
         val wrapper = android.widget.LinearLayout(this).apply {
@@ -1282,20 +1272,12 @@ class MainActivity : AppCompatActivity() {
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).also { it.gravity = android.view.Gravity.CENTER_HORIZONTAL }
         )
-        wrapper.addView(
-            advisoryView,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
 
         AlertDialog.Builder(this)
             .setTitle("Set TX Power — ${selected.size} selected")
             .setView(wrapper)
             .setPositiveButton("Apply") { _, _ ->
-                val powerStr = EepromConstants.POWERLEVEL_LIST
-                    .getOrNull(picker.value) ?: "1"
+                val powerStr = powerList.getOrNull(picker.value) ?: ""
                 var count = 0
                 for (ch in channels) {
                     if (ch.number in selected && !ch.empty) {

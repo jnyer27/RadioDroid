@@ -304,7 +304,12 @@ class ChannelEditActivity : AppCompatActivity() {
         val duplexStr    = duplexValues.getOrNull(binding.spinnerDuplex.selectedItemPosition) ?: ""
         val maxLen       = if (features.validNameLength > 0) features.validNameLength else 16
         val nameStr      = (binding.editName.text?.toString() ?: "").take(maxLen)
-        val powerStr     = powerLevels.getOrNull(binding.spinnerPower.selectedItemPosition) ?: ""
+        // When powerLevels is empty (power section hidden) preserve the channel's
+        // existing power value so it doesn't get cleared to "" (which displays as "?").
+        val powerStr     = if (powerLevels.isNotEmpty())
+            powerLevels.getOrNull(binding.spinnerPower.selectedItemPosition) ?: ""
+        else
+            channel?.power ?: ""
         val modeStr      = modeList.getOrNull(binding.spinnerMode.selectedItemPosition) ?: "FM"
 
         val empty = freqRxStr.isNullOrBlank()
