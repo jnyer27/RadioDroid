@@ -23,7 +23,6 @@ import com.radiodroid.app.databinding.ActivityChannelEditBinding
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
-import com.radiodroid.app.radio.ParamMappingStore
 import com.radiodroid.app.radio.Protocol
 import com.radiodroid.app.radio.Channel
 import com.google.android.material.textfield.TextInputLayout
@@ -94,11 +93,6 @@ class ChannelEditActivity : AppCompatActivity() {
             duplexValues.map { features.duplexLabel(it) }
         )
 
-        // Mode: whatever the driver declares as valid
-        binding.spinnerMode.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item, modeList
-        )
-
         // Power: hide entire section if the driver has no discrete power levels
         if (powerLevels.isNotEmpty()) {
             binding.spinnerPower.adapter = ArrayAdapter(
@@ -109,6 +103,11 @@ class ChannelEditActivity : AppCompatActivity() {
             binding.rowPower.visibility          = View.GONE
             binding.textPowerCapWarning.visibility = View.GONE
         }
+
+        // Mode: whatever the driver declares as valid
+        binding.spinnerMode.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item, modeList
+        )
 
         // Bandwidth: expressed as FM vs NFM in CHIRP mode — hide the separate field
         binding.textLabelBandwidth.visibility = View.GONE
@@ -338,6 +337,7 @@ class ChannelEditActivity : AppCompatActivity() {
             c.name       = ""
             c.power      = powerLevels.firstOrNull() ?: ""
             c.mode       = modeList.firstOrNull() ?: "FM"
+            c.bandwidth  = "Wide"
         } else {
             val freqRxMhz = freqRxStr.toDoubleOrNull() ?: 0.0
             val freqRxHz  = (freqRxMhz * 1_000_000).toLong()
@@ -373,9 +373,8 @@ class ChannelEditActivity : AppCompatActivity() {
             c.power    = powerStr
             c.mode     = modeStr
         }
-        // Resolve driver mode for upload (Parameter Mapping); keep bandwidth in sync with display mode
-        val mapping = EepromHolder.selectedRadio?.let { ParamMappingStore.getMapping(this, it) }
-        c.driverMode = mapping?.reverseMode(c.mode) ?: c.mode
+        // Driver mode for upload; bandwidth in sync with display mode
+        c.driverMode = c.mode
         c.bandwidth  = if (c.mode == "NFM" || c.mode == "NAM") "Narrow" else "Wide"
 
         // Tone — always saved regardless of empty flag so tones survive frequency edits

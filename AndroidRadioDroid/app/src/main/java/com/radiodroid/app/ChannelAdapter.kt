@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.radiodroid.app.radio.Channel
 import com.radiodroid.app.radio.EepromConstants
+import com.radiodroid.app.radio.MainDisplayPref
 
 /**
  * RecyclerView adapter for the 198-channel list on [MainActivity].
@@ -140,7 +141,8 @@ class ChannelAdapter(
         private val channelRxTone:     TextView     = card.findViewById(R.id.channelRxTone)
         private val channelDuplex:     TextView     = card.findViewById(R.id.channelDuplex)
         private val channelPower:      TextView     = card.findViewById(R.id.channelPower)
-        private val channelBandwidth:  TextView     = card.findViewById(R.id.channelBandwidth)
+        private val channelSlot1:      TextView     = card.findViewById(R.id.channelSlot1)
+        private val channelSlot2:      TextView     = card.findViewById(R.id.channelSlot2)
         private val channelDragHandle: ImageView    = card.findViewById(R.id.channelDragHandle)
         private val channelDriverRow:  LinearLayout = card.findViewById(R.id.channelDriverRow)
         private val channelGroups:     TextView     = card.findViewById(R.id.channelGroups)
@@ -154,8 +156,10 @@ class ChannelAdapter(
                 channelName.text   = ""
                 channelDuplex.text = ""
                 channelPower.text  = ""
-                channelBandwidth.text = ""
-                channelBandwidth.visibility = View.GONE
+                channelSlot1.text = ""
+                channelSlot1.visibility = View.GONE
+                channelSlot2.text = ""
+                channelSlot2.visibility = View.GONE
                 channelTxTone.text = ""; channelRxTone.text = ""
                 channelToneGroup.visibility = View.GONE
                 channelDriverRow.visibility = View.GONE
@@ -168,8 +172,14 @@ class ChannelAdapter(
                 channelPower.text = if (wattsText != "N/T" && txRestricted)
                     "$wattsText (RX)" else wattsText
 
-                channelBandwidth.text = if (channel.bandwidth == "Narrow") "N" else "W"
-                channelBandwidth.visibility = View.VISIBLE
+                val slot1Key = MainDisplayPref.getSlot1(card.context)
+                val slot2Key = MainDisplayPref.getSlot2(card.context)
+                val v1 = MainDisplayPref.getChannelDisplayValue(channel, slot1Key)
+                val v2 = MainDisplayPref.getChannelDisplayValue(channel, slot2Key)
+                channelSlot1.text = v1
+                channelSlot1.visibility = if (v1.isEmpty()) View.GONE else View.VISIBLE
+                channelSlot2.text = v2
+                channelSlot2.visibility = if (v2.isEmpty()) View.GONE else View.VISIBLE
 
                 val groups = buildGroupsDisplay(channel)
                 val extraSummary = if (channel.extra.isNotEmpty())

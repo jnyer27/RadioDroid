@@ -30,8 +30,8 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_param_mapping"
-        android:title="@string/param_mapping_title"
+        android:id="@+id/action_customize_main_screen"
+        android:title="@string/customize_main_screen_title"
         app:showAsAction="never" />
 
     <item

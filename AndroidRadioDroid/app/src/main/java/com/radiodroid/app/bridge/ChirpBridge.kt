@@ -4,7 +4,6 @@ import com.chaquo.python.Python
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
-import com.radiodroid.app.radio.ParamMapping
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -68,17 +67,16 @@ object ChirpBridge {
      * Downloads the full channel list from the radio. For clone-mode radios also
      * returns the EEPROM dump (base64) so the app can work off a local copy.
      *
-     * @param radio   Selected radio model
-     * @param port    Serial port string
-     * @param mapping Optional mode/bandwidth mapping
+     * @param radio Selected radio model
+     * @param port  Serial port string
      */
-    suspend fun download(radio: RadioInfo, port: String, mapping: ParamMapping? = null): DownloadResult =
+    suspend fun download(radio: RadioInfo, port: String): DownloadResult =
         withContext(Dispatchers.IO) {
             val jsonStr = bridge.callAttr("download", radio.vendor, radio.model, port, radio.baudRate).toString()
             val obj = org.json.JSONObject(jsonStr)
             val arr = obj.getJSONArray("channels")
             val channels = (0 until arr.length()).map { i ->
-                Channel.fromJson(i + 1, arr.getJSONObject(i), mapping)
+                Channel.fromJson(i + 1, arr.getJSONObject(i))
             }
             // optString("eeprom_base64") can be "" for JSON null, or literal "null" in some parsers
             val eepromStr = obj.optString("eeprom_base64", "")
@@ -104,20 +102,16 @@ object ChirpBridge {
     /**
      * Uploads modified channels back to the radio.
      *
-     * The mode sent to Python is [Channel.driverMode] when set (so the driver
-     * receives the value it expects); otherwise [mapping] is used to reverse-map
-     * [Channel.mode] to a driver value, or [Channel.mode] is sent as-is.
+     * The mode sent to Python is [Channel.driverMode] when set, otherwise [Channel.mode].
      *
      * Channels are serialised to a JSON string rather than passed as a
      * Kotlin List<Map> to avoid Chaquopy Java-proxy conversion issues.
      */
-    suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>, mapping: ParamMapping? = null) =
+    suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>) =
         withContext(Dispatchers.IO) {
             val json = JSONArray().also { arr ->
                 channels.forEach { ch ->
-                    val modeForUpload = ch.driverMode
-                        ?: mapping?.reverseMode(ch.mode)
-                        ?: ch.mode
+                    val modeForUpload = ch.driverMode ?: ch.mode
                     arr.put(JSONObject().apply {
                         put("number",            ch.number)
                         put("name",              ch.name)

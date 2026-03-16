@@ -66,25 +66,18 @@ data class Channel(
         /**
          * Construct a Channel from a Python dict returned by chirp_bridge.download().
          *
-         * When [mapping] is non-null and non-empty, [mode] and [bandwidth] are set
-         * from the mapping; otherwise NFM→Narrow/FM→Wide and mode is the raw value.
-         * [driverMode] is always set to the raw driver value for upload.
+         * [mode] and [bandwidth] are set from the raw driver mode (NFM/NAM→Narrow, else Wide).
+         * [driverMode] is the raw value from the driver; used on upload.
          *
          * NOTE: obj["key"] in Kotlin compiles to PyObject.get(String) = Python getattr(),
          * which returns null for dict keys.  Use obj.callAttr("get", "key") to call
          * Python dict.get(key) — the correct lookup for dict-backed objects.
          */
-        fun fromPyObject(slotNumber: Int, obj: PyObject, mapping: ParamMapping? = null): Channel {
+        fun fromPyObject(slotNumber: Int, obj: PyObject): Channel {
             val isEmpty = obj.callAttr("get", "empty")?.toString() == "True"
             val rawMode = obj.callAttr("get", "mode")?.toString() ?: "FM"
-            val (displayMode, displayBandwidth) = if (mapping != null && mapping.modeMap.isNotEmpty()) {
-                Pair(
-                    mapping.modeMap[rawMode] ?: rawMode,
-                    mapping.bandwidthMap[rawMode] ?: if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
-                )
-            } else {
-                Pair(rawMode, if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide")
-            }
+            val displayMode = rawMode
+            val displayBandwidth = if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
             return Channel(
                 number          = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
                 empty           = isEmpty,
@@ -124,17 +117,11 @@ data class Channel(
         }
 
         /** Build Channel from JSON (e.g. download result from chirp_bridge). */
-        fun fromJson(slotNumber: Int, obj: org.json.JSONObject, mapping: ParamMapping? = null): Channel {
+        fun fromJson(slotNumber: Int, obj: org.json.JSONObject): Channel {
             val isEmpty = obj.optString("empty") == "true" || obj.optBoolean("empty", false)
             val rawMode = obj.optString("mode", "FM")
-            val (displayMode, displayBandwidth) = if (mapping != null && mapping.modeMap.isNotEmpty()) {
-                Pair(
-                    mapping.modeMap[rawMode] ?: rawMode,
-                    mapping.bandwidthMap[rawMode] ?: if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
-                )
-            } else {
-                Pair(rawMode, if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide")
-            }
+            val displayMode = rawMode
+            val displayBandwidth = if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
             val extra = parseExtraFromJson(obj.optJSONObject("extra"))
             return Channel(
                 number          = obj.optInt("number", slotNumber),

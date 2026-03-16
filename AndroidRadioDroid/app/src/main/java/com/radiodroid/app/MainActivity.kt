@@ -49,7 +49,6 @@ import com.radiodroid.app.radio.ChirpCsvExporter
 import com.radiodroid.app.radio.ChirpCsvImporter
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
-import com.radiodroid.app.radio.ParamMappingStore
 import com.radiodroid.app.radio.Protocol
 import com.radiodroid.app.radio.RadioStream
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +166,14 @@ class MainActivity : AppCompatActivity() {
                 EepromHolder.radioFeatures = com.radiodroid.app.model.RadioFeatures.DEFAULT
             }
         }
+    }
+
+    // ─── Customize main screen launcher ───────────────────────────────────────
+    /** When user saves slot choices, refresh the channel list so the two slots update. */
+    private val customizeMainScreenLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) adapter.notifyDataSetChanged()
     }
 
     // ─── CHIRP CSV import ─────────────────────────────────────────────────────
@@ -600,8 +607,8 @@ class MainActivity : AppCompatActivity() {
                 radioSelectLauncher.launch(Intent(this, RadioSelectActivity::class.java))
                 true
             }
-            R.id.action_param_mapping -> {
-                startActivity(ParamMappingActivity.intent(this, selectedRadio))
+            R.id.action_customize_main_screen -> {
+                customizeMainScreenLauncher.launch(Intent(this, MainDisplayCustomizeActivity::class.java))
                 true
             }
             R.id.action_radio_settings -> {
@@ -1490,8 +1497,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 EepromHolder.selectedRadio = radio
-                val mapping = ParamMappingStore.getMapping(this@MainActivity, radio)
-                val result = ChirpBridge.download(radio, port, mapping)
+                val result = ChirpBridge.download(radio, port)
                 eeprom = if (result.eepromBase64 != null) {
                     Base64.decode(result.eepromBase64, Base64.NO_WRAP)
                 } else {
@@ -1565,8 +1571,7 @@ class MainActivity : AppCompatActivity() {
                     val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
                     ChirpBridge.uploadMmap(radio, port, b64)
                 } else {
-                    val mapping = ParamMappingStore.getMapping(this@MainActivity, radio)
-                    ChirpBridge.upload(radio, port, EepromHolder.channels.toList(), mapping)
+                    ChirpBridge.upload(radio, port, EepromHolder.channels.toList())
                 }
                 runOnUiThread {
                     binding.progressBar.visibility = View.GONE
