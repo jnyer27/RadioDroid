@@ -36,12 +36,14 @@ class AndroidSerial:
         self._sock     = None
         self._ctrl     = None
 
-        if not port.startswith("android://"):
+        if port.startswith("android://"):
+            socket_name = port[len("android://"):]
+        elif port.startswith("ble://"):
+            socket_name = port[len("ble://"):]
+        else:
             raise ValueError(
-                f"RadioDroid only supports android:// ports, got: {port!r}"
+                f"RadioDroid only supports android:// or ble:// ports, got: {port!r}"
             )
-
-        socket_name = port[len("android://"):]
 
         # ── Data socket ───────────────────────────────────────────────────────
         s = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
