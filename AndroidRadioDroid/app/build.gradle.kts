@@ -83,7 +83,16 @@ tasks.register("generateChirpDriverList") {
         println("generateChirpDriverList: wrote ${drivers.size} driver names to $outputFile")
     }
 }
+// Hook generateChirpDriverList directly into every Chaquopy merge*PythonSources task
+// (one per build variant: mergeDebugPythonSources, mergeReleasePythonSources, …).
+// Gradle 9+ requires explicit task dependencies when two tasks share an output directory;
+// a preBuild hook alone is not sufficient — the merge task itself must declare the dep.
 tasks.named("preBuild") { dependsOn("generateChirpDriverList") }
+afterEvaluate {
+    tasks.matching { it.name.matches(Regex("merge.*PythonSources")) }.configureEach {
+        dependsOn("generateChirpDriverList")
+    }
+}
 
 dependencies {
     testImplementation(libs.junit)
