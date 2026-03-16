@@ -20,7 +20,9 @@ import java.io.OutputStream
  * Bytes written by CHIRP driver → AndroidSerial.write() → socket → BleManager.write()
  * Bytes from radio → BleManager notification → socket → AndroidSerial.read() → CHIRP driver
  *
- * TODO: Full relay loop with proper lifecycle and cancellation.
+ * Accept loop: each download/settings/upload opens a new AndroidSerial(), does its work,
+ * then closes. We accept() in a loop so the next Python connection gets a fresh relay
+ * without the user having to disconnect and reconnect BLE.
  */
 class BleBridge(private val bleManager: BleManager) {
 
@@ -30,14 +32,24 @@ class BleBridge(private val bleManager: BleManager) {
 
     /**
      * Opens a LocalServerSocket and starts the BLE↔socket relay.
+     * Accepts connections in a loop so Python can reconnect between operations
+     * (e.g. download then settings or upload) without disconnecting BLE.
      * @return Path string to pass to Python: "ble://radiodroid_ble"
      */
     fun openSocketBridge(): String {
         serverSocket = LocalServerSocket(socketName)
         CoroutineScope(Dispatchers.IO).launch {
-            val client = serverSocket!!.accept()
-            this@BleBridge.client = client
-            startRelay(client.inputStream, client.outputStream)
+            try {
+                while (serverSocket != null) {
+                    val accepted = serverSocket!!.accept()
+                    client = accepted
+                    startRelay(accepted.inputStream, accepted.outputStream)
+                    // Previous client closed; loop to accept next (e.g. settings or upload)
+                    client = null
+                }
+            } catch (_: Exception) {
+                // Server socket closed (normal on disconnect)
+            }
         }
         return "ble://$socketName"
     }
@@ -70,6 +82,8 @@ class BleBridge(private val bleManager: BleManager) {
 
     fun close() {
         client?.close()
+        client = null
         serverSocket?.close()
+        serverSocket = null
     }
 }

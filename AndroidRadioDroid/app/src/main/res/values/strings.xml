@@ -27,4 +27,22 @@
     <string name="groups">Groups</string>
     <string name="tx_tone">TX Tone</string>
     <string name="rx_tone">RX Tone</string>
+    <string name="param_mapping_title">Mode / bandwidth display…</string>
+    <string name="param_mapping_for">Mapping for: %1$s %2$s</string>
+    <string name="param_mapping_global_default">Global default</string>
+    <string name="param_mapping_no_radio_hint">Select a radio model and load channels to customize mapping for that driver.</string>
+    <string name="param_mapping_customize_for_radio">Customize for this radio</string>
+    <string name="param_mapping_driver_values_label">Map each driver value to universal display:</string>
+    <string name="param_mapping_reset">Reset to default</string>
+    <string name="param_mapping_save">Save</string>
+    <string name="param_mapping_driver_value">Driver: %1$s</string>
+    <string name="param_mapping_display_mode">Display as mode</string>
+    <string name="param_mapping_display_bandwidth">Display as bandwidth</string>
+    <string name="channel_driver_specific_label">Radio-specific:</string>
+    <string name="editor_driver_section_title">Radio-specific settings</string>
+    <string name="radio_settings_title">Radio settings…</string>
+    <string name="radio_settings_loading">Loading settings…</string>
+    <string name="radio_settings_save">Update settings</string>
+    <string name="radio_settings_saved">Settings saved.</string>
+    <string name="radio_settings_error">Could not load settings.</string>
 </resources>

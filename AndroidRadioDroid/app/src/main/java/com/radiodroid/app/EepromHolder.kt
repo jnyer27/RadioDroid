@@ -1,6 +1,7 @@
 package com.radiodroid.app
 
 import com.radiodroid.app.model.RadioFeatures
+import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 
 // ── Data classes retained for source-compatibility with nicFW-derived code ───
@@ -54,9 +55,16 @@ object EepromHolder {
     /**
      * Decoded group labels (A–O, up to 15 items).
      * Empty string means the label is blank.
-     * Populated / edited by GroupLabelEditActivity.
+     * Populated from the radio; editable via Radio Settings (driver get_settings/set_settings).
      */
     var groupLabels: List<String> = List(15) { "" }
+
+    /**
+     * Names of driver-specific channel params (from Memory.extra).
+     * Derived from the first channel with non-empty [Channel.extra] after download.
+     * Used to show dynamic "Radio-specific" fields in the channel editor and list.
+     */
+    var extraParamNames: List<String> = emptyList()
 
     /**
      * Band-plan stubs — RadioDroid does not yet download band plans from
@@ -90,4 +98,11 @@ object EepromHolder {
      * Falls back to [RadioFeatures.DEFAULT] until a real radio is chosen.
      */
     var radioFeatures: RadioFeatures = RadioFeatures.DEFAULT
+
+    /**
+     * Currently selected radio (vendor/model). Set by MainActivity when the user
+     * picks a model and when download completes, so Parameter Mapping and
+     * ChannelEditActivity can resolve mode/bandwidth mapping for upload.
+     */
+    var selectedRadio: RadioInfo? = null
 }

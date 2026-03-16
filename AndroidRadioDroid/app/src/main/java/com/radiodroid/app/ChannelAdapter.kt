@@ -132,17 +132,18 @@ class ChannelAdapter(
 
     inner class ViewHolder(private val card: MaterialCardView) : RecyclerView.ViewHolder(card) {
 
-        private val channelNumber:    TextView     = card.findViewById(R.id.channelNumber)
-        private val channelFreq:      TextView     = card.findViewById(R.id.channelFreq)
-        private val channelName:      TextView     = card.findViewById(R.id.channelName)
-        private val channelGroups:    TextView     = card.findViewById(R.id.channelGroups)
-        private val channelToneGroup: LinearLayout = card.findViewById(R.id.channelToneGroup)
-        private val channelTxTone:    TextView     = card.findViewById(R.id.channelTxTone)
-        private val channelRxTone:    TextView     = card.findViewById(R.id.channelRxTone)
+        private val channelNumber:     TextView     = card.findViewById(R.id.channelNumber)
+        private val channelFreq:       TextView     = card.findViewById(R.id.channelFreq)
+        private val channelName:       TextView     = card.findViewById(R.id.channelName)
+        private val channelToneGroup:   LinearLayout = card.findViewById(R.id.channelToneGroup)
+        private val channelTxTone:     TextView     = card.findViewById(R.id.channelTxTone)
+        private val channelRxTone:     TextView     = card.findViewById(R.id.channelRxTone)
         private val channelDuplex:     TextView     = card.findViewById(R.id.channelDuplex)
         private val channelPower:      TextView     = card.findViewById(R.id.channelPower)
         private val channelBandwidth:  TextView     = card.findViewById(R.id.channelBandwidth)
         private val channelDragHandle: ImageView    = card.findViewById(R.id.channelDragHandle)
+        private val channelDriverRow:  LinearLayout = card.findViewById(R.id.channelDriverRow)
+        private val channelGroups:     TextView     = card.findViewById(R.id.channelGroups)
 
         @Suppress("ClickableViewAccessibility")
         fun bind(channel: Channel) {
@@ -151,29 +152,31 @@ class ChannelAdapter(
             if (channel.empty) {
                 channelFreq.text   = card.context.getString(R.string.empty_channel)
                 channelName.text   = ""
-                channelGroups.text = ""; channelGroups.visibility = View.GONE
                 channelDuplex.text = ""
                 channelPower.text  = ""
+                channelBandwidth.text = ""
                 channelBandwidth.visibility = View.GONE
                 channelTxTone.text = ""; channelRxTone.text = ""
                 channelToneGroup.visibility = View.GONE
+                channelDriverRow.visibility = View.GONE
             } else {
                 channelFreq.text   = channel.displayFreq()
                 channelName.text   = channel.name.ifEmpty { "-" }
                 channelDuplex.text = channel.displayDuplex()
                 val wattsText = EepromConstants.powerToWatts(channel.power)
-                // RadioDroid: use static TX-restriction check (no band plan downloaded yet).
                 val txRestricted = EepromConstants.isTxRestricted(channel.freqRxHz)
-
                 channelPower.text = if (wattsText != "N/T" && txRestricted)
                     "$wattsText (RX)" else wattsText
 
-                channelBandwidth.text       = if (channel.bandwidth == "Narrow") "N" else "W"
+                channelBandwidth.text = if (channel.bandwidth == "Narrow") "N" else "W"
                 channelBandwidth.visibility = View.VISIBLE
 
                 val groups = buildGroupsDisplay(channel)
-                channelGroups.text       = groups
-                channelGroups.visibility = if (groups.isEmpty()) View.GONE else View.VISIBLE
+                val extraSummary = if (channel.extra.isNotEmpty())
+                    channel.extra.entries.joinToString("  ") { "${it.key}: ${it.value}" }
+                else ""
+                channelGroups.text = listOf(groups, extraSummary).filter { it.isNotEmpty() }.joinToString("  ")
+                channelDriverRow.visibility = if (groups.isEmpty() && extraSummary.isEmpty()) View.GONE else View.VISIBLE
 
                 val tx = channel.displayTxTone()
                 val rx = channel.displayRxTone()

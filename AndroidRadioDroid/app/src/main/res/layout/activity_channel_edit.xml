@@ -296,110 +296,32 @@
                 android:contentDescription="Help" />
         </LinearLayout>
 
-        <!-- ── Groups ─────────────────────────────────────────────────────── -->
+        <!-- ── Driver-specific: Groups (Slot 1–4), etc. ─────────────────────── -->
+
+        <LinearLayout
+            android:id="@+id/sectionDriverSpecific"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="24dp"
+            android:visibility="gone">
 
         <TextView
-            android:id="@+id/textLabelGroups"
+            android:id="@+id/textLabelDriverSection"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Groups"
+            android:text="@string/editor_driver_section_title"
+            android:textSize="14sp"
             android:textStyle="bold"
-            android:layout_marginTop="16dp" />
+            android:layout_marginBottom="4dp" />
 
-        <!-- Row 1: Group 1 + Group 2 -->
-        <LinearLayout
-            android:id="@+id/rowGroups1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="4dp">
-
+            <!-- Dynamic driver-specific params (Memory.extra); rows added in code -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:id="@+id/containerExtraParams"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:orientation="vertical"
-                android:layout_marginEnd="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Group 1" />
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-                    <Spinner
-                        android:id="@+id/spinnerGroup1"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="48dp" />
-                    <ImageButton
-                        android:id="@+id/helpGroups"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_marginStart="4dp"
-                        android:src="@drawable/ic_help_hint"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Help" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Group 2" />
-                <Spinner
-                    android:id="@+id/spinnerGroup2"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- Row 2: Group 3 + Group 4 -->
-        <LinearLayout
-            android:id="@+id/rowGroups2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginEnd="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Group 3" />
-                <Spinner
-                    android:id="@+id/spinnerGroup3"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Group 4" />
-                <Spinner
-                    android:id="@+id/spinnerGroup4"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp" />
-            </LinearLayout>
+                android:layout_marginTop="8dp" />
 
         </LinearLayout>
 

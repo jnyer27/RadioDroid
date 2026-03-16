@@ -228,7 +228,7 @@
         <notes>Same XTAL 671 calibration requirements as TX Tone.</notes>
     </entry>
     <entry key="groups" screen="channel_edit" title="Channel Groups (1–4)" range="None, A–O" default="None">
-        <description>Assigns this channel to up to 4 channel groups (A through O). Groups let you organise and scan subsets of your channels. Each group can have a custom label set in Edit Group Labels. The radio can be switched to Group mode to show and scan only channels in the selected group.</description>
+        <description>Assigns this channel to up to 4 channel groups (A through O). Groups let you organise and scan subsets of your channels. Group labels can be edited in Radio Settings (dynamic parameters). The radio can be switched to Group mode to show and scan only channels in the selected group.</description>
     </entry>
     <entry key="busy_lock" screen="channel_edit" title="Busy Lock" range="Off, On" default="Off">
         <description>When On, prevents the radio from transmitting on this channel if a signal is currently being received (carrier detected). Helps avoid stepping on an ongoing conversation on a simplex frequency.</description>

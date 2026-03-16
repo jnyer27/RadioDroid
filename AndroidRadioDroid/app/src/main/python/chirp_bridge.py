@@ -185,7 +185,7 @@ def _memory_to_dict(mem) -> dict:
     dtcs_pol = getattr(mem, "dtcs_polarity", "NN") or "NN"
     tx_pol   = dtcs_pol[0:1] if dtcs_pol else "N"
     rx_pol   = dtcs_pol[1:2] if len(dtcs_pol) > 1 else "N"
-    return {
+    out = {
         "number":            mem.number,
         "name":              getattr(mem, "name", "") or "",
         "freq":              freq,
@@ -206,19 +206,64 @@ def _memory_to_dict(mem) -> dict:
         "empty":             getattr(mem, "empty", False),
         "skip":              getattr(mem, "skip",  "") or "",
     }
+    # Driver-specific per-channel params (Memory.extra)
+    extra_list = getattr(mem, "extra", []) or []
+    if extra_list:
+        out["extra"] = {}
+        for item in extra_list:
+            try:
+                name = item.get_name()
+                val = getattr(item, "value", item)
+                out["extra"][name] = str(val) if val is not None else ""
+            except Exception:
+                pass
+    return out
 
 
-def download(vendor: str, model: str, port: str, baudrate: int) -> list:
-    """Instantiate the CHIRP driver, open the socket port, sync_in(), return channels."""
+def is_clone_mode_radio(vendor: str, model: str) -> bool:
+    """Return True if the driver is a full-EEPROM clone-mode radio (e.g. TD-H3 nicFW)."""
     _ensure_drivers()
+    from chirp import chirp_common
+    radio_cls = _find_radio_cls(vendor, model)
+    return issubclass(radio_cls, chirp_common.CloneModeRadio)
+
+
+def download(vendor: str, model: str, port: str, baudrate: int) -> str:
+    """
+    Instantiate the CHIRP driver, sync_in(), return a JSON string with channels
+    and for clone-mode radios the raw EEPROM (base64) so the app can work off
+    a local copy.
+    Returns JSON: {"channels": [...], "eeprom_base64": "<str or null>"}.
+    """
+    import base64
+    import json as _json
+    _ensure_drivers()
+    from chirp import chirp_common
     from serial_shim import AndroidSerial
 
     radio_cls  = _find_radio_cls(vendor, model)
     radio      = radio_cls(None)
-    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=0.5)
+    timeout = 5.0 if issubclass(radio_cls, chirp_common.CloneModeRadio) else 0.5
+    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=timeout)
 
+    # Capture clone EEPROM immediately after sync_in (before pipe close / get_memory loop)
+    # so the raw dump is definitely available for Save EEPROM and Radio Settings from mmap.
+    eeprom_b64 = None
     try:
         radio.sync_in()
+        if isinstance(radio, chirp_common.CloneModeRadio):
+            mmap = radio.get_mmap()
+            if mmap is not None:
+                try:
+                    bc = getattr(mmap, "get_byte_compatible", None)
+                    if callable(bc):
+                        raw = bc().get_packed()
+                    else:
+                        raw = mmap.get_packed()
+                    if raw and len(raw) > 0:
+                        eeprom_b64 = base64.b64encode(bytes(raw)).decode()
+                except Exception as e:
+                    LOG.warning("clone eeprom capture failed: %s", e)
     finally:
         radio.pipe.close()
 
@@ -231,7 +276,8 @@ def download(vendor: str, model: str, port: str, baudrate: int) -> list:
             channels.append(_memory_to_dict(mem))
         except Exception:
             channels.append({"number": n, "empty": True})
-    return channels
+
+    return _json.dumps({"channels": channels, "eeprom_base64": eeprom_b64})
 
 
 def load_custom_driver(path: str) -> list:
@@ -347,6 +393,474 @@ def get_radio_features(vendor: str, model: str) -> str:
     })
 
 
+def _settings_tree_to_json(settings_obj) -> list:
+    """
+    Walk the get_settings() tree and return a flat list of setting dicts for JSON.
+    Each item: path, name, type, value, and type-specific fields (min, max, options).
+    """
+    from chirp import settings as chirp_settings
+
+    out = []
+
+    def walk_group(group, path_prefix: list):
+        # RadioSetting is a leaf (contains a single value); serialize it and do not recurse
+        if isinstance(group, chirp_settings.RadioSetting):
+            try:
+                val = group.value
+                path_str = "/".join(path_prefix)
+                entry = {"path": path_str, "name": group.get_shortname() or group.get_name() or path_prefix[-1] if path_prefix else ""}
+                if not getattr(val, "get_mutable", lambda: True)():
+                    entry["readOnly"] = True
+                try:
+                    current = val.get_value()
+                except Exception:
+                    current = None
+                cls_name = type(val).__name__
+                if "Integer" in cls_name:
+                    entry["type"] = "int"
+                    entry["value"] = int(current) if current is not None else 0
+                    if hasattr(val, "get_min"):
+                        entry["min"] = val.get_min()
+                    if hasattr(val, "get_max"):
+                        entry["max"] = val.get_max()
+                elif "Float" in cls_name:
+                    entry["type"] = "float"
+                    entry["value"] = float(current) if current is not None else 0.0
+                    if hasattr(val, "get_min"):
+                        entry["min"] = val.get_min()
+                    if hasattr(val, "get_max"):
+                        entry["max"] = val.get_max()
+                elif "Boolean" in cls_name:
+                    entry["type"] = "bool"
+                    entry["value"] = bool(current)
+                elif "List" in cls_name or "Map" in cls_name:
+                    entry["type"] = "list"
+                    entry["value"] = str(current) if current is not None else ""
+                    entry["options"] = list(val.get_options()) if hasattr(val, "get_options") else []
+                elif "String" in cls_name:
+                    entry["type"] = "string"
+                    entry["value"] = str(current) if current is not None else ""
+                    if hasattr(val, "minlength"):
+                        entry["minLength"] = getattr(val, "minlength", 0)
+                    if hasattr(val, "maxlength"):
+                        entry["maxLength"] = getattr(val, "maxlength", 255)
+                else:
+                    entry["type"] = "string"
+                    entry["value"] = str(current) if current is not None else ""
+                out.append(entry)
+            except Exception as e:
+                LOG.debug("Skip setting %s: %s", "/".join(path_prefix), e)
+            return
+        order = getattr(group, "get_order", None) and group.get_order() or getattr(
+            group, "_element_order", []
+        )
+        for name in order:
+            el = group[name] if hasattr(group, "__getitem__") else getattr(group, "_elements", {}).get(name)
+            if el is None:
+                continue
+            path = path_prefix + [str(name)]
+            if isinstance(el, chirp_settings.RadioSetting):
+                walk_group(el, path)
+            elif hasattr(el, "get_order") or hasattr(el, "_element_order"):
+                walk_group(el, path)
+
+    top = settings_obj
+    if isinstance(top, (list, tuple)):
+        for i, g in enumerate(top):
+            walk_group(g, [str(i)])
+    else:
+        walk_group(top, [])
+    return out
+
+
+def _apply_settings_from_json(settings_obj, settings_list: list):
+    """Apply a list of {path, value} (or path + value in flat list) onto the live tree."""
+    from chirp import settings as chirp_settings
+
+    # Build by_path and by_leaf for lookup (leaf = last path component; fallback when path differs)
+    by_path = {}
+    by_leaf = {}
+    for s in settings_list:
+        if "path" not in s or "value" not in s:
+            continue
+        p = str(s["path"]).strip()
+        by_path[p] = s
+        if p.startswith("root/"):
+            by_path[p[5:]] = s  # also register without "root/" for tree walk that omits root
+        leaf = p.split("/")[-1] if "/" in p else p
+        if leaf not in by_leaf:
+            by_leaf[leaf] = s
+        else:
+            by_leaf[leaf] = None  # ambiguous, don't use leaf lookup
+
+    applied_count = [0]  # use list so inner function can mutate
+    lcd_brightness_value = [None]  # value we set for lcdBrightness, if any
+
+    def walk_and_set(group, path_prefix: list):
+        order = getattr(group, "get_order", None) and group.get_order() or getattr(
+            group, "_element_order", []
+        )
+        for name in order:
+            el = group[name] if hasattr(group, "__getitem__") else getattr(group, "_elements", {}).get(name)
+            if el is None:
+                continue
+            path = path_prefix + [str(name)]
+            path_str = "/".join(path)
+            if isinstance(el, chirp_settings.RadioSetting):
+                payload = (
+                    by_path.get(path_str) or by_path.get("root/" + path_str) or
+                    by_leaf.get(path_str.split("/")[-1] if "/" in path_str else path_str) or
+                    by_leaf.get(el.get_name())
+                )
+                if payload is None or payload.get("readOnly"):
+                    continue
+                try:
+                    val = el.value
+                    v = payload["value"]
+                    cls_name = type(val).__name__
+                    if "Boolean" in cls_name:
+                        val.set_value(bool(v))
+                    elif "Integer" in cls_name:
+                        val.set_value(int(v))
+                    elif "Float" in cls_name:
+                        val.set_value(float(v))
+                    elif "List" in cls_name or "Map" in cls_name:
+                        val.set_value(str(v))
+                    else:
+                        val.set_value(str(v))
+                    applied_count[0] += 1
+                    if el.get_name() == "lcdBrightness":
+                        lcd_brightness_value[0] = int(v) if v is not None else None
+                except Exception as e:
+                    LOG.warning("Apply %s = %r: %s", path_str, payload.get("value"), e)
+            elif hasattr(el, "get_order") or hasattr(el, "_element_order"):
+                walk_and_set(el, path)
+
+    top = settings_obj
+    if isinstance(top, (list, tuple)):
+        for i, g in enumerate(top):
+            walk_and_set(g, [str(i)])
+    else:
+        walk_and_set(top, [])
+    n = applied_count[0]
+    if n == 0 and by_path:
+        LOG.warning("set_radio_settings_to_mmap: applied 0 settings (paths may not match tree)")
+    else:
+        LOG.info("set_radio_settings_to_mmap: applied %d settings", n)
+    return n, lcd_brightness_value[0]
+
+
+def _apply_settings_via_driver(radio, settings_list: list) -> None:
+    """
+    Call the driver's apply_setting(name, value) for each applied setting.
+    CloneModeRadio defines apply_setting() (default no-op); drivers that override it
+    get correct persistence on runtimes where set_settings(tree) does not persist.
+    Also supports legacy apply_setting_to_settings for backward compatibility.
+    """
+    apply_one = getattr(radio, "apply_setting", None)
+    if not callable(apply_one):
+        apply_one = getattr(radio, "apply_setting_to_settings", None)
+    if not callable(apply_one):
+        return
+    for s in settings_list:
+        if "path" not in s or "value" not in s:
+            continue
+        path = str(s.get("path", "")).strip()
+        name = path.split("/")[-1] if "/" in path else path
+        if not name:
+            continue
+        try:
+            apply_one(name, s["value"])
+        except Exception:
+            pass
+
+
+def get_radio_settings(vendor: str, model: str, port: str, baudrate: int) -> str:
+    """
+    Connect to the radio, sync_in(), get_settings(), and return a JSON string
+    of the settings tree (flat list of {path, name, type, value, ...}).
+    Requires an open connection; the radio must be connected first.
+    """
+    import json as _json
+    _ensure_drivers()
+    from serial_shim import AndroidSerial
+
+    radio_cls = _find_radio_cls(vendor, model)
+    radio = radio_cls(None)
+    # Full-EEPROM radios (e.g. TD-H3 nicFW) do full clone in sync_in; use longer timeout for BLE/slow links
+    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=5.0)
+    try:
+        radio.sync_in()
+        raw = radio.get_settings()
+        if raw is None:
+            return _json.dumps({"settings": []})
+        flat = _settings_tree_to_json(raw)
+        return _json.dumps({"settings": flat})
+    except Exception:
+        LOG.exception("get_radio_settings failed for %s %s", vendor, model)
+        raise
+    finally:
+        radio.pipe.close()
+
+
+def set_radio_settings(vendor: str, model: str, port: str, baudrate: int, settings_json: str) -> None:
+    """
+    Connect to the radio, sync_in(), get_settings(), apply the JSON values,
+    call set_settings(), then sync_out().  settings_json must be the same
+    structure as returned by get_radio_settings (e.g. {"settings": [ {...}, ...]}).
+    """
+    import json as _json
+    _ensure_drivers()
+    from serial_shim import AndroidSerial
+
+    payload = _json.loads(str(settings_json))
+    settings_list = payload.get("settings") or payload.get("settings_list") or []
+
+    radio_cls = _find_radio_cls(vendor, model)
+    radio = radio_cls(None)
+    # Full-EEPROM clone in sync_in/sync_out; longer timeout for BLE/slow links
+    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=5.0)
+    try:
+        radio.sync_in()
+        tree = radio.get_settings()
+        if tree is not None:
+            _apply_settings_from_json(tree, settings_list)
+            radio.set_settings(tree)
+        radio.sync_out()
+    except Exception:
+        LOG.exception("set_radio_settings failed for %s %s", vendor, model)
+        raise
+    finally:
+        radio.pipe.close()
+
+
+def get_radio_settings_from_mmap(vendor: str, model: str, eeprom_base64: str) -> str:
+    """
+    Get settings from an in-memory EEPROM dump (clone-mode radios only).
+    No radio connection. Returns same JSON structure as get_radio_settings().
+    """
+    import base64
+    import json as _json
+    from chirp import chirp_common
+    from chirp import memmap
+
+    _ensure_drivers()
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise Exception("get_radio_settings_from_mmap requires a clone-mode radio")
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+    raw = radio.get_settings()
+    if raw is None:
+        return _json.dumps({"settings": []})
+    flat = _settings_tree_to_json(raw)
+    return _json.dumps({"settings": flat})
+
+
+def set_radio_settings_to_mmap(vendor: str, model: str, eeprom_base64: str, settings_json: str) -> str:
+    """
+    Apply settings to an in-memory EEPROM dump; return new eeprom_base64.
+    No radio connection. Used when user taps Save in Radio Settings (clone mode).
+    """
+    import base64
+    import json as _json
+    from chirp import chirp_common
+    from chirp import memmap
+
+    _ensure_drivers()
+    payload = _json.loads(str(settings_json))
+    settings_list = payload.get("settings") or payload.get("settings_list") or []
+
+    # Debug: log what we received (paths and sample values)
+    paths_with_value = [s.get("path") for s in settings_list if "path" in s and "value" in s]
+    LOG.warning("set_radio_settings_to_mmap: received %d settings, first paths: %s",
+                len(paths_with_value), paths_with_value[:5] if paths_with_value else [])
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise Exception("set_radio_settings_to_mmap requires a clone-mode radio")
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+    applied_count = 0
+    tree = radio.get_settings()
+    if tree is not None:
+        applied_count, lcd_brightness_applied = _apply_settings_from_json(tree, settings_list)
+        radio.set_settings(tree)
+        # On some runtimes the driver does not persist tree->struct; apply via driver API when available
+        _apply_settings_via_driver(radio, settings_list)
+    else:
+        lcd_brightness_applied = None
+    mmap_byte = radio.get_mmap().get_byte_compatible()
+    # Sync settings struct to buffer (on some runtimes bitwise does not write through)
+    if hasattr(radio, "_memobj") and hasattr(radio._memobj, "settings") and hasattr(mmap_byte, "_data"):
+        try:
+            raw = radio._memobj.settings.get_raw(asbytes=True)
+            if raw is not None:
+                raw = bytes(raw) if not isinstance(raw, bytes) else raw
+                start = 0x1900
+                for i, b in enumerate(raw):
+                    if start + i < len(mmap_byte._data):
+                        mmap_byte._data[start + i] = b if isinstance(b, int) else ord(b)
+        except Exception as e:
+            LOG.warning("set_radio_settings_to_mmap: sync struct to buffer: %s", e)
+    new_raw = mmap_byte.get_packed()
+    # Diagnostic: lcdBrightness at 0x1919 (settings + 25 bytes)
+    struct_lcd = None
+    buf_lcd = None
+    if hasattr(radio, "_memobj") and hasattr(radio._memobj, "settings") and len(new_raw) > 0x1919:
+        try:
+            struct_lcd = int(getattr(radio._memobj.settings, "lcdBrightness", None))
+        except (TypeError, ValueError):
+            pass
+        if hasattr(mmap_byte, "_data") and len(mmap_byte._data) > 0x1919:
+            buf_lcd = int(mmap_byte._data[0x1919])
+    out_b64 = base64.b64encode(new_raw).decode()
+    out = {"eepromBase64": out_b64, "appliedCount": applied_count}
+    if lcd_brightness_applied is not None:
+        out["lcdBrightnessApplied"] = lcd_brightness_applied
+    if struct_lcd is not None:
+        out["structLcdBrightness"] = struct_lcd
+    if buf_lcd is not None:
+        out["bufferLcdBrightness"] = buf_lcd
+    return _json.dumps(out)
+
+
+def upload_mmap(vendor: str, model: str, port: str, baudrate: int, eeprom_base64: str) -> None:
+    """
+    Upload the in-memory EEPROM dump to the radio (clone-mode only).
+    No sync_in(); load mmap from eeprom_base64, then sync_out().
+    """
+    import base64
+    _ensure_drivers()
+    from chirp import chirp_common
+    from chirp import memmap
+    from serial_shim import AndroidSerial
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise Exception("upload_mmap requires a clone-mode radio")
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=5.0)
+    try:
+        radio.sync_out()
+    except Exception:
+        LOG.exception("upload_mmap failed for %s %s", vendor, model)
+        raise
+    finally:
+        radio.pipe.close()
+
+
+def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_json: str) -> str:
+    """
+    Apply a single channel edit to the in-memory EEPROM (clone-mode only).
+    Used when the user edits a channel so the raw dump stays in sync with the channel list.
+    Returns new eeprom_base64.
+    """
+    import base64
+    import json as _json
+    _ensure_drivers()
+    from chirp import chirp_common
+    from chirp import memmap
+
+    ch = _json.loads(str(channel_json))
+    number = int(ch.get("number") or 0)
+    if number < 1:
+        raise ValueError("Channel number must be >= 1")
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise Exception("apply_channel_to_mmap requires a clone-mode radio")
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+    features = radio.get_features()
+
+    # Get template from radio so mem.extra has the driver's structure
+    mem = radio.get_memory(number)
+    if ch.get("empty"):
+        mem.empty = True
+        mem.number = number
+        radio.set_memory(mem)
+    else:
+        _channel_dict_into_memory(mem, ch, features)
+        mem.number = number
+        radio.set_memory(mem)
+
+    new_raw = radio.get_mmap().get_byte_compatible().get_packed()
+    return base64.b64encode(new_raw).decode()
+
+
+def _channel_dict_into_memory(mem, ch, features):
+    """Fill a CHIRP Memory from a channel dict (same logic as upload() loop)."""
+    from chirp import chirp_common
+
+    mem.empty = False
+    mem.name = ch.get("name", "") or ""
+    mem.freq = int(ch.get("freq") or 0)
+    mem.offset = int(ch.get("offset") or 0)
+    duplex = ch.get("duplex", "") or ""
+    valid_duplexes = getattr(features, "valid_duplexes", None)
+    if valid_duplexes and duplex not in valid_duplexes:
+        duplex = ""
+    mem.duplex = duplex
+    mode = ch.get("mode", "FM") or "FM"
+    valid_modes = getattr(features, "valid_modes", None)
+    if valid_modes and mode not in valid_modes:
+        mode = "FM"
+    mem.mode = mode
+    tmode = ch.get("tx_tone_mode", "") or ""
+    valid_tmodes = getattr(features, "valid_tmodes", None)
+    if valid_tmodes and tmode not in valid_tmodes:
+        tmode = ""
+    if tmode == "Tone":
+        mem.tmode = "Tone"
+        mem.rtone = float(ch.get("tx_tone_val") or 88.5)
+    elif tmode == "TSQL":
+        mem.tmode = "TSQL"
+        mem.rtone = float(ch.get("tx_tone_val") or 88.5)
+        mem.ctone = float(ch.get("rx_tone_val") or 88.5)
+    elif tmode == "DTCS":
+        mem.tmode = "DTCS"
+        mem.dtcs = int(ch.get("tx_tone_val") or 23)
+        tx_pol = (ch.get("tx_tone_polarity") or "N")[:1]
+        rx_pol = (ch.get("rx_tone_polarity") or "N")[:1]
+        mem.dtcs_polarity = tx_pol + rx_pol
+    else:
+        mem.tmode = ""
+    power_str = ch.get("power", "") or ""
+    if power_str and features.valid_power_levels:
+        matched = next(
+            (p for p in features.valid_power_levels if str(p) == power_str),
+            None
+        )
+        if matched:
+            mem.power = matched
+    skip = ch.get("skip", "") or ""
+    valid_skips = getattr(features, "valid_skips", None)
+    if valid_skips and skip not in valid_skips:
+        skip = ""
+    mem.skip = skip
+    extra_dict = ch.get("extra") or {}
+    if isinstance(extra_dict, dict):
+        for item in getattr(mem, "extra", []) or []:
+            try:
+                name = item.get_name()
+                if name in extra_dict:
+                    val = extra_dict[name]
+                    if hasattr(item, "set_value"):
+                        item.set_value(val)
+                    elif hasattr(item, "value") and hasattr(item.value, "set_value"):
+                        item.value.set_value(val)
+                    else:
+                        item.value = val
+            except Exception:
+                pass
+
+
 def _drain_pipe(pipe, drain_timeout: float = 0.15):
     """
     Consume any residual bytes left in the pipe's receive buffer.
@@ -425,7 +939,9 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
                         pass  # driver doesn't support erasing — leave as-is
                 continue
 
-            mem        = chirp_common.Memory()
+            # Get template from radio so mem.extra has the driver's structure
+            mem = radio.get_memory(number)
+            mem.empty = False
             mem.number = number
             mem.name   = ch.get("name", "") or ""
             mem.freq   = int(ch.get("freq")   or 0)
@@ -495,6 +1011,23 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
             if valid_skips and skip not in valid_skips:
                 skip = ""
             mem.skip = skip
+
+            # ── Driver-specific extra (Memory.extra) ─────────────────────────────
+            extra_dict = ch.get("extra") or {}
+            if isinstance(extra_dict, dict):
+                for item in getattr(mem, "extra", []) or []:
+                    try:
+                        name = item.get_name()
+                        if name in extra_dict:
+                            val = extra_dict[name]
+                            if hasattr(item, "set_value"):
+                                item.set_value(val)
+                            elif hasattr(item, "value") and hasattr(item.value, "set_value"):
+                                item.value.set_value(val)
+                            else:
+                                item.value = val
+                    except Exception:
+                        pass
 
             radio.set_memory(mem)
 

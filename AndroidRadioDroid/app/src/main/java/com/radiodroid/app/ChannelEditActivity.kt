@@ -4,8 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputFilter
+import android.util.Base64
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.EditText
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -13,12 +17,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
+import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityChannelEditBinding
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
+import com.radiodroid.app.radio.ParamMappingStore
 import com.radiodroid.app.radio.Protocol
 import com.radiodroid.app.radio.Channel
+import com.google.android.material.textfield.TextInputLayout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChannelEditActivity : AppCompatActivity() {
 
@@ -35,6 +46,9 @@ class ChannelEditActivity : AppCompatActivity() {
     private var powerLevels: List<String> = emptyList()
     /** Modulation modes supported by the selected radio driver. */
     private var modeList: List<String> = emptyList()
+
+    /** Dynamic extra-param name -> EditText for driver-specific channel fields. */
+    private val extraParamEditTexts = mutableMapOf<String, EditText>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -108,10 +122,13 @@ class ChannelEditActivity : AppCompatActivity() {
         binding.textLabelRxTone.visibility = rxToneVis
         binding.rowRxTone.visibility       = rxToneVis
 
-        // Groups are a nicFW-specific concept — not part of the CHIRP data model
-        binding.textLabelGroups.visibility = View.GONE
-        binding.rowGroups1.visibility      = View.GONE
-        binding.rowGroups2.visibility      = View.GONE
+        // Driver-specific section: show when this radio uses group slots or Memory.extra params
+        val hasDriverGroups = EepromHolder.groupLabels.any { it.isNotBlank() } ||
+            EepromHolder.channels.any { ch ->
+                listOf(ch.group1, ch.group2, ch.group3, ch.group4).any { it != "None" }
+            } ||
+            EepromHolder.extraParamNames.isNotEmpty()
+        binding.sectionDriverSpecific.visibility = if (hasDriverGroups) View.VISIBLE else View.GONE
 
         // Enforce driver name-length limit (0 = driver didn't declare one → cap at 16)
         val maxNameLen = if (features.validNameLength > 0) features.validNameLength else 16
@@ -123,24 +140,6 @@ class ChannelEditActivity : AppCompatActivity() {
         // RX gets its own adapter instance so the two spinners are independent
         val toneAdapterRx = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, EepromConstants.TONE_LABELS)
         binding.spinnerRxTone.adapter = toneAdapterRx
-
-        // ── Group spinners (Group 1–4, each: None / A – Label … O – Label) ──────
-        // Build spinner items that show the live label alongside each letter,
-        // e.g. "A – All", "B – MURS", "G – GMRS". Falls back to just the letter
-        // when the label is blank or the EEPROM hasn't been loaded yet.
-        val parsedLabels = EepromHolder.groupLabels
-        val groupSpinnerItems: List<String> = buildList {
-            add("None")
-            EepromConstants.GROUP_LETTERS.forEachIndexed { i, letter ->
-                val label = parsedLabels.getOrNull(i)?.trim() ?: ""
-                add(if (label.isEmpty()) letter else "$letter – $label")
-            }
-        }
-        val groupAdapter = { ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, groupSpinnerItems) }
-        binding.spinnerGroup1.adapter = groupAdapter()
-        binding.spinnerGroup2.adapter = groupAdapter()
-        binding.spinnerGroup3.adapter = groupAdapter()
-        binding.spinnerGroup4.adapter = groupAdapter()
 
         // ── Populate all fields ────────────────────────────────────────────────
         channel?.let { c ->
@@ -179,11 +178,13 @@ class ChannelEditActivity : AppCompatActivity() {
                 EepromConstants.toneToIndex(c.rxToneMode, c.rxToneVal, c.rxTonePolarity)
             )
 
-            // Group spinners
-            binding.spinnerGroup1.setSelection(EepromConstants.GROUPS_LIST.indexOf(c.group1).coerceAtLeast(0))
-            binding.spinnerGroup2.setSelection(EepromConstants.GROUPS_LIST.indexOf(c.group2).coerceAtLeast(0))
-            binding.spinnerGroup3.setSelection(EepromConstants.GROUPS_LIST.indexOf(c.group3).coerceAtLeast(0))
-            binding.spinnerGroup4.setSelection(EepromConstants.GROUPS_LIST.indexOf(c.group4).coerceAtLeast(0))
+            // Dynamic extra params (Memory.extra) — includes Group 1–4 when driver exposes them
+            if (EepromHolder.extraParamNames.isNotEmpty()) {
+                ensureExtraParamRows()
+                EepromHolder.extraParamNames.forEach { name ->
+                    extraParamEditTexts[name]?.setText(c.extra[name] ?: "")
+                }
+            }
 
             // Busy Lock — populate first, then enforce the duplex rule
             binding.switchBusyLock.isChecked = c.busyLock
@@ -211,6 +212,22 @@ class ChannelEditActivity : AppCompatActivity() {
         setupHelpButtons()
     }
 
+    /** Populate containerExtraParams with one row per [EepromHolder.extraParamNames]. */
+    private fun ensureExtraParamRows() {
+        val names = EepromHolder.extraParamNames
+        if (names.isEmpty()) return
+        if (extraParamEditTexts.size == names.size) return // already built
+        binding.containerExtraParams.removeAllViews()
+        extraParamEditTexts.clear()
+        names.forEach { name ->
+            val row = layoutInflater.inflate(R.layout.item_extra_param, binding.containerExtraParams, false)
+            (row as? ViewGroup)?.getChildAt(0)?.let { if (it is TextInputLayout) it.hint = name }
+            val edit = row.findViewById<EditText>(R.id.editExtraParam)
+            extraParamEditTexts[name] = edit
+            binding.containerExtraParams.addView(row)
+        }
+    }
+
     private fun setupHelpButtons() {
         mapOf(
             binding.helpFreqRx    to "freq_rx",
@@ -222,7 +239,6 @@ class ChannelEditActivity : AppCompatActivity() {
             binding.helpBandwidth to "bandwidth",
             binding.helpTxTone    to "tx_tone",
             binding.helpRxTone    to "rx_tone",
-            binding.helpGroups    to "groups",
             binding.helpBusyLock  to "busy_lock",
         ).forEach { (btn, key) ->
             btn.setOnClickListener { HelpSystem.show(this, key) }
@@ -357,6 +373,10 @@ class ChannelEditActivity : AppCompatActivity() {
             c.power    = powerStr
             c.mode     = modeStr
         }
+        // Resolve driver mode for upload (Parameter Mapping); keep bandwidth in sync with display mode
+        val mapping = EepromHolder.selectedRadio?.let { ParamMappingStore.getMapping(this, it) }
+        c.driverMode = mapping?.reverseMode(c.mode) ?: c.mode
+        c.bandwidth  = if (c.mode == "NFM" || c.mode == "NAM") "Narrow" else "Wide"
 
         // Tone — always saved regardless of empty flag so tones survive frequency edits
         val (txMode, txVal, txPol) = EepromConstants.indexToTone(binding.spinnerTxTone.selectedItemPosition)
@@ -368,7 +388,15 @@ class ChannelEditActivity : AppCompatActivity() {
         c.rxToneVal      = rxVal
         c.rxTonePolarity = rxPol
 
-        // Groups — nicFW-specific, not part of the CHIRP data model; section is hidden
+        // Dynamic extra (Memory.extra) — includes Group 1–4 when driver exposes them
+        if (extraParamEditTexts.isNotEmpty()) {
+            c.extra = extraParamEditTexts.mapValues { it.value.text?.toString()?.trim() ?: "" }
+            // Sync group fields from extra so upload has correct group1–4
+            c.group1 = c.extra["Group 1"] ?: c.extra["group1"] ?: c.group1
+            c.group2 = c.extra["Group 2"] ?: c.extra["group2"] ?: c.group2
+            c.group3 = c.extra["Group 3"] ?: c.extra["group3"] ?: c.group3
+            c.group4 = c.extra["Group 4"] ?: c.extra["group4"] ?: c.group4
+        }
 
         // Busy Lock — force off when a repeater/split offset is present (radio rule)
         val hasOffset = duplexStr == "+" || duplexStr == "-" ||
@@ -376,9 +404,31 @@ class ChannelEditActivity : AppCompatActivity() {
         c.busyLock = if (hasOffset) false else binding.switchBusyLock.isChecked
 
         EepromParser.writeChannel(eep, c)
-        EepromHolder.eeprom = eep
-        setResult(RESULT_OK)
-        finish()
+
+        // Clone mode: apply this channel edit to the raw EEPROM so upload_mmap and Save EEPROM dump stay in sync
+        val radio = EepromHolder.selectedRadio
+        if (eep != null && eep.isNotEmpty() && radio != null) {
+            lifecycleScope.launch {
+                try {
+                    val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
+                    if (isClone) {
+                        val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                        val newEep = ChirpBridge.applyChannelToMmap(radio, b64, c)
+                        EepromHolder.eeprom = newEep
+                    } else {
+                        EepromHolder.eeprom = eep
+                    }
+                } catch (_: Throwable) {
+                    EepromHolder.eeprom = eep
+                }
+                setResult(RESULT_OK)
+                finish()
+            }
+        } else {
+            EepromHolder.eeprom = eep
+            setResult(RESULT_OK)
+            finish()
+        }
     }
 
     companion object {

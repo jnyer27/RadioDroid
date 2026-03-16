@@ -35,8 +35,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.hoho.android.usbserial.driver.UsbSerialDriver
 import com.radiodroid.app.bluetooth.BleManager
 import com.radiodroid.app.bluetooth.BtSerialManager
+import android.util.Base64
 import com.radiodroid.app.bridge.BleBridge
 import com.radiodroid.app.bridge.ChirpBridge
+import com.radiodroid.app.bridge.DownloadResult
 import com.radiodroid.app.bridge.UsbSerialBridge
 import com.radiodroid.app.databinding.ActivityMainBinding
 import android.text.Editable
@@ -47,6 +49,7 @@ import com.radiodroid.app.radio.ChirpCsvExporter
 import com.radiodroid.app.radio.ChirpCsvImporter
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
+import com.radiodroid.app.radio.ParamMappingStore
 import com.radiodroid.app.radio.Protocol
 import com.radiodroid.app.radio.RadioStream
 import kotlinx.coroutines.Dispatchers
@@ -149,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         val model    = data.getStringExtra(RadioSelectActivity.EXTRA_MODEL)     ?: return@registerForActivityResult
         val baudRate = data.getIntExtra(RadioSelectActivity.EXTRA_BAUD_RATE, 9600)
         selectedRadio = RadioInfo(vendor, model, baudRate)
+        EepromHolder.selectedRadio = selectedRadio
         updateConnectionUi()
         invalidateOptionsMenu()
         Toast.makeText(this, "Radio: $vendor $model", Toast.LENGTH_SHORT).show()
@@ -452,16 +456,18 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Asks the user to name the export file, then generates a CHIRP-compatible CSV
-     * from all selected non-empty channels and triggers the Android share sheet.
+     * from selected non-empty channels (or all non-empty if none selected) and shares.
      */
     private fun exportSelectedChannels() {
         val selected = adapter.selectedChannelNumbers
-        val channels = channelList
-            .filter { it.number in selected && !it.empty }
-            .sortedBy { it.number }
+        val channels = if (selected.isEmpty()) {
+            channelList.filter { !it.empty }.sortedBy { it.number }
+        } else {
+            channelList.filter { it.number in selected && !it.empty }.sortedBy { it.number }
+        }
 
         if (channels.isEmpty()) {
-            Toast.makeText(this, "No non-empty channels selected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No non-empty channels to export", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -507,6 +513,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Saves the in-memory EEPROM dump (clone mode) to a file and opens the share sheet.
+     */
+    private fun saveEepromDump() {
+        val eep = EepromHolder.eeprom ?: return
+        if (eep.isEmpty()) return
+        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val vendor = selectedRadio?.vendor?.replace(Regex("[^a-zA-Z0-9]"), "_") ?: "radio"
+        val fileName = "eeprom_${vendor}_$ts.img"
+        val dir = getExternalFilesDir(null) ?: filesDir
+        val file = File(dir, fileName)
+        file.writeBytes(eep)
+        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "EEPROM dump — $fileName")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(shareIntent, "Save EEPROM dump"))
+        Toast.makeText(this, "EEPROM dump saved as $fileName", Toast.LENGTH_SHORT).show()
+    }
+
+    /**
      * Shows/hides the selection bar and keeps the count label up to date.
      * Called from [ChannelAdapter.onSelectionChanged] on every selection change.
      */
@@ -530,10 +559,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val hasChannels = EepromHolder.channels.isNotEmpty()
+        val hasCloneEeprom = EepromHolder.eeprom != null && EepromHolder.eeprom!!.isNotEmpty()
         menu.findItem(R.id.action_import_chirp)?.isEnabled           = hasChannels
         menu.findItem(R.id.action_import_chirp_clipboard)?.isEnabled = hasChannels
         menu.findItem(R.id.action_sort_by_group)?.isEnabled          = hasChannels
-        menu.findItem(R.id.action_edit_group_labels)?.isEnabled      = hasChannels
+        menu.findItem(R.id.action_radio_settings)?.isEnabled          =
+            EepromHolder.radioFeatures.hasSettings && selectedRadio != null &&
+            (activePort != null || hasCloneEeprom)
+        menu.findItem(R.id.action_save_eeprom_dump)?.isEnabled        = hasCloneEeprom
+        menu.findItem(R.id.action_export_csv)?.isEnabled             = hasChannels
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -562,12 +596,27 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, ChannelSortActivity::class.java))
                 true
             }
-            R.id.action_edit_group_labels -> {
-                startActivity(Intent(this, GroupLabelEditActivity::class.java))
-                true
-            }
             R.id.action_select_radio -> {
                 radioSelectLauncher.launch(Intent(this, RadioSelectActivity::class.java))
+                true
+            }
+            R.id.action_param_mapping -> {
+                startActivity(ParamMappingActivity.intent(this, selectedRadio))
+                true
+            }
+            R.id.action_radio_settings -> {
+                val r = selectedRadio
+                val p = activePort ?: ""
+                if (r != null && (p.isNotBlank() || (EepromHolder.eeprom != null && EepromHolder.eeprom!!.isNotEmpty())))
+                    startActivity(RadioSettingsActivity.intent(this, r, p))
+                true
+            }
+            R.id.action_save_eeprom_dump -> {
+                saveEepromDump()
+                true
+            }
+            R.id.action_export_csv -> {
+                exportSelectedChannels()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -1440,10 +1489,19 @@ class MainActivity : AppCompatActivity() {
         binding.btnSave.isEnabled = false
         lifecycleScope.launch {
             try {
-                val channels = ChirpBridge.download(radio, port)
-                eeprom = ByteArray(0)   // non-null sentinel
+                EepromHolder.selectedRadio = radio
+                val mapping = ParamMappingStore.getMapping(this@MainActivity, radio)
+                val result = ChirpBridge.download(radio, port, mapping)
+                eeprom = if (result.eepromBase64 != null) {
+                    Base64.decode(result.eepromBase64, Base64.NO_WRAP)
+                } else {
+                    ByteArray(0)   // non-clone sentinel
+                }
                 EepromHolder.eeprom    = eeprom
-                EepromHolder.channels  = channels.toMutableList()
+                EepromHolder.channels  = result.channels.toMutableList()
+                EepromHolder.extraParamNames = result.channels
+                    .firstOrNull { it.extra.isNotEmpty() }
+                    ?.extra?.keys?.toList() ?: emptyList()
                 refreshChannelList()
                 runOnUiThread {
                     binding.progressBar.visibility = View.GONE
@@ -1451,11 +1509,11 @@ class MainActivity : AppCompatActivity() {
                     binding.progressText.visibility = View.GONE
                     updateConnectionUi()
                     invalidateOptionsMenu()
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Downloaded ${channels.size} channels from ${radio.vendor} ${radio.model}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    val msg = if (result.isCloneMode)
+                        "Downloaded ${result.channels.size} channels (EEPROM in memory). Use Radio Settings to edit; Save to radio from here when ready."
+                    else
+                        "Downloaded ${result.channels.size} channels from ${radio.vendor} ${radio.model}"
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -1501,7 +1559,15 @@ class MainActivity : AppCompatActivity() {
         binding.btnSave.isEnabled = false
         lifecycleScope.launch {
             try {
-                ChirpBridge.upload(radio, port, EepromHolder.channels.toList())
+                val eep = EepromHolder.eeprom
+                val isCloneWithEeprom = eep != null && eep.isNotEmpty() && ChirpBridge.isCloneModeRadio(radio)
+                if (isCloneWithEeprom) {
+                    val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                    ChirpBridge.uploadMmap(radio, port, b64)
+                } else {
+                    val mapping = ParamMappingStore.getMapping(this@MainActivity, radio)
+                    ChirpBridge.upload(radio, port, EepromHolder.channels.toList(), mapping)
+                }
                 runOnUiThread {
                     binding.progressBar.visibility = View.GONE
                     binding.progressBar.isIndeterminate = false

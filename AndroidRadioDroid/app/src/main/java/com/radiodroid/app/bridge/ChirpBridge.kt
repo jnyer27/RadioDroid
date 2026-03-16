@@ -4,10 +4,21 @@ import com.chaquo.python.Python
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
+import com.radiodroid.app.radio.ParamMapping
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+
+/**
+ * Result of a clone or normal download: channels and optional EEPROM dump (clone-mode).
+ */
+data class DownloadResult(
+    val channels: List<Channel>,
+    val eepromBase64: String? = null,
+) {
+    val isCloneMode: Boolean get() = !eepromBase64.isNullOrBlank()
+}
 
 /**
  * Kotlin façade over the Python chirp_bridge module.
@@ -46,16 +57,33 @@ object ChirpBridge {
               .map { RadioInfo.fromPyObject(it) }
 
     /**
-     * Downloads the full channel list from the radio.
-     * @param radio  Selected radio model
-     * @param port   Serial port string: "/dev/ttyUSB0" for USB OTG,
-     *               "ble:///tmp/radiodroid_ble.sock" for BLE socket bridge
+     * True if the driver is clone-mode (full EEPROM); app works off in-memory dump.
      */
-    suspend fun download(radio: RadioInfo, port: String): List<Channel> =
+    suspend fun isCloneModeRadio(radio: RadioInfo): Boolean =
         withContext(Dispatchers.IO) {
-            bridge.callAttr("download", radio.vendor, radio.model, port, radio.baudRate)
-                  .asList()
-                  .mapIndexed { idx, obj -> Channel.fromPyObject(idx + 1, obj) }
+            bridge.callAttr("is_clone_mode_radio", radio.vendor, radio.model).toBoolean()
+        }
+
+    /**
+     * Downloads the full channel list from the radio. For clone-mode radios also
+     * returns the EEPROM dump (base64) so the app can work off a local copy.
+     *
+     * @param radio   Selected radio model
+     * @param port    Serial port string
+     * @param mapping Optional mode/bandwidth mapping
+     */
+    suspend fun download(radio: RadioInfo, port: String, mapping: ParamMapping? = null): DownloadResult =
+        withContext(Dispatchers.IO) {
+            val jsonStr = bridge.callAttr("download", radio.vendor, radio.model, port, radio.baudRate).toString()
+            val obj = org.json.JSONObject(jsonStr)
+            val arr = obj.getJSONArray("channels")
+            val channels = (0 until arr.length()).map { i ->
+                Channel.fromJson(i + 1, arr.getJSONObject(i), mapping)
+            }
+            // optString("eeprom_base64") can be "" for JSON null, or literal "null" in some parsers
+            val eepromStr = obj.optString("eeprom_base64", "")
+            val eepromBase64 = eepromStr.takeIf { it.isNotBlank() && it != "null" }
+            DownloadResult(channels = channels, eepromBase64 = eepromBase64)
         }
 
     /**
@@ -76,18 +104,20 @@ object ChirpBridge {
     /**
      * Uploads modified channels back to the radio.
      *
+     * The mode sent to Python is [Channel.driverMode] when set (so the driver
+     * receives the value it expects); otherwise [mapping] is used to reverse-map
+     * [Channel.mode] to a driver value, or [Channel.mode] is sent as-is.
+     *
      * Channels are serialised to a JSON string rather than passed as a
-     * Kotlin List<Map> to avoid Chaquopy Java-proxy conversion issues:
-     *  - Kotlin List<Map<String,Any>> arrives in Python as a Java ArrayList
-     *    of LinkedHashMaps; Java Map is not directly iterable in Python,
-     *    so dict(ch) / "for k in ch" fail with TypeError.
-     *  - Passing a plain JSON string and parsing with json.loads() gives
-     *    native Python dicts immediately — no proxy layer involved.
+     * Kotlin List<Map> to avoid Chaquopy Java-proxy conversion issues.
      */
-    suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>) =
+    suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>, mapping: ParamMapping? = null) =
         withContext(Dispatchers.IO) {
             val json = JSONArray().also { arr ->
                 channels.forEach { ch ->
+                    val modeForUpload = ch.driverMode
+                        ?: mapping?.reverseMode(ch.mode)
+                        ?: ch.mode
                     arr.put(JSONObject().apply {
                         put("number",            ch.number)
                         put("name",              ch.name)
@@ -96,7 +126,7 @@ object ChirpBridge {
                         put("duplex",            ch.duplex)
                         put("offset",            ch.offsetHz)
                         put("power",             ch.power)
-                        put("mode",              ch.mode)
+                        put("mode",              modeForUpload)
                         put("tx_tone_mode",      ch.txToneMode      ?: "")
                         put("tx_tone_val",       ch.txToneVal       ?: 0.0)
                         put("tx_tone_polarity",  ch.txTonePolarity  ?: "N")
@@ -104,9 +134,90 @@ object ChirpBridge {
                         put("rx_tone_val",       ch.rxToneVal       ?: 0.0)
                         put("rx_tone_polarity",  ch.rxTonePolarity  ?: "N")
                         put("empty",             ch.empty)
+                        if (ch.extra.isNotEmpty()) {
+                            put("extra", JSONObject().apply {
+                                ch.extra.forEach { (k, v) -> put(k, v) }
+                            })
+                        }
                     })
                 }
             }.toString()
             bridge.callAttr("upload", radio.vendor, radio.model, port, radio.baudRate, json)
+        }
+
+    /**
+     * Fetches the radio's current settings (requires connection).
+     * Returns JSON string: {"settings": [ {"path", "name", "type", "value", ...}, ... ]}.
+     */
+    suspend fun getRadioSettings(radio: RadioInfo, port: String): String =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("get_radio_settings", radio.vendor, radio.model, port, radio.baudRate)
+                .toString()
+        }
+
+    /**
+     * Applies settings to the radio (requires connection).
+     * [settingsJson] must be the same structure as returned by [getRadioSettings].
+     */
+    suspend fun setRadioSettings(radio: RadioInfo, port: String, settingsJson: String) =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("set_radio_settings", radio.vendor, radio.model, port, radio.baudRate, settingsJson)
+        }
+
+    /**
+     * Gets settings from the in-memory EEPROM dump (clone mode). No connection.
+     */
+    suspend fun getRadioSettingsFromMmap(radio: RadioInfo, eepromBase64: String): String =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("get_radio_settings_from_mmap", radio.vendor, radio.model, eepromBase64).toString()
+        }
+
+    /**
+     * Applies settings to the in-memory EEPROM; returns new eeprom base64 (clone mode).
+     */
+    suspend fun setRadioSettingsToMmap(radio: RadioInfo, eepromBase64: String, settingsJson: String): String =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("set_radio_settings_to_mmap", radio.vendor, radio.model, eepromBase64, settingsJson).toString()
+        }
+
+    /**
+     * Uploads the in-memory EEPROM dump to the radio (clone mode only).
+     */
+    suspend fun uploadMmap(radio: RadioInfo, port: String, eepromBase64: String) =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("upload_mmap", radio.vendor, radio.model, port, radio.baudRate, eepromBase64)
+        }
+
+    /**
+     * Applies a single channel edit to the in-memory clone EEPROM so the raw dump
+     * stays in sync with the channel list. Returns new eeprom bytes (base64 decoded).
+     */
+    suspend fun applyChannelToMmap(radio: RadioInfo, eepromBase64: String, channel: Channel): ByteArray =
+        withContext(Dispatchers.IO) {
+            val modeForUpload = channel.driverMode ?: channel.mode
+            val channelJson = org.json.JSONObject().apply {
+                put("number",            channel.number)
+                put("name",              channel.name)
+                put("freq",              channel.freqRxHz)
+                put("tx_freq",           channel.freqTxHz)
+                put("duplex",            channel.duplex)
+                put("offset",            channel.offsetHz)
+                put("power",             channel.power)
+                put("mode",              modeForUpload)
+                put("tx_tone_mode",      channel.txToneMode      ?: "")
+                put("tx_tone_val",       channel.txToneVal       ?: 0.0)
+                put("tx_tone_polarity",  channel.txTonePolarity  ?: "N")
+                put("rx_tone_mode",      channel.rxToneMode     ?: "")
+                put("rx_tone_val",       channel.rxToneVal      ?: 0.0)
+                put("rx_tone_polarity",  channel.rxTonePolarity  ?: "N")
+                put("empty",             channel.empty)
+                if (channel.extra.isNotEmpty()) {
+                    put("extra", org.json.JSONObject().apply {
+                        channel.extra.forEach { (k, v) -> put(k, v) }
+                    })
+                }
+            }.toString()
+            val newB64 = bridge.callAttr("apply_channel_to_mmap", radio.vendor, radio.model, eepromBase64, channelJson).toString()
+            android.util.Base64.decode(newB64, android.util.Base64.NO_WRAP)
         }
 }

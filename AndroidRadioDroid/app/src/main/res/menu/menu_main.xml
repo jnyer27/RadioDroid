@@ -25,13 +25,28 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_edit_group_labels"
-        android:title="Edit Group Labels…"
+        android:id="@+id/action_select_radio"
+        android:title="Select Radio Model…"
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_select_radio"
-        android:title="Select Radio Model…"
+        android:id="@+id/action_param_mapping"
+        android:title="@string/param_mapping_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_radio_settings"
+        android:title="@string/radio_settings_title"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_save_eeprom_dump"
+        android:title="Save EEPROM dump…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export_csv"
+        android:title="Export CHIRP CSV (selected slots)…"
         app:showAsAction="never" />
 
 </menu>
