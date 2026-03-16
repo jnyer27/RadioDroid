@@ -338,13 +338,33 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
             mem.number = number
             mem.name   = ch.get("name", "") or ""
             mem.freq   = int(ch.get("freq")   or 0)
-            mem.duplex = ch.get("duplex", "") or ""
             mem.offset = int(ch.get("offset") or 0)
-            mem.mode   = ch.get("mode", "FM") or "FM"
+
+            # ── Duplex ───────────────────────────────────────────────────────────
+            # Guard against duplex values the radio doesn't support (e.g. "split"
+            # on radios that only allow "" / "+" / "-").
+            duplex = ch.get("duplex", "") or ""
+            valid_duplexes = getattr(features, "valid_duplexes", None)
+            if valid_duplexes and duplex not in valid_duplexes:
+                duplex = ""
+            mem.duplex = duplex
+
+            # ── Mode ─────────────────────────────────────────────────────────────
+            # "Auto" and other exotic modes may not be in a radio's valid_modes.
+            # Fall back to "FM" rather than letting set_memory() raise ValueError.
+            mode = ch.get("mode", "FM") or "FM"
+            valid_modes = getattr(features, "valid_modes", None)
+            if valid_modes and mode not in valid_modes:
+                mode = "FM"
+            mem.mode = mode
 
             # ── Tone / CTCSS / DCS ───────────────────────────────────────────────
             # tx_tone_mode drives mem.tmode; values mirror CHIRP's own tmode strings.
+            # Guard against tone modes the radio doesn't support.
             tmode = ch.get("tx_tone_mode", "") or ""
+            valid_tmodes = getattr(features, "valid_tmodes", None)
+            if valid_tmodes and tmode not in valid_tmodes:
+                tmode = ""
             if tmode == "Tone":
                 mem.tmode = "Tone"
                 mem.rtone = float(ch.get("tx_tone_val") or 88.5)
@@ -378,7 +398,12 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
 
             # ── Scan skip ────────────────────────────────────────────────────────
             # "S" = skip, "P" = priority (radio-dependent), "" = never skip.
-            mem.skip = ch.get("skip", "") or ""
+            # Guard against skip values the radio doesn't support.
+            skip = ch.get("skip", "") or ""
+            valid_skips = getattr(features, "valid_skips", None)
+            if valid_skips and skip not in valid_skips:
+                skip = ""
+            mem.skip = skip
 
             radio.set_memory(mem)
 
