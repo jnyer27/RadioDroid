@@ -55,23 +55,29 @@ data class Channel(
     }
 
     companion object {
-        /** Construct a Channel from a Python dict returned by chirp_bridge.download(). */
+        /**
+         * Construct a Channel from a Python dict returned by chirp_bridge.download().
+         *
+         * NOTE: obj["key"] in Kotlin compiles to PyObject.get(String) = Python getattr(),
+         * which returns null for dict keys.  Use obj.callAttr("get", "key") to call
+         * Python dict.get(key) — the correct lookup for dict-backed objects.
+         */
         fun fromPyObject(slotNumber: Int, obj: PyObject): Channel {
-            val isEmpty = obj["empty"]?.toBoolean() ?: false
+            val isEmpty = obj.callAttr("get", "empty")?.toInt()?.let { it != 0 } ?: false
             return Channel(
-                number      = obj["number"]?.toInt() ?: slotNumber,
+                number      = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
                 empty       = isEmpty,
-                freqRxHz    = obj["freq"]?.toLong() ?: 0L,
-                freqTxHz    = obj["tx_freq"]?.toLong() ?: 0L,
-                duplex      = obj["duplex"]?.toString() ?: "",
-                offsetHz    = obj["offset"]?.toLong() ?: 0L,
-                power       = obj["power"]?.toString() ?: "1",
-                name        = obj["name"]?.toString() ?: "",
-                mode        = obj["mode"]?.toString() ?: "FM",
-                txToneMode  = obj["tx_tone_mode"]?.toString()?.ifEmpty { null },
-                txToneVal   = obj["tx_tone_val"]?.toDouble(),
-                rxToneMode  = obj["rx_tone_mode"]?.toString()?.ifEmpty { null },
-                rxToneVal   = obj["rx_tone_val"]?.toDouble(),
+                freqRxHz    = obj.callAttr("get", "freq")?.toLong() ?: 0L,
+                freqTxHz    = obj.callAttr("get", "tx_freq")?.toLong() ?: 0L,
+                duplex      = obj.callAttr("get", "duplex")?.toString() ?: "",
+                offsetHz    = obj.callAttr("get", "offset")?.toLong() ?: 0L,
+                power       = obj.callAttr("get", "power")?.toString() ?: "1",
+                name        = obj.callAttr("get", "name")?.toString() ?: "",
+                mode        = obj.callAttr("get", "mode")?.toString() ?: "FM",
+                txToneMode  = obj.callAttr("get", "tx_tone_mode")?.toString()?.ifEmpty { null },
+                txToneVal   = obj.callAttr("get", "tx_tone_val")?.toDouble(),
+                rxToneMode  = obj.callAttr("get", "rx_tone_mode")?.toString()?.ifEmpty { null },
+                rxToneVal   = obj.callAttr("get", "rx_tone_val")?.toDouble(),
             )
         }
     }
