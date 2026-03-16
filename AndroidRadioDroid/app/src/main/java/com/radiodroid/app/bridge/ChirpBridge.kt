@@ -5,6 +5,8 @@ import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Kotlin façade over the Python chirp_bridge module.
@@ -51,26 +53,36 @@ object ChirpBridge {
 
     /**
      * Uploads modified channels back to the radio.
+     *
+     * Channels are serialised to a JSON string rather than passed as a
+     * Kotlin List<Map> to avoid Chaquopy Java-proxy conversion issues:
+     *  - Kotlin List<Map<String,Any>> arrives in Python as a Java ArrayList
+     *    of LinkedHashMaps; Java Map is not directly iterable in Python,
+     *    so dict(ch) / "for k in ch" fail with TypeError.
+     *  - Passing a plain JSON string and parsing with json.loads() gives
+     *    native Python dicts immediately — no proxy layer involved.
      */
     suspend fun upload(radio: RadioInfo, port: String, channels: List<Channel>) =
         withContext(Dispatchers.IO) {
-            // Convert channel list to Python-friendly list of dicts
-            val pyList = channels.map { ch ->
-                mapOf(
-                    "number"   to ch.number,
-                    "name"     to ch.name,
-                    "freq"     to ch.freqRxHz,
-                    "tx_freq"  to ch.freqTxHz,
-                    "duplex"   to ch.duplex,
-                    "offset"   to ch.offsetHz,
-                    "power"    to ch.power,
-                    "mode"     to ch.mode,
-                    "tx_tone_mode" to (ch.txToneMode ?: ""),
-                    "tx_tone_val"  to (ch.txToneVal ?: 0.0),
-                    "rx_tone_mode" to (ch.rxToneMode ?: ""),
-                    "rx_tone_val"  to (ch.rxToneVal ?: 0.0),
-                )
-            }
-            bridge.callAttr("upload", radio.vendor, radio.model, port, radio.baudRate, pyList)
+            val json = JSONArray().also { arr ->
+                channels.forEach { ch ->
+                    arr.put(JSONObject().apply {
+                        put("number",       ch.number)
+                        put("name",         ch.name)
+                        put("freq",         ch.freqRxHz)
+                        put("tx_freq",      ch.freqTxHz)
+                        put("duplex",       ch.duplex)
+                        put("offset",       ch.offsetHz)
+                        put("power",        ch.power)
+                        put("mode",         ch.mode)
+                        put("tx_tone_mode", ch.txToneMode ?: "")
+                        put("tx_tone_val",  ch.txToneVal  ?: 0.0)
+                        put("rx_tone_mode", ch.rxToneMode ?: "")
+                        put("rx_tone_val",  ch.rxToneVal  ?: 0.0)
+                        put("empty",        ch.empty)
+                    })
+                }
+            }.toString()
+            bridge.callAttr("upload", radio.vendor, radio.model, port, radio.baudRate, json)
         }
 }

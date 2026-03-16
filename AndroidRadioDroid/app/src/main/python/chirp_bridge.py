@@ -286,18 +286,21 @@ def load_custom_driver(path: str) -> list:
     return result
 
 
-def upload(vendor: str, model: str, port: str, baudrate: int, channels):
-    """Upload channel list back to the radio."""
+def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str):
+    """Upload channel list back to the radio.
+
+    channels_json is a JSON-encoded list of channel dicts serialised by the
+    Kotlin caller.  Passing a plain string instead of a Java collection avoids
+    Chaquopy proxy issues: Java ArrayList / LinkedHashMap are not directly
+    iterable in Python, causing TypeError when dict() or 'for k in ch' is used.
+    json.loads() returns a native Python list of dicts with no proxy layer.
+    """
+    import json as _json
     _ensure_drivers()
     from chirp import chirp_common
     from serial_shim import AndroidSerial
 
-    # Normalize to native Python list-of-dicts.
-    # When called from Kotlin via callAttr(), 'channels' arrives as a Chaquopy-
-    # wrapped Java ArrayList<LinkedHashMap>.  dict(ch) builds a real Python dict
-    # from any mapping (Java Map supports the Python mapping protocol in Chaquopy),
-    # so all subsequent ch.get(key, default) calls use Python dict semantics.
-    channels = [dict(ch) for ch in channels]
+    channels = _json.loads(str(channels_json))
 
     radio_cls  = _find_radio_cls(vendor, model)
     radio      = radio_cls(None)
