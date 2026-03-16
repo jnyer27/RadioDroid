@@ -9,24 +9,45 @@ import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 /**
  * Opens a USB serial port (via usb-serial-for-android) and relays bytes
- * through a LocalServerSocket so the Python serial_shim can read/write it
- * as an "android://radiodroid_usb" socket.
+ * through a pair of LocalServerSockets so the Python serial_shim can read,
+ * write, and dynamically reconfigure it as if it were a real serial.Serial.
  *
- * This keeps all USB Host API calls in Kotlin and lets CHIRP Python drivers
- * communicate through the same socket interface used by BLE.
+ * Two sockets are created per connection:
+ *
+ *  "android://radiodroid_usb"       — data channel (raw bytes to/from radio)
+ *  "android://radiodroid_usb_ctrl"  — control channel (out-of-band commands)
+ *
+ * Control protocol (line-oriented, Python → Kotlin):
+ *   BAUD:<baud>\n   — reconfigure USB port to <baud> bps, Kotlin replies "OK\n"
+ *
+ * Why this matters:
+ *   Many CHIRP drivers (e.g. th_uv88.py / Retevis RT85) call
+ *       radio.pipe.baudrate = 57600
+ *       radio.pipe.timeout  = 2
+ *   inside _do_ident() before sending ANY data.  Without the control channel,
+ *   the USB port stays at the initial baud rate (e.g. 9600) while the driver
+ *   tries to communicate at 57600 — resulting in garbled data and the CHIRP
+ *   error "not the amount of data we want".
  */
 class UsbSerialBridge(private val context: Context) {
 
-    private val socketName = "radiodroid_usb"
-    private var serverSocket: LocalServerSocket? = null
-    private var client: LocalSocket? = null
-    private var usbPort: UsbSerialPort? = null
+    private val socketName     = "radiodroid_usb"
+    private val ctrlSocketName = "radiodroid_usb_ctrl"
 
-    /** Returns all currently connected USB serial devices. */
+    private var serverSocket:     LocalServerSocket? = null
+    private var ctrlServerSocket: LocalServerSocket? = null
+    private var client:     LocalSocket? = null
+    private var ctrlClient: LocalSocket? = null
+    private var usbPort:    UsbSerialPort? = null
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /** Returns all currently attached USB serial devices. */
     fun listDrivers(): List<UsbSerialDriver> {
         val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         return UsbSerialProber.getDefaultProber().findAllDrivers(manager)
@@ -34,7 +55,12 @@ class UsbSerialBridge(private val context: Context) {
 
     /**
      * Opens [driver] at [baudRate], starts the LocalSocket relay.
-     * @return "android://radiodroid_usb" — pass this to ChirpBridge.download()
+     *
+     * @return "android://radiodroid_usb" — pass this to [ChirpBridge.download].
+     *
+     * Note: [baudRate] is the *initial* rate from [RadioInfo.baudRate].  The
+     * CHIRP driver will typically override it via radio.pipe.baudrate inside
+     * its own sync_in() — the control channel handles that reconfiguration.
      */
     fun openSocketBridge(driver: UsbSerialDriver, baudRate: Int): String {
         val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
@@ -46,36 +72,58 @@ class UsbSerialBridge(private val context: Context) {
         port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
         usbPort = port
 
-        serverSocket = LocalServerSocket(socketName)
+        // Create both server sockets before returning so Python can connect
+        // to either in any order — connections queue in the backlog.
+        serverSocket     = LocalServerSocket(socketName)
+        ctrlServerSocket = LocalServerSocket(ctrlSocketName)
 
         CoroutineScope(Dispatchers.IO).launch {
-            val client = serverSocket!!.accept()
-            this@UsbSerialBridge.client = client
-            startRelay(port, client)
+            // Accept data and control connections concurrently — Python may
+            // connect to them in either order; async lets both proceed in parallel.
+            val dataDeferred = async { serverSocket!!.accept() }
+            val ctrlDeferred = async { ctrlServerSocket!!.accept() }
+
+            val dataSocket = dataDeferred.await()
+            val ctrlSocket = ctrlDeferred.await()
+
+            client     = dataSocket
+            ctrlClient = ctrlSocket
+
+            startRelay(port, dataSocket, ctrlSocket)
         }
 
         return "android://$socketName"
     }
 
-    private fun startRelay(port: UsbSerialPort, socket: LocalSocket) {
-        val toSocket  = socket.outputStream
-        val fromSocket = socket.inputStream
+    // ── Relay ─────────────────────────────────────────────────────────────────
 
-        // USB RX → socket (radio → Python)
+    private fun startRelay(
+        port:       UsbSerialPort,
+        dataSocket: LocalSocket,
+        ctrlSocket: LocalSocket,
+    ) {
+        val toSocket   = dataSocket.outputStream
+        val fromSocket = dataSocket.inputStream
+
+        // USB RX → socket  (radio → Python)
         CoroutineScope(Dispatchers.IO).launch {
             val buf = ByteArray(512)
             while (true) {
                 val n = try {
-                    port.read(buf, 200)
+                    // Short read timeout (50 ms) keeps the loop responsive;
+                    // returns 0 if nothing arrived — loop continues immediately.
+                    port.read(buf, 50)
                 } catch (e: Exception) { break }
                 if (n > 0) {
-                    toSocket.write(buf, 0, n)
-                    toSocket.flush()
+                    try {
+                        toSocket.write(buf, 0, n)
+                        toSocket.flush()
+                    } catch (e: Exception) { break }
                 }
             }
         }
 
-        // Socket → USB TX (Python → radio)
+        // Socket → USB TX  (Python → radio)
         CoroutineScope(Dispatchers.IO).launch {
             val buf = ByteArray(512)
             while (true) {
@@ -83,14 +131,54 @@ class UsbSerialBridge(private val context: Context) {
                     fromSocket.read(buf)
                 } catch (e: Exception) { break }
                 if (n < 0) break
-                port.write(buf.copyOf(n), 200)
+                try {
+                    port.write(buf.copyOf(n), 500)
+                } catch (e: Exception) { break }
+            }
+        }
+
+        // Control channel  (Python → Kotlin commands)
+        // Currently handles: BAUD:<baud>\n
+        CoroutineScope(Dispatchers.IO).launch {
+            val reader = ctrlSocket.inputStream.bufferedReader()
+            val writer = ctrlSocket.outputStream.bufferedWriter()
+            try {
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    when {
+                        line.startsWith("BAUD:") -> {
+                            val baud = line.removePrefix("BAUD:").trim().toIntOrNull()
+                            if (baud != null && baud > 0) {
+                                try {
+                                    port.setParameters(
+                                        baud, 8,
+                                        UsbSerialPort.STOPBITS_1,
+                                        UsbSerialPort.PARITY_NONE,
+                                    )
+                                } catch (e: Exception) {
+                                    // Log but continue — reply OK so Python doesn't hang
+                                }
+                            }
+                            // ACK: Python blocks on this until baud is set
+                            writer.write("OK\n")
+                            writer.flush()
+                        }
+                        // Future commands: PARITY, STOPBITS, etc.
+                    }
+                }
+            } catch (_: Exception) {
+                // Control channel closed (normal on disconnect)
             }
         }
     }
 
+    // ── Cleanup ───────────────────────────────────────────────────────────────
+
     fun close() {
-        client?.close()
-        serverSocket?.close()
-        usbPort?.close()
+        ctrlClient?.close();     ctrlClient     = null
+        ctrlServerSocket?.close(); ctrlServerSocket = null
+        client?.close();         client         = null
+        serverSocket?.close();   serverSocket   = null
+        usbPort?.close();        usbPort        = null
     }
 }
