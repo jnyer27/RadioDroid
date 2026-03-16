@@ -293,6 +293,60 @@ def load_custom_driver(path: str) -> list:
     return result
 
 
+def get_radio_features(vendor: str, model: str) -> str:
+    """
+    Return a JSON string describing everything the radio driver supports.
+
+    Instantiates the driver class with pipe=None — no USB or serial connection
+    is needed.  get_features() is a pure class-level introspection call.
+
+    The JSON mirrors CHIRP's RadioFeatures fields so the Android UI can
+    dynamically populate spinners, enforce name limits, and show/hide sections
+    based on actual driver capabilities rather than hardcoded defaults.
+    """
+    import json as _json
+    _ensure_drivers()
+    radio_cls = _find_radio_cls(vendor, model)
+    radio     = radio_cls(None)
+    f         = radio.get_features()
+
+    def _list(attr, default=None):
+        val = getattr(f, attr, default or [])
+        try:
+            return list(val)
+        except TypeError:
+            return default or []
+
+    def _bool(attr, default=True):
+        return bool(getattr(f, attr, default))
+
+    def _int(attr, default=0):
+        return int(getattr(f, attr, default))
+
+    bounds = getattr(f, "memory_bounds", (0, 199))
+
+    return _json.dumps({
+        "valid_modes":        [str(m) for m in _list("valid_modes",    ["FM"])],
+        "valid_duplexes":     [str(d) for d in _list("valid_duplexes", ["", "+", "-"])],
+        "valid_tmodes":       [str(t) for t in _list("valid_tmodes",   [])],
+        "valid_skips":        [str(s) for s in _list("valid_skips",    ["", "S"])],
+        "valid_power_levels": [str(p) for p in _list("valid_power_levels", [])],
+        "valid_dtcs_codes":   [int(c) for c in _list("valid_dtcs_codes",   [])],
+        "valid_dtcs_pols":    [str(p) for p in _list("valid_dtcs_pols",
+                               ["NN", "NR", "RN", "RR"])],
+        "valid_name_length":  _int("valid_name_length", 0),
+        "valid_name_chars":   str(getattr(f, "valid_characters", "") or ""),
+        "has_name":           _bool("has_name",        True),
+        "has_ctone":          _bool("has_ctone",        True),
+        "has_rx_dtcs":        _bool("has_rx_dtcs",      False),
+        "has_settings":       _bool("has_settings",     False),
+        "has_tuning_step":    _bool("has_tuning_step",  True),
+        "can_odd_split":      _bool("can_odd_split",    False),
+        "memory_bounds_lo":   int(bounds[0]),
+        "memory_bounds_hi":   int(bounds[1]),
+    })
+
+
 def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str):
     """Upload channel list back to the radio.
 

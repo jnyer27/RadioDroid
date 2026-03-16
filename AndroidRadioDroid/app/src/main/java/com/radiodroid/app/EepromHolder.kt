@@ -1,5 +1,6 @@
 package com.radiodroid.app
 
+import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.radio.Channel
 
 // ── Data classes retained for source-compatibility with nicFW-derived code ───
@@ -81,4 +82,12 @@ object EepromHolder {
      * Radio-settings stub — populated in a future phase via CHIRP get_settings().
      */
     var radioSettings: RadioSettings = RadioSettings()
+
+    /**
+     * CHIRP driver capabilities for the currently selected radio.
+     * Populated by MainActivity when the user selects a radio model, so
+     * ChannelEditActivity can show only the fields the driver supports.
+     * Falls back to [RadioFeatures.DEFAULT] until a real radio is chosen.
+     */
+    var radioFeatures: RadioFeatures = RadioFeatures.DEFAULT
 }

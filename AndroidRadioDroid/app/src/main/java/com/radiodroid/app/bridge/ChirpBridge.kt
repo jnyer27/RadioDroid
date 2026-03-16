@@ -1,6 +1,7 @@
 package com.radiodroid.app.bridge
 
 import com.chaquo.python.Python
+import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,25 @@ object ChirpBridge {
 
     private val py by lazy { Python.getInstance() }
     private val bridge by lazy { py.getModule("chirp_bridge") }
+
+    /**
+     * Queries the CHIRP driver for [radio] and returns its [RadioFeatures] —
+     * the complete set of values and capabilities the driver supports.
+     *
+     * **No USB connection is needed**: CHIRP drivers expose their features via
+     * `get_features()` on a bare (pipe=None) radio instance, so this can be
+     * called immediately after the user picks a radio model.
+     */
+    suspend fun getRadioFeatures(radio: RadioInfo): RadioFeatures =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = bridge.callAttr("get_radio_features", radio.vendor, radio.model)
+                    ?.toString() ?: return@withContext RadioFeatures.DEFAULT
+                RadioFeatures.fromJson(json)
+            } catch (e: Exception) {
+                RadioFeatures.DEFAULT
+            }
+        }
 
     /** Returns all radio models registered in the CHIRP driver directory. */
     fun getRadioList(): List<RadioInfo> =

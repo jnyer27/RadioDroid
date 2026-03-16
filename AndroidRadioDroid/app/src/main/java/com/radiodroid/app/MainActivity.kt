@@ -152,6 +152,15 @@ class MainActivity : AppCompatActivity() {
         updateConnectionUi()
         invalidateOptionsMenu()
         Toast.makeText(this, "Radio: $vendor $model", Toast.LENGTH_SHORT).show()
+        // Fetch driver capabilities in the background so ChannelEditActivity
+        // can adapt its UI to exactly what this radio supports.
+        lifecycleScope.launch {
+            try {
+                EepromHolder.radioFeatures = ChirpBridge.getRadioFeatures(selectedRadio!!)
+            } catch (_: Exception) {
+                EepromHolder.radioFeatures = com.radiodroid.app.model.RadioFeatures.DEFAULT
+            }
+        }
     }
 
     // ─── CHIRP CSV import ─────────────────────────────────────────────────────
