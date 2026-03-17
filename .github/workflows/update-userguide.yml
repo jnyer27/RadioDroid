@@ -1,0 +1,110 @@
+name: Update User Guide
+
+# ── Triggers ──────────────────────────────────────────────────────────────────
+# Runs whenever userguide.md or the MkDocs source/config changes on main.
+# Can also be triggered manually from the Actions tab.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'userguide.md'
+      - 'docs/**'
+      - 'mkdocs.yml'
+  workflow_dispatch:   # manual trigger
+
+# ── Permissions ───────────────────────────────────────────────────────────────
+permissions:
+  contents: write    # needed to push gh-pages + upload release assets
+
+jobs:
+  build-and-publish:
+    name: Build PDF & deploy docs
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for gh-deploy
+
+      # ── 2. Python ───────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-docs.txt'
+
+      # ── 3. Install dependencies ─────────────────────────────────────────────
+      - name: Install MkDocs + exporter
+        run: pip install -r requirements-docs.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      # ── 4. Build site + PDF ─────────────────────────────────────────────────
+      - name: Build MkDocs site (generates site/user-guide.pdf)
+        run: python -m mkdocs build
+
+      - name: Verify PDF was generated
+        run: |
+          ls -lh site/user-guide.pdf
+          echo "PDF_SIZE=$(du -k site/user-guide.pdf | cut -f1) KB" >> $GITHUB_STEP_SUMMARY
+
+      # ── 5. Deploy to GitHub Pages ──────────────────────────────────────────
+      - name: Deploy to GitHub Pages
+        run: python -m mkdocs gh-deploy --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 6. Update latest release asset (if a release exists) ───────────────
+      - name: Get latest release tag
+        id: latest_release
+        run: |
+          TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Latest release: ${TAG:-<none>}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Stage PDF with release-versioned filename
+        if: steps.latest_release.outputs.tag != ''
+        run: |
+          TAG=${{ steps.latest_release.outputs.tag }}
+          FILENAME="radiodroid-${TAG}-userguide.pdf"
+          cp site/user-guide.pdf "$FILENAME"
+          echo "RELEASE_PDF=$FILENAME" >> $GITHUB_ENV
+
+      - name: Remove old userguide PDF from release (if present)
+        if: steps.latest_release.outputs.tag != ''
+        run: |
+          TAG=${{ steps.latest_release.outputs.tag }}
+          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          for asset in $ASSETS; do
+            if [[ "$asset" == *userguide*.pdf ]]; then
+              echo "Deleting old asset: $asset"
+              gh release delete-asset "$TAG" "$asset" --yes
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload updated PDF to release
+        if: steps.latest_release.outputs.tag != ''
+        run: |
+          TAG=${{ steps.latest_release.outputs.tag }}
+          gh release upload "$TAG" "${{ env.RELEASE_PDF }}#User Guide (PDF)"
+          echo "✅ Uploaded ${{ env.RELEASE_PDF }} to release $TAG" >> $GITHUB_STEP_SUMMARY
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 7. Summary ─────────────────────────────────────────────────────────
+      - name: Summarise
+        run: |
+          echo "### User Guide updated" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Pages redeployed" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.latest_release.outputs.tag }}" ]; then
+            echo "- PDF uploaded to release ${{ steps.latest_release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          fi
