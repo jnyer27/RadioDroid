@@ -1,6 +1,7 @@
 package com.radiodroid.app.bridge
 
 import com.chaquo.python.Python
+import com.radiodroid.app.model.ChannelExtraSetting
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
@@ -46,6 +47,35 @@ object ChirpBridge {
                 // Catch Throwable — Chaquopy can surface Python/JVM errors as
                 // java.lang.Error subclasses (e.g. if a driver import fails hard).
                 RadioFeatures.DEFAULT
+            }
+        }
+
+    /**
+     * Returns the channel-extra schema for [radio]: name, type, options (for list),
+     * min/max (for int/float), etc. Used to show Spinner/Switch/number EditText
+     * in the channel editor.
+     *
+     * For clone-mode radios, pass [eepromBase64] from the last download so the
+     * driver can load the EEPROM and build mem.extra; without it, get_memory()
+     * typically fails and the app falls back to free-text fields.
+     *
+     * Returns empty list if the driver has no extra or get_memory fails.
+     */
+    suspend fun getChannelExtraSchema(radio: RadioInfo, eepromBase64: String? = null): List<ChannelExtraSetting> =
+        withContext(Dispatchers.IO) {
+            try {
+                val jsonStr = when {
+                    !eepromBase64.isNullOrBlank() ->
+                        bridge.callAttr("get_channel_extra_schema", radio.vendor, radio.model, eepromBase64).toString()
+                    else ->
+                        bridge.callAttr("get_channel_extra_schema", radio.vendor, radio.model).toString()
+                }
+                val arr = org.json.JSONArray(jsonStr)
+                (0 until arr.length()).map { i ->
+                    ChannelExtraSetting.fromJson(arr.getJSONObject(i))
+                }
+            } catch (_: Throwable) {
+                emptyList()
             }
         }
 

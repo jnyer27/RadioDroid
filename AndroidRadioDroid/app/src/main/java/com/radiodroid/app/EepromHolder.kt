@@ -1,5 +1,6 @@
 package com.radiodroid.app
 
+import com.radiodroid.app.model.ChannelExtraSetting
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
@@ -65,6 +66,14 @@ object EepromHolder {
      * Used to show dynamic "Radio-specific" fields in the channel editor and list.
      */
     var extraParamNames: List<String> = emptyList()
+
+    /**
+     * Schema for channel extra params (name, type, options for list, min/max, etc.).
+     * Fetched via ChirpBridge.getChannelExtraSchema() after download; used by
+     * ChannelEditActivity to show Spinner/Switch/number EditText instead of free-text.
+     * Empty when the driver has no extra or get_memory(pipe=None) fails.
+     */
+    var channelExtraSchema: List<ChannelExtraSetting> = emptyList()
 
     /**
      * Band-plan stubs — RadioDroid does not yet download band plans from

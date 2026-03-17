@@ -393,6 +393,141 @@ def get_radio_features(vendor: str, model: str) -> str:
     })
 
 
+def _radio_setting_to_extra_entry(setting) -> dict:
+    """
+    Serialize a single RadioSetting (e.g. from Memory.extra) to a dict for JSON.
+    Same type/value logic as _settings_tree_to_json; used for channel extra schema.
+    """
+    from chirp import settings as chirp_settings
+    entry = {"name": setting.get_name() or ""}
+    try:
+        val = setting.value
+        if not getattr(val, "get_mutable", lambda: True)():
+            entry["readOnly"] = True
+        try:
+            current = val.get_value()
+        except Exception:
+            current = None
+        cls_name = type(val).__name__
+        # Prefer explicit option lists when available, regardless of concrete class name
+        if hasattr(val, "get_options"):
+            entry["type"] = "list"
+            entry["value"] = str(current) if current is not None else ""
+            try:
+                entry["options"] = list(val.get_options())
+            except Exception:
+                entry["options"] = []
+        elif "Integer" in cls_name:
+            entry["type"] = "int"
+            entry["value"] = int(current) if current is not None else 0
+            if hasattr(val, "get_min"):
+                entry["min"] = val.get_min()
+            if hasattr(val, "get_max"):
+                entry["max"] = val.get_max()
+        elif "Float" in cls_name:
+            entry["type"] = "float"
+            entry["value"] = float(current) if current is not None else 0.0
+            if hasattr(val, "get_min"):
+                entry["min"] = val.get_min()
+            if hasattr(val, "get_max"):
+                entry["max"] = val.get_max()
+        elif "Boolean" in cls_name:
+            entry["type"] = "bool"
+            entry["value"] = bool(current)
+        elif "List" in cls_name or "Map" in cls_name:
+            entry["type"] = "list"
+            entry["value"] = str(current) if current is not None else ""
+            entry["options"] = list(val.get_options()) if hasattr(val, "get_options") else []
+        elif "String" in cls_name:
+            entry["type"] = "string"
+            entry["value"] = str(current) if current is not None else ""
+            if hasattr(val, "minlength"):
+                entry["minLength"] = getattr(val, "minlength", 0)
+            if hasattr(val, "maxlength"):
+                entry["maxLength"] = getattr(val, "maxlength", 255)
+        else:
+            entry["type"] = "string"
+            entry["value"] = str(current) if current is not None else ""
+    except Exception as e:
+        LOG.debug("Skip extra setting %s: %s", entry.get("name", "?"), e)
+        return None
+    return entry
+
+
+def get_channel_extra_schema(vendor: str, model: str, eeprom_base64: str = None) -> str:
+    """
+    Return a JSON array of channel-extra setting definitions for the given driver.
+
+    For clone-mode radios, pass eeprom_base64 (from a prior download) so the
+    driver can load the EEPROM and build mem.extra in get_memory(); without it,
+    get_memory(lo) typically fails because _mmap/_memobj are never set.
+
+    For non-clone radios, eeprom_base64 is ignored; the radio is instantiated with
+    pipe=None and get_memory(lo) is attempted (may fail for some drivers).
+
+    If the driver's Memory.extra is a RadioSettingGroup with RadioSetting leaves,
+    each is serialized with name, type, value, options (for list), min/max, etc.
+
+    Returns "[]" if get_memory fails or mem.extra is missing or empty.
+    """
+    import base64
+    import json as _json
+    from chirp import chirp_common
+    from chirp import memmap
+
+    _ensure_drivers()
+    out = []
+    try:
+        radio_cls = _find_radio_cls(vendor, model)
+        # Clone-mode: load EEPROM so get_memory() can build mem.extra from _memobj
+        if eeprom_base64 and eeprom_base64.strip() and issubclass(radio_cls, chirp_common.CloneModeRadio):
+            data = base64.b64decode(eeprom_base64)
+            mmap = memmap.MemoryMapBytes(bytes(data))
+            radio = radio_cls(mmap)
+        else:
+            radio = radio_cls(None)
+        features = radio.get_features()
+        lo, hi = getattr(features, "memory_bounds", (0, 199))
+        # Try a few slots in case the first is empty (empty channels often have no mem.extra)
+        from chirp import settings as chirp_settings
+        extra = None
+        for slot in range(lo, min(lo + 5, hi + 1)):
+            mem = radio.get_memory(slot)
+            extra = getattr(mem, "extra", None)
+            if extra:
+                try:
+                    extra_list = list(extra)
+                except Exception:
+                    extra_list = []
+                if not extra_list and hasattr(extra, "_element_order"):
+                    try:
+                        extra_list = [extra[n] for n in getattr(extra, "_element_order", [])]
+                    except (KeyError, TypeError):
+                        extra_list = []
+                if any(isinstance(item, chirp_settings.RadioSetting) for item in extra_list):
+                    break
+            extra = None
+        if not extra:
+            return _json.dumps(out)
+        try:
+            extra_list = list(extra)
+        except Exception:
+            extra_list = []
+        if not extra_list and hasattr(extra, "_element_order"):
+            try:
+                extra_list = [extra[n] for n in getattr(extra, "_element_order", [])]
+            except (KeyError, TypeError):
+                extra_list = []
+        for item in extra_list:
+            if isinstance(item, chirp_settings.RadioSetting):
+                entry = _radio_setting_to_extra_entry(item)
+                if entry is not None:
+                    out.append(entry)
+    except Exception as e:
+        LOG.debug("get_channel_extra_schema failed for %s %s: %s", vendor, model, e)
+    return _json.dumps(out)
+
+
 def _settings_tree_to_json(settings_obj) -> list:
     """
     Walk the get_settings() tree and return a flat list of setting dicts for JSON.
