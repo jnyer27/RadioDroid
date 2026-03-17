@@ -10,8 +10,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.EditText
+import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.appcompat.widget.SwitchCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -20,6 +22,8 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityChannelEditBinding
+import com.radiodroid.app.databinding.ItemRadioSettingBinding
+import com.radiodroid.app.model.ChannelExtraSetting
 import com.radiodroid.app.model.RadioFeatures
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
@@ -46,8 +50,14 @@ class ChannelEditActivity : AppCompatActivity() {
     /** Modulation modes supported by the selected radio driver. */
     private var modeList: List<String> = emptyList()
 
-    /** Dynamic extra-param name -> EditText for driver-specific channel fields. */
+    /** Dynamic extra-param name -> EditText (fallback when no schema). */
     private val extraParamEditTexts = mutableMapOf<String, EditText>()
+    /** Schema-driven extra: Spinner for list type. */
+    private val extraSchemaSpinners = mutableMapOf<String, Spinner>()
+    /** Schema-driven extra: Switch for bool type. */
+    private val extraSchemaSwitches = mutableMapOf<String, SwitchCompat>()
+    /** Schema-driven extra: EditText for int/float/string. */
+    private val extraSchemaEditTexts = mutableMapOf<String, EditText>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -126,7 +136,8 @@ class ChannelEditActivity : AppCompatActivity() {
             EepromHolder.channels.any { ch ->
                 listOf(ch.group1, ch.group2, ch.group3, ch.group4).any { it != "None" }
             } ||
-            EepromHolder.extraParamNames.isNotEmpty()
+            EepromHolder.extraParamNames.isNotEmpty() ||
+            EepromHolder.channelExtraSchema.isNotEmpty()
         binding.sectionDriverSpecific.visibility = if (hasDriverGroups) View.VISIBLE else View.GONE
 
         // Enforce driver name-length limit (0 = driver didn't declare one → cap at 16)
@@ -177,8 +188,23 @@ class ChannelEditActivity : AppCompatActivity() {
                 EepromConstants.toneToIndex(c.rxToneMode, c.rxToneVal, c.rxTonePolarity)
             )
 
-            // Dynamic extra params (Memory.extra) — includes Group 1–4 when driver exposes them
-            if (EepromHolder.extraParamNames.isNotEmpty()) {
+            // Dynamic extra params (Memory.extra) — typed UI from schema when available
+            if (EepromHolder.channelExtraSchema.isNotEmpty()) {
+                ensureExtraParamRows()
+                EepromHolder.channelExtraSchema.forEach { setting ->
+                    val current = c.extra[setting.name] ?: setting.value
+                    when (setting.type) {
+                        "list" -> extraSchemaSpinners[setting.name]?.let { spinner ->
+                            val opts = setting.options ?: emptyList()
+                            val idx = opts.indexOf(current).coerceIn(0, opts.size - 1)
+                            if (idx >= 0 && idx < spinner.adapter?.count ?: 0) spinner.setSelection(idx)
+                        }
+                        "bool" -> extraSchemaSwitches[setting.name]?.isChecked =
+                            current.equals("True", ignoreCase = true)
+                        else -> extraSchemaEditTexts[setting.name]?.setText(current)
+                    }
+                }
+            } else if (EepromHolder.extraParamNames.isNotEmpty()) {
                 ensureExtraParamRows()
                 EepromHolder.extraParamNames.forEach { name ->
                     extraParamEditTexts[name]?.setText(c.extra[name] ?: "")
@@ -211,13 +237,78 @@ class ChannelEditActivity : AppCompatActivity() {
         setupHelpButtons()
     }
 
-    /** Populate containerExtraParams with one row per [EepromHolder.extraParamNames]. */
+    /** Populate containerExtraParams from schema (typed UI) or extraParamNames (EditText fallback). */
     private fun ensureExtraParamRows() {
+        val schema = EepromHolder.channelExtraSchema
+        if (schema.isNotEmpty()) {
+            if (extraSchemaSpinners.isNotEmpty() || extraSchemaEditTexts.isNotEmpty()) return // already built
+            binding.containerExtraParams.removeAllViews()
+            extraParamEditTexts.clear()
+            extraSchemaSpinners.clear()
+            extraSchemaSwitches.clear()
+            extraSchemaEditTexts.clear()
+            schema.forEach { setting ->
+                val rowBinding = ItemRadioSettingBinding.inflate(layoutInflater, binding.containerExtraParams, false)
+                rowBinding.labelSetting.text = setting.name
+                rowBinding.wrapEdit.visibility = View.GONE
+                rowBinding.wrapSwitch.visibility = View.GONE
+                rowBinding.spinnerValue.visibility = View.GONE
+                when (setting.type) {
+                    "list" -> {
+                        val options = setting.options ?: emptyList()
+                        if (options.isNotEmpty()) {
+                            rowBinding.spinnerValue.visibility = View.VISIBLE
+                            rowBinding.spinnerValue.adapter = ArrayAdapter(
+                                this, android.R.layout.simple_spinner_dropdown_item, options
+                            )
+                            rowBinding.spinnerValue.isEnabled = !setting.readOnly
+                            extraSchemaSpinners[setting.name] = rowBinding.spinnerValue
+                        } else {
+                            rowBinding.wrapEdit.visibility = View.VISIBLE
+                            rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_TEXT
+                            rowBinding.editValue.isEnabled = !setting.readOnly
+                            extraSchemaEditTexts[setting.name] = rowBinding.editValue
+                        }
+                    }
+                    "bool" -> {
+                        rowBinding.wrapSwitch.visibility = View.VISIBLE
+                        rowBinding.switchValue.isEnabled = !setting.readOnly
+                        extraSchemaSwitches[setting.name] = rowBinding.switchValue
+                    }
+                    "int" -> {
+                        rowBinding.wrapEdit.visibility = View.VISIBLE
+                        rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                            android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+                        rowBinding.editValue.isEnabled = !setting.readOnly
+                        extraSchemaEditTexts[setting.name] = rowBinding.editValue
+                    }
+                    "float" -> {
+                        rowBinding.wrapEdit.visibility = View.VISIBLE
+                        rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                            android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                        rowBinding.editValue.isEnabled = !setting.readOnly
+                        extraSchemaEditTexts[setting.name] = rowBinding.editValue
+                    }
+                    else -> {
+                        rowBinding.wrapEdit.visibility = View.VISIBLE
+                        rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_TEXT
+                        setting.maxLength?.let { rowBinding.editValue.filters = arrayOf(InputFilter.LengthFilter(it)) }
+                        rowBinding.editValue.isEnabled = !setting.readOnly
+                        extraSchemaEditTexts[setting.name] = rowBinding.editValue
+                    }
+                }
+                binding.containerExtraParams.addView(rowBinding.root)
+            }
+            return
+        }
         val names = EepromHolder.extraParamNames
         if (names.isEmpty()) return
         if (extraParamEditTexts.size == names.size) return // already built
         binding.containerExtraParams.removeAllViews()
         extraParamEditTexts.clear()
+        extraSchemaSpinners.clear()
+        extraSchemaSwitches.clear()
+        extraSchemaEditTexts.clear()
         names.forEach { name ->
             val row = layoutInflater.inflate(R.layout.item_extra_param, binding.containerExtraParams, false)
             (row as? ViewGroup)?.getChildAt(0)?.let { if (it is TextInputLayout) it.hint = name }
@@ -387,10 +478,26 @@ class ChannelEditActivity : AppCompatActivity() {
         c.rxToneVal      = rxVal
         c.rxTonePolarity = rxPol
 
-        // Dynamic extra (Memory.extra) — includes Group 1–4 when driver exposes them
-        if (extraParamEditTexts.isNotEmpty()) {
+        // Dynamic extra (Memory.extra) — from schema-driven UI or fallback EditTexts
+        if (EepromHolder.channelExtraSchema.isNotEmpty() &&
+            (extraSchemaSpinners.isNotEmpty() || extraSchemaSwitches.isNotEmpty() || extraSchemaEditTexts.isNotEmpty())) {
+            val extra = mutableMapOf<String, String>()
+            EepromHolder.channelExtraSchema.forEach { setting ->
+                val value = when (setting.type) {
+                    "list" -> extraSchemaSpinners[setting.name]?.let { spinner ->
+                        (spinner.selectedItem as? String) ?: ""
+                    } ?: ""
+                    "bool" -> if (extraSchemaSwitches[setting.name]?.isChecked == true) "True" else "False"
+                    else -> extraSchemaEditTexts[setting.name]?.text?.toString()?.trim() ?: ""
+                }
+                extra[setting.name] = value
+            }
+            c.extra = extra
+        } else if (extraParamEditTexts.isNotEmpty()) {
             c.extra = extraParamEditTexts.mapValues { it.value.text?.toString()?.trim() ?: "" }
-            // Sync group fields from extra so upload has correct group1–4
+        }
+        // Sync group fields from extra so upload has correct group1–4
+        if (c.extra.isNotEmpty()) {
             c.group1 = c.extra["Group 1"] ?: c.extra["group1"] ?: c.group1
             c.group2 = c.extra["Group 2"] ?: c.extra["group2"] ?: c.group2
             c.group3 = c.extra["Group 3"] ?: c.extra["group3"] ?: c.group3

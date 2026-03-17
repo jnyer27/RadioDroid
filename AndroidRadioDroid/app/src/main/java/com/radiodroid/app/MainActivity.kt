@@ -1508,6 +1508,7 @@ class MainActivity : AppCompatActivity() {
                 EepromHolder.extraParamNames = result.channels
                     .firstOrNull { it.extra.isNotEmpty() }
                     ?.extra?.keys?.toList() ?: emptyList()
+                EepromHolder.channelExtraSchema = ChirpBridge.getChannelExtraSchema(radio, result.eepromBase64)
                 refreshChannelList()
                 runOnUiThread {
                     binding.progressBar.visibility = View.GONE
