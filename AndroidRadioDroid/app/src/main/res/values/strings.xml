@@ -36,6 +36,7 @@
     <string name="radio_settings_save">Update settings</string>
     <string name="radio_settings_saved">Settings saved.</string>
     <string name="radio_settings_error">Could not load settings.</string>
+    <string name="radio_settings_search_hint">Search setting or value…</string>
     <string name="customize_main_screen_title">Customize main screen</string>
     <string name="customize_main_screen_hint">Choose up to two channel values to show below Power on each channel row.</string>
     <string name="customize_main_screen_slot_1">Slot 1</string>
