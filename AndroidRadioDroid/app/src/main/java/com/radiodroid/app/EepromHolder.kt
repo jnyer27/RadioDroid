@@ -29,7 +29,7 @@ data class RadioSettings(
 
 /**
  * Application-level singleton holding the current radio memory so that
- * ChannelEditActivity, ChannelSortActivity, and ChirpImportActivity can
+ * ChannelEditActivity and ChirpImportActivity can
  * read and write the same channel list without passing it through Intents.
  *
  * In RadioDroid the "memory" is a List<Channel> populated by ChirpBridge

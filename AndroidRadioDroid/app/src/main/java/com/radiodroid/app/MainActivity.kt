@@ -569,7 +569,6 @@ class MainActivity : AppCompatActivity() {
         val hasCloneEeprom = EepromHolder.eeprom != null && EepromHolder.eeprom!!.isNotEmpty()
         menu.findItem(R.id.action_import_chirp)?.isEnabled           = hasChannels
         menu.findItem(R.id.action_import_chirp_clipboard)?.isEnabled = hasChannels
-        menu.findItem(R.id.action_sort_by_group)?.isEnabled          = hasChannels
         menu.findItem(R.id.action_radio_settings)?.isEnabled          =
             EepromHolder.radioFeatures.hasSettings && selectedRadio != null &&
             (activePort != null || hasCloneEeprom)
@@ -597,10 +596,6 @@ class MainActivity : AppCompatActivity() {
                     return true
                 }
                 processChirpCsv(csvText)
-                true
-            }
-            R.id.action_sort_by_group -> {
-                startActivity(Intent(this, ChannelSortActivity::class.java))
                 true
             }
             R.id.action_select_radio -> {

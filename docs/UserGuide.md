@@ -1,52 +1,161 @@
 # RadioDroid User Guide
 
-> **Work in progress** — RadioDroid is under active development.
+RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
 
-## Overview
+---
 
-RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application.
+## Table of contents
 
-## Supported Radios
+1. [Requirements](#requirements)
+2. [Connecting to a radio](#connecting-to-a-radio)
+3. [Main screen](#main-screen)
+4. [Downloading and uploading](#downloading-and-uploading)
+5. [Editing channels](#editing-channels)
+6. [Radio settings](#radio-settings)
+7. [CHIRP CSV import and export](#chirp-csv-import-and-export)
+8. [Customize main screen](#customize-main-screen)
+9. [Supported radios](#supported-radios)
 
-RadioDroid bundles all CHIRP-supported drivers. Any radio that works with CHIRP on a PC should work with RadioDroid on Android via USB OTG.
+---
 
-Popular supported radios include:
-- Baofeng UV-5R, BF-F8HP, UV-82, UV-K5
-- TID Radio TD-H3 (nicFW)
-- Yaesu FT-60, FT-65
-- Kenwood TH-D74
-- BTECH UV-50X3
+## Requirements
 
-## Connecting to a Radio
+- **Android 7.0 or later** (API 24+)
+- **USB OTG cable** (for wired programming) **or** a **Bluetooth LE–capable** Android device and a BLE-to-serial adapter (for wireless)
+- A **CHIRP-compatible radio** — if it works with CHIRP on a PC, it should work with RadioDroid
+
+---
+
+## Connecting to a radio
 
 ### USB OTG
-1. Plug your programming cable into the radio.
-2. Connect the other end to your Android device via a USB OTG adapter.
-3. Launch RadioDroid — it will detect the device automatically.
-4. Select your radio vendor and model.
-5. Tap **Download** to read the radio memory.
+
+1. Connect the programming cable to the radio.
+2. Connect the other end to your Android device using a USB OTG adapter.
+3. Open RadioDroid; the app will detect the USB serial device.
+4. Tap the **⋮** menu → **Select Radio Model…** and choose your radio’s vendor and model.
+5. Tap **Connect** (or **Load from radio** / **Download**) to open the port and read the radio.
 
 ### Bluetooth LE
-1. Pair your BLE-to-serial adapter with your Android device.
-2. In RadioDroid, select **Connect via BLE** and choose your adapter.
-3. Select your radio vendor and model.
-4. Tap **Download**.
 
-## Editing Channels
+1. Pair your BLE-to-serial adapter with your Android device in system Bluetooth settings.
+2. In RadioDroid, tap **Connect** and choose **Connect via BLE**, then select your adapter.
+3. Select your radio model (⋮ → **Select Radio Model…** if needed).
+4. Tap **Load from radio** to download the channel list.
 
-After downloading, the channel list appears. Tap any channel to edit:
-- **Frequency** — RX frequency in MHz
-- **Duplex / Offset** — simplex, +/-, or split
-- **Tone** — CTCSS or DCS encode/decode
-- **Power** — transmit power level
-- **Mode** — FM, AM, USB
-- **Name** — up to 12 characters
+After a successful download, the main screen shows the channel list and you can edit and upload.
 
-## Uploading to Radio
+---
 
-Tap the **Upload** button in the toolbar. RadioDroid will write all channels back to the radio using the CHIRP driver's `sync_out()` method.
+## Main screen
 
-## CHIRP CSV Import / Export
+- **Toolbar**
+  - **Connect / Disconnect** — open or close the connection to the radio.
+  - **Load from radio** — download channel memory from the radio (clone/sync in).
+  - **Save to radio** — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.
+- **Channel list** — scrollable list of channels (e.g. 1–198). Each row shows:
+  - Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in **Customize main screen**.
+  - For radios that support them: **Radio-specific** fields (e.g. groups, bandwidth) under the main row.
+- **⋮ Menu**
+  - **Search Channels** — show a search bar to filter by name, group, or frequency.
+  - **Import CHIRP CSV from File…** — load a `.csv` exported from desktop CHIRP.
+  - **Import CHIRP CSV from Clipboard…** — paste and import CSV text.
+  - **Select Radio Model…** — pick vendor and model for the connected radio.
+  - **Customize main screen** — choose which two values appear below Power on each channel row.
+  - **Radio settings…** — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.
+  - **Save EEPROM dump…** — save the current in-memory image to a file (for backup or inspection).
+  - **Export CHIRP CSV (selected slots)…** — export selected channels as a CHIRP CSV to share or use in desktop CHIRP.
 
-- **Import**: tap ⋮ → Import CHIRP CSV to load a `.csv` file exported from desktop CHIRP.
-- **Export**: multi-select channels → tap the export icon → name the file → share.
+Import, export, and radio settings are enabled only when channels are loaded (and, for radio settings, when the radio has settings support and is connected or has a clone image).
+
+---
+
+## Downloading and uploading
+
+- **Download (Load from radio)**  
+  Reads the full channel memory from the radio using the CHIRP driver’s sync/clone logic. Progress is shown during the transfer. When it finishes, the channel list is filled and you can edit and save to file or upload later.
+
+- **Upload (Save to radio)**  
+  Writes the current in-memory channel list back to the radio. The app asks for confirmation because this overwrites the radio’s memory. Upload uses the same driver as download (e.g. full clone for many handhelds).
+
+For **clone-mode** radios (e.g. many Baofeng, TID Radio, Retevis), the app keeps a full EEPROM image in memory after download. **Radio settings** and channel edits apply to that image; **Save to radio** sends the whole image back.
+
+---
+
+## Editing channels
+
+Tap a channel in the list to open the **channel editor**.
+
+- **RX Frequency** — receive frequency in MHz.
+- **Duplex / Offset** — Simplex, **+** (positive offset), **−** (negative offset), or **Split** (separate TX frequency). Offset is in kHz or MHz as appropriate.
+- **Channel name** — short label (length limit depends on the driver, often 8–16 characters).
+- **Power** — transmit power (e.g. High, Low, or driver-specific levels).
+- **Mode** — e.g. FM, NFM, AM, USB (driver-dependent).
+- **TX tone / RX tone** — CTCSS or DCS encode/decode; choose from the tone list or “Off”.
+- **Busy lock** — optional; may be disabled when duplex is not Simplex (driver-dependent).
+- **Radio-specific settings** — extra parameters from the CHIRP driver (e.g. bandwidth, group slots). Shown as spinners or switches when the driver defines options; otherwise as text fields.
+
+Tap **Done** to save the channel and return to the list, or **Cancel** to discard changes.
+
+---
+
+## Radio settings
+
+**⋮** → **Radio settings…** opens a dynamic form built from the CHIRP driver’s **global** settings (e.g. backlight, timeouts, beeps, display options).
+
+- The list is grouped by the driver’s setting groups; expand or collapse sections as needed.
+- Use the **search** field at the top to filter by setting name or value.
+- Change values, then tap **Update settings** to write them to the radio (or to the in-memory image for clone radios; then use **Save to radio** to upload).
+
+Radio settings are available only when:
+- The radio driver supports settings, and  
+- The app has a connection to the radio **or** a clone image already loaded (for clone radios, settings are applied to the in-memory image).
+
+---
+
+## CHIRP CSV import and export
+
+- **Import**
+  - **From file:** ⋮ → **Import CHIRP CSV from File…** → choose a `.csv` exported from desktop CHIRP. Channels are merged into the current list by slot.
+  - **From clipboard:** Copy CSV text (e.g. from CHIRP or email), then ⋮ → **Import CHIRP CSV from Clipboard…**. Same merge behavior as file import.
+
+- **Export**
+  - Select one or more channels (long-press or use the selection UI), then use the export action (e.g. from the menu or toolbar). Name the file and share or save. Format is CHIRP CSV so you can open it in CHIRP on a PC or share with others.
+
+---
+
+## Customize main screen
+
+**⋮** → **Customize main screen**
+
+Choose **Slot 1** and **Slot 2** — the two values that appear below the power level on each channel row on the main list (e.g. Duplex, Mode, or other driver-defined fields). This only changes the display; it does not alter channel data.
+
+---
+
+## Supported radios
+
+RadioDroid ships with the same set of drivers as CHIRP. **Any radio that works with CHIRP on a PC should work with RadioDroid** over USB OTG or (with a BLE adapter) over Bluetooth LE.
+
+Examples of supported families (this is not a full list):
+
+- **Baofeng** — UV-5R, BF-F8HP, UV-82, UV-K5, and others  
+- **TID Radio** — TD-H3 (including nicFW), and other TID models  
+- **Retevis** — RA25, RT85, and others  
+- **Yaesu** — FT-60, FT-65, and others  
+- **Kenwood** — TH-D74, and others  
+- **BTECH** — UV-50X3, and others  
+
+Select **Select Radio Model…** from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see [Dynamic driver-based UI](DYNAMIC_DRIVER_UI.md) for technical details.
+
+---
+
+## Tips
+
+- **First time:** Connect the radio, select the exact model, then **Load from radio**. After the list is loaded, you can disconnect and still edit; reconnect when you want to **Save to radio** or open **Radio settings**.
+- **Clone radios:** For radios that use a full EEPROM clone, **Radio settings** and channel edits apply to the in-memory image. Use **Save to radio** to write everything back in one go.
+- **Search:** Use **Search Channels** to quickly find channels by name, group, or frequency.
+- **Backup:** Use **Save EEPROM dump…** to keep a copy of the current image before making big changes.
+
+---
+
+*RadioDroid uses [CHIRP](https://github.com/kk7ds/chirp) drivers and [Chaquopy](https://chaquo.com/chaquopy/) to run them on Android.*

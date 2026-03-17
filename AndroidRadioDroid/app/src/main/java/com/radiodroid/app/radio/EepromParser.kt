@@ -10,7 +10,7 @@ import com.radiodroid.app.TuneSettings
  * a [ByteArray] parameter ignore it and delegate to the in-memory list.
  *
  * This preserves the call-site API inherited from the nicFW project so that
- * minimally-changed callers (ChannelEditActivity, ChannelSortActivity, etc.)
+ * minimally-changed callers (ChannelEditActivity, etc.)
  * continue to compile without large-scale rewrites.
  */
 object EepromParser {

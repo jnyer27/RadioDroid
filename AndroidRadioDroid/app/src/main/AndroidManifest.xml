@@ -43,7 +43,6 @@
                 android:resource="@xml/usb_device_filter" />
         </activity>
         <activity android:name=".ChannelEditActivity" android:exported="false" />
-        <activity android:name=".ChannelSortActivity" android:exported="false" />
         <activity android:name=".ChirpImportActivity" android:exported="false" />
         <activity android:name=".MainDisplayCustomizeActivity" android:exported="false" />
         <activity android:name=".RadioSettingsActivity" android:exported="false" />
