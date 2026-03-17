@@ -20,11 +20,6 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_sort_by_group"
-        android:title="Sort Channels by Group…"
-        app:showAsAction="never" />
-
-    <item
         android:id="@+id/action_select_radio"
         android:title="Select Radio Model…"
         app:showAsAction="never" />
