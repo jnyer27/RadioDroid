@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -43,8 +45,9 @@ class RadioSettingsActivity : AppCompatActivity() {
     private val pathToBinding = mutableMapOf<String, ItemRadioSettingBinding>()
     /** Which group paths are expanded. Default: all expanded. */
     private val expandedGroupPaths = mutableSetOf<String>()
-    /** (view, groupPath, isHeader) for expand/collapse visibility. */
-    private val rowViews = mutableListOf<Triple<View, String, Boolean>>()
+    /** (view, groupPath, isHeader, settingPath?) for expand/collapse and search visibility. */
+    private val rowViews = mutableListOf<RowViewEntry>()
+    private var searchQuery: CharSequence = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -94,12 +97,22 @@ class RadioSettingsActivity : AppCompatActivity() {
         binding.btnSave.setOnClickListener { saveAndFinish() }
         binding.btnSave.isEnabled = false
 
+        binding.searchSettings.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchQuery = s?.toString()?.trim() ?: ""
+                updateGroupVisibility()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
         loadSettings()
     }
 
     private fun loadSettings() {
         binding.progressBar.visibility = View.VISIBLE
         binding.scrollContent.visibility = View.GONE
+        binding.searchLayout.visibility = View.GONE
         lifecycleScope.launch {
             try {
                 val r = radio!!
@@ -124,6 +137,7 @@ class RadioSettingsActivity : AppCompatActivity() {
                 runOnUiThread {
                     binding.progressBar.visibility = View.GONE
                     binding.scrollContent.visibility = View.VISIBLE
+                    binding.searchLayout.visibility = View.VISIBLE
                     buildForm()
                     binding.btnSave.isEnabled = true
                 }
@@ -191,7 +205,7 @@ class RadioSettingsActivity : AppCompatActivity() {
                         updateGroupVisibility()
                     }
                     binding.containerSettings.addView(headerBinding.root)
-                    rowViews.add(Triple(headerBinding.root, groupPath, true))
+                    rowViews.add(RowViewEntry(headerBinding.root, groupPath, isHeader = true, settingPath = null))
                 }
                 is DisplayRow.Setting -> {
                     val obj = row.entry
@@ -249,7 +263,7 @@ class RadioSettingsActivity : AppCompatActivity() {
                     }
                     binding.containerSettings.addView(rowBinding.root)
                     pathToBinding[path] = rowBinding
-                    rowViews.add(Triple(rowBinding.root, parentGroupPath, false))
+                    rowViews.add(RowViewEntry(rowBinding.root, parentGroupPath, isHeader = false, settingPath = path))
                 }
             }
         }
@@ -257,28 +271,70 @@ class RadioSettingsActivity : AppCompatActivity() {
     }
 
     private fun updateGroupVisibility() {
-        for ((view, groupPath, isHeader) in rowViews) {
+        val query = searchQuery.toString().lowercase()
+        val matchingPaths: Set<String> = if (query.isEmpty()) {
+            emptySet()
+        } else {
+            settingsList
+                .filter { obj -> buildSearchableText(obj).lowercase().contains(query) }
+                .map { it.optString("path", "") }
+                .toSet()
+        }
+
+        for (entry in rowViews) {
+            val (view, groupPath, isHeader, settingPath) = entry
             if (isHeader) {
                 val isExpanded = groupPath in expandedGroupPaths
                 view.findViewById<android.widget.ImageView>(R.id.iconExpand)?.setImageResource(
                     if (isExpanded) R.drawable.ic_expand_more else R.drawable.ic_chevron_right
                 )
-                view.visibility = View.VISIBLE
+                val visibleBySearch = query.isEmpty() ||
+                    matchingPaths.any { it == groupPath || it.startsWith("$groupPath/") }
+                view.visibility = if (visibleBySearch) View.VISIBLE else View.GONE
             } else {
-                // Setting row: visible only if every ancestor group is expanded
-                var visible = true
-                var current: String? = groupPath
-                while (!current.isNullOrEmpty()) {
-                    if (current !in expandedGroupPaths) {
-                        visible = false
-                        break
+                val visibleBySearch = query.isEmpty() || (settingPath != null && settingPath in matchingPaths)
+                if (!visibleBySearch) {
+                    view.visibility = View.GONE
+                } else {
+                    // Setting row: visible only if every ancestor group is expanded
+                    var visible = true
+                    var current: String? = groupPath
+                    while (!current.isNullOrEmpty()) {
+                        if (current !in expandedGroupPaths) {
+                            visible = false
+                            break
+                        }
+                        current = current.substringBeforeLast("/").takeIf { it != current }
                     }
-                    current = current.substringBeforeLast("/").takeIf { it != current }
+                    view.visibility = if (visible) View.VISIBLE else View.GONE
                 }
-                view.visibility = if (visible) View.VISIBLE else View.GONE
             }
         }
     }
+
+    /** Build a single string from path, name, value and options for search matching. */
+    private fun buildSearchableText(obj: JSONObject): String {
+        val path = obj.optString("path", "")
+        val name = obj.optString("name", "")
+        val value = when (obj.opt("value")) {
+            null -> ""
+            is Boolean -> obj.optBoolean("value", false).toString()
+            is Number -> obj.optDouble("value", 0.0).toString()
+            else -> obj.optString("value", "")
+        }
+        val optArr = obj.optJSONArray("options")
+        val options = if (optArr != null) {
+            (0 until optArr.length()).joinToString(" ") { optArr.optString(it, "") }
+        } else ""
+        return "$path $name $value $options"
+    }
+
+    private data class RowViewEntry(
+        val view: View,
+        val groupPath: String,
+        val isHeader: Boolean,
+        val settingPath: String?,
+    )
 
     private sealed class DisplayRow {
         data class GroupHeader(val groupPath: String, val displayName: String) : DisplayRow()
