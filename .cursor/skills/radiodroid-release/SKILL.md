@@ -48,8 +48,8 @@ In `AndroidRadioDroid/app/build.gradle.kts`:
 
 ## Docs and README
 
-1. **`README.md`** — Add a **What’s new in vX.Y.Z** block at the top of the changelog area; move the previous version under **Earlier:**. Update the line that cites the latest release APK example if present.
-2. **`docs/UserGuide.md`** and **`userguide.md`** — Update the **Current release** line near the top to **`vX.Y.Z`** (keep both files in sync if both exist).
+1. **`README.md`** — Add a **What’s new in vX.Y.Z** block at the top of the changelog area; move the previous version under **Earlier:**. Update the line that cites the latest release APK if present.
+2. **`docs/UserGuide.md`** and **`userguide.md`** — Update the **Current release:** line near the top to **`**Current release: vX.Y.Z**`** (exact wording; no extra qualifiers in parentheses) and keep both files in sync if both exist.
 
 ## Git workflow
 
