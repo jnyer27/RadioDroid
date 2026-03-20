@@ -13,3 +13,15 @@ AndroidRadioDroid/app/keystore.properties
 AndroidRadioDroid/app/build/
 AndroidRadioDroid/build/
 AndroidRadioDroid/local.properties
+
+# IDE / local noise
+AndroidRadioDroid/.idea/
+AndroidRadioDroid/.kotlin/
+AndroidRadioDroid/app/src/main/python/__pycache__/
+
+# Local logs and scratch (do not commit)
+AndroidRadioDroid/adb_logcat_radio_settings.txt
+crash_log.txt
+test_log.txt
+upload_test.txt
+add_adb_to_path.ps1
