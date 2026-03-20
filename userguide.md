@@ -2,19 +2,22 @@
 
 RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
 
+**Current release (example): v2.1.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)**.
+
 ---
 
 ## Table of contents
 
 1. [Requirements](#requirements)
 2. [Connecting to a radio](#connecting-to-a-radio)
-3. [Main screen](#main-screen)
-4. [Downloading and uploading](#downloading-and-uploading)
-5. [Editing channels](#editing-channels)
-6. [Radio settings](#radio-settings)
-7. [CHIRP CSV import and export](#chirp-csv-import-and-export)
-8. [Customize main screen](#customize-main-screen)
-9. [Supported radios](#supported-radios)
+3. [Bluetooth LE adapters (v2.1+)](#bluetooth-le-adapters-v21)
+4. [Main screen](#main-screen)
+5. [Downloading and uploading](#downloading-and-uploading)
+6. [Editing channels](#editing-channels)
+7. [Radio settings](#radio-settings)
+8. [CHIRP CSV import and export](#chirp-csv-import-and-export)
+9. [Customize main screen](#customize-main-screen)
+10. [Supported radios](#supported-radios)
 
 ---
 
@@ -38,12 +41,24 @@ RadioDroid is an Android app that programs amateur and GMRS radios using the sam
 
 ### Bluetooth LE
 
-1. Pair your BLE-to-serial adapter with your Android device in system Bluetooth settings.
-2. In RadioDroid, tap **Connect** and choose **Connect via BLE**, then select your adapter.
+1. Pair your BLE-to-serial adapter with your Android device in system Bluetooth settings (if your phone requires it).
+2. In RadioDroid, tap **Connect** and choose **Connect via BLE**, then select your adapter from the scan list.
 3. Select your radio model (⋮ → **Select Radio Model…** if needed).
 4. Tap **Load from radio** to download the channel list.
 
 After a successful download, the main screen shows the channel list and you can edit and upload.
+
+---
+
+## Bluetooth LE adapters (v2.1+)
+
+**v2.1** improves support for common low-cost BLE-to-serial dongles used with Baofeng, TIDRADIO, and similar radios.
+
+- **UART services supported** — The app looks for a serial/UART-style GATT service in this order: **HM-10 / TI-style** (`FFE0`), **Nordic UART**, **Microchip / ISSC**, **NICFW / TD-H3** (`FF00`). The first service present on the adapter is used; TX/RX characteristics are picked automatically (notify/indicate for data from radio, write for data to radio).
+- **Scan filtering** — BLE scan only shows devices that **advertise** one of those UART services. That reduces clutter but means: if your dongle does **not** list the UART UUID in its advertisement packet, it may **not** appear in the list even though it would work after a direct connect (future app versions may add an optional “show all BLE devices” mode).
+- **MTU and chunk size** — Writes default to **20-byte** chunks (safe for all adapters). The app then negotiates a **moderate** MTU; if negotiation fails or never completes, operation continues at 20 bytes so flaky adapters are less likely to disconnect.
+
+If connection fails, try another USB cable path, ensure the dongle is powered and not paired exclusively to another app, and confirm the radio model is correct in **Select Radio Model…**.
 
 ---
 
@@ -145,7 +160,7 @@ Examples of supported families (this is not a full list):
 - **Kenwood** — TH-D74, and others  
 - **BTECH** — UV-50X3, and others  
 
-Select **Select Radio Model…** from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see [Dynamic driver-based UI](DYNAMIC_DRIVER_UI.md) for technical details.
+Select **Select Radio Model…** from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see the [Dynamic driver-based UI](https://github.com/jnyer27/RadioDroid/blob/main/docs/DYNAMIC_DRIVER_UI.md) doc in the repository for technical details.
 
 ---
 
