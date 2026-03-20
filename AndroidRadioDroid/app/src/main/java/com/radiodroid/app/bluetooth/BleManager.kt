@@ -54,6 +54,7 @@ class BleManager(private val context: Context) {
     private var currentStream: BleRadioStream? = null
     private var connectedDevice: BluetoothDevice? = null
     private val seenAddresses = mutableSetOf<String>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     // ─────────────────────────────────────────────────────────────────────────
     // Scanning
