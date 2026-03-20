@@ -208,3 +208,65 @@ body,
 .md-clipboard {
   display: none !important;
 }
+
+/* ── Schematic UI mocks (User Guide) — print-safe, no animation ───────────── */
+.md-typeset .ui-mock {
+  color-scheme: light !important;
+  max-width: 100% !important;
+  margin: 12px auto !important;
+  border: 2px solid #333 !important;
+  border-radius: 8px !important;
+  background: #fafafa !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  page-break-inside: avoid !important;
+}
+
+.md-typeset .ui-mock-bar,
+.md-typeset .ui-mock-card-title {
+  background: #e0e0e0 !important;
+  color: #000 !important;
+  border-color: #999 !important;
+}
+
+.md-typeset .ui-mock-appbar {
+  background: #333 !important;
+  color: #fff !important;
+}
+
+.md-typeset .ui-mock-actions,
+.md-typeset .ui-mock-list,
+.md-typeset .ui-mock-card,
+.md-typeset .ui-mock-menu,
+.md-typeset .ui-mock-progress-wrap {
+  background: #fff !important;
+}
+
+.md-typeset .ui-mock-btn {
+  border: 1px solid #666 !important;
+  color: #000 !important;
+  background: #fff !important;
+}
+
+.md-typeset .ui-mock-btn--primary {
+  background: #333 !important;
+  color: #fff !important;
+  border-color: #333 !important;
+}
+
+.md-typeset .ui-mock-progress-track {
+  animation: none !important;
+  background: #555 !important;
+  height: 6px !important;
+}
+
+.md-typeset .ui-mock-caption {
+  color: #333 !important;
+  font-size: 9pt !important;
+}
+
+.md-typeset .ui-mock-note {
+  background: #fff9e6 !important;
+  color: #000 !important;
+  border-color: #cc9 !important;
+}
