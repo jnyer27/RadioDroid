@@ -100,3 +100,4 @@ gh release edit vX.Y.Z --repo jnyer27/RadioDroid --title "vX.Y.Z"
 - [ ] `main` + tag `vX.Y.Z` pushed
 - [ ] `assembleRelease` succeeds
 - [ ] `gh release create` with **`--title "vX.Y.Z"`** and APK attached
+- [ ] If **`userguide.md`** / **`docs/`** / **`mkdocs.yml`** changed: refresh **GitHub Pages + PDF** (see **`.cursor/skills/radiodroid-userguide-mkdocs/SKILL.md`**) — e.g. `gh workflow run "Update User Guide" --ref main`
