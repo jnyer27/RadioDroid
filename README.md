@@ -8,10 +8,18 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 
 - 📻 **170+ radios** via bundled CHIRP Python drivers (Baofeng, TID Radio, Yaesu, Kenwood, and more)
 - 🔌 **USB OTG** — connect any CHIRP-supported radio via USB cable
-- 📶 **Bluetooth LE** — wireless programming via BLE-to-serial adapters
+- 📶 **Bluetooth LE** — wireless programming via BLE-to-serial adapters (**v2.1+**: supports common UART service profiles — HM-10/TI-style, Nordic UART, Microchip/ISSC, NICFW/TD-H3; scan is filtered to those services; safer MTU negotiation with 20-byte fallback for flaky dongles)
 - ✏️ **Full channel editing** — frequency, tone (CTCSS/DCS), power, mode, name
+- 🎛️ **Radio-specific channel fields** — spinners/switches where the CHIRP driver defines options (after download / clone image)
+- ⚙️ **Radio settings** — driver-defined global settings with **search** (filter by name or value)
 - 📋 **CHIRP CSV import/export** — share channels with desktop CHIRP or other users
 - 🔍 **Channel search** — filter by name, group, or frequency
+- 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
+
+### What’s new in **v2.1.0**
+
+- **BLE compatibility** — Multiple UART service UUIDs, filtered BLE scan, and conservative MTU handling so more cheap Chinese BLE-to-serial dongles work reliably (Baofeng-style, Nordic, Microchip/ISSC, NICFW).
+- **Docs** — README and [user guide](https://jnyer27.github.io/RadioDroid/) updated for this release.
 
 ## Architecture
 
@@ -25,6 +33,8 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
+
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v2.1.0).
 
 ## Related
 
