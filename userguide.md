@@ -2,7 +2,7 @@
 
 RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
 
-**Current release (example): v2.1.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)**.
+**Current release (example): v2.2.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)**.
 
 ---
 
@@ -88,10 +88,10 @@ Import, export, and radio settings are enabled only when channels are loaded (an
 ## Downloading and uploading
 
 - **Download (Load from radio)**  
-  Reads the full channel memory from the radio using the CHIRP driver’s sync/clone logic. Progress is shown during the transfer. When it finishes, the channel list is filled and you can edit and save to file or upload later.
+  Reads the full channel memory from the radio using the CHIRP driver’s sync/clone logic. **v2.2+:** An **indeterminate** progress bar and **rotating status text** show that work is in progress (the app does not receive a real percent/byte count from the CHIRP bridge). When it finishes, the channel list is filled and you can edit and save to file or upload later.
 
 - **Upload (Save to radio)**  
-  Writes the current in-memory channel list back to the radio. The app asks for confirmation because this overwrites the radio’s memory. Upload uses the same driver as download (e.g. full clone for many handhelds).
+  Writes the current in-memory channel list back to the radio. The app asks for confirmation because this overwrites the radio’s memory. Upload uses the same driver as download (e.g. full clone for many handhelds). **v2.2+:** The same indeterminate bar and rotating messages appear during upload.
 
 For **clone-mode** radios (e.g. many Baofeng, TID Radio, Retevis), the app keeps a full EEPROM image in memory after download. **Radio settings** and channel edits apply to that image; **Save to radio** sends the whole image back.
 

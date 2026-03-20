@@ -16,7 +16,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v2.1.0**
+### What’s new in **v2.2.0**
+
+- **Radio transfer feedback** — **Load from radio** / **Save to radio** show an indeterminate progress bar and rotating status messages so it’s clear work is ongoing (replacing a stale “cloning… 0 / 256” style indicator). See [release notes](release_notes_v2.2.md).
+
+### Earlier: **v2.1.0**
 
 - **BLE compatibility** — Multiple UART service UUIDs, filtered BLE scan, and conservative MTU handling so more cheap Chinese BLE-to-serial dongles work reliably (Baofeng-style, Nordic, Microchip/ISSC, NICFW).
 - **Docs** — README and [user guide](https://jnyer27.github.io/RadioDroid/) updated for this release.
@@ -34,7 +38,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v2.1.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v2.2.0).
 
 ## Related
 

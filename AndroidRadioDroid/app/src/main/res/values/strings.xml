@@ -10,7 +10,14 @@
     <string name="channels">Channels (1–198)</string>
     <string name="channel_number">Ch %1$d</string>
     <string name="empty_channel">Empty</string>
+    <!-- Legacy nicFW-style clone counter; radio transfer UI now uses radio_transfer_* strings. -->
     <string name="cloning">Cloning… %1$d / %2$d</string>
+    <string name="radio_transfer_download_1">Reading from radio…</string>
+    <string name="radio_transfer_download_2">Transfer in progress — please wait…</string>
+    <string name="radio_transfer_download_3">Still working — keep radio and phone connected…</string>
+    <string name="radio_transfer_upload_1">Uploading to radio…</string>
+    <string name="radio_transfer_upload_2">Writing memory…</string>
+    <string name="radio_transfer_upload_3">Almost done — please wait…</string>
     <string name="save_confirm_title">Save to radio?</string>
     <string name="save_confirm_message">This will overwrite the radio memory. Continue?</string>
     <string name="cancel">Cancel</string>

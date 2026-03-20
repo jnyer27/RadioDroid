@@ -52,6 +52,9 @@ import com.radiodroid.app.radio.EepromParser
 import com.radiodroid.app.radio.Protocol
 import com.radiodroid.app.radio.RadioStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -78,6 +81,24 @@ class MainActivity : AppCompatActivity() {
 
     /** Whichever BLE/SPP stream is active. Null when disconnected. */
     private var activeStream: RadioStream? = null
+
+    /** Rotates status text during radio download/upload (CHIRP bridge has no byte progress). */
+    private var transferStatusJob: Job? = null
+
+    private val downloadStatusMessages: IntArray by lazy {
+        intArrayOf(
+            R.string.radio_transfer_download_1,
+            R.string.radio_transfer_download_2,
+            R.string.radio_transfer_download_3,
+        )
+    }
+    private val uploadStatusMessages: IntArray by lazy {
+        intArrayOf(
+            R.string.radio_transfer_upload_1,
+            R.string.radio_transfer_upload_2,
+            R.string.radio_transfer_upload_3,
+        )
+    }
     private var activeDeviceName: String? = null
 
     /** Currently selected radio model (set by RadioSelectActivity or restored from prefs). */
@@ -1474,6 +1495,34 @@ class MainActivity : AppCompatActivity() {
 
     // ─────────────────────────────────────────────────────────────────────────
 
+    /** Cycles [progressText] while transfer runs; bridge does not report percent complete. */
+    private fun startTransferStatusHints(messageResIds: IntArray) {
+        stopTransferStatusHints()
+        binding.progressText.setText(messageResIds[0])
+        var index = 0
+        transferStatusJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(2_800)
+                index = (index + 1) % messageResIds.size
+                withContext(Dispatchers.Main) {
+                    binding.progressText.setText(messageResIds[index])
+                }
+            }
+        }
+    }
+
+    private fun stopTransferStatusHints() {
+        transferStatusJob?.cancel()
+        transferStatusJob = null
+    }
+
+    private fun hideRadioTransferProgress() {
+        stopTransferStatusHints()
+        binding.progressBar.visibility = View.GONE
+        binding.progressBar.isIndeterminate = false
+        binding.progressText.visibility = View.GONE
+    }
+
     private fun loadFromRadio() {
         val radio = selectedRadio ?: run {
             Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
@@ -1486,7 +1535,7 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.visibility = View.VISIBLE
         binding.progressText.visibility = View.VISIBLE
         binding.progressBar.isIndeterminate = true
-        binding.progressText.text = getString(R.string.cloning, 0, 100)
+        startTransferStatusHints(downloadStatusMessages)
         binding.btnLoad.isEnabled = false
         binding.btnSave.isEnabled = false
         lifecycleScope.launch {
@@ -1506,9 +1555,7 @@ class MainActivity : AppCompatActivity() {
                 EepromHolder.channelExtraSchema = ChirpBridge.getChannelExtraSchema(radio, result.eepromBase64)
                 refreshChannelList()
                 runOnUiThread {
-                    binding.progressBar.visibility = View.GONE
-                    binding.progressBar.isIndeterminate = false
-                    binding.progressText.visibility = View.GONE
+                    hideRadioTransferProgress()
                     updateConnectionUi()
                     invalidateOptionsMenu()
                     val msg = if (result.isCloneMode)
@@ -1519,9 +1566,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    binding.progressBar.visibility = View.GONE
-                    binding.progressBar.isIndeterminate = false
-                    binding.progressText.visibility = View.GONE
+                    hideRadioTransferProgress()
                     updateConnectionUi()
                     Toast.makeText(this@MainActivity, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -1557,7 +1602,7 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.isIndeterminate = true
         binding.progressText.visibility = View.VISIBLE
-        binding.progressText.text = "Uploading to radio…"
+        startTransferStatusHints(uploadStatusMessages)
         binding.btnSave.isEnabled = false
         lifecycleScope.launch {
             try {
@@ -1570,17 +1615,13 @@ class MainActivity : AppCompatActivity() {
                     ChirpBridge.upload(radio, port, EepromHolder.channels.toList())
                 }
                 runOnUiThread {
-                    binding.progressBar.visibility = View.GONE
-                    binding.progressBar.isIndeterminate = false
-                    binding.progressText.visibility = View.GONE
+                    hideRadioTransferProgress()
                     updateConnectionUi()
                     Toast.makeText(this@MainActivity, "Saved to radio", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    binding.progressBar.visibility = View.GONE
-                    binding.progressBar.isIndeterminate = false
-                    binding.progressText.visibility = View.GONE
+                    hideRadioTransferProgress()
                     updateConnectionUi()
                     Toast.makeText(this@MainActivity, "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
