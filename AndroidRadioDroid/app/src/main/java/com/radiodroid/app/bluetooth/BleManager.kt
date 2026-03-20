@@ -9,10 +9,14 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelUuid
 import com.radiodroid.app.radio.RadioStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -26,15 +30,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * BLE manager that discovers and connects to the TD-H3 nicFW radio.
+ * BLE manager for transparent serial-over-BLE to CHIRP-compatible radios via common
+ * Chinese BLE-to-serial dongles (Baofeng, TIDRADIO, HM-10 clones, Nordic UART, etc.).
  *
- * The radio exposes a Bluetooth LE UART service (UUID 0xff00) with one notify
- * characteristic (data from radio → phone) and one write characteristic (phone → radio).
- * This matches the nicFWRemoteBT reference implementation by nicsure.
+ * Supports multiple UART service UUIDs; scan filters advertise packets that list one of
+ * those services. After connect, the first matching service is used; TX/RX characteristics
+ * are resolved by capability (notify/indicate vs write).
  *
- * After connecting, the existing [com.radiodroid.app.radio.Protocol] EEPROM commands
- * (0x45 enter, 0x46 exit, 0x30 read, 0x31 write) are sent over [BleRadioStream] exactly
- * as they would be over a classic serial link — no protocol changes required.
+ * Default ATT payload is **20 bytes** until MTU negotiation succeeds; many cheap adapters
+ * disconnect if 512-byte MTU is requested, so we negotiate a moderate MTU and fall back
+ * to 20-byte chunks on failure or timeout.
+ *
+ * [com.radiodroid.app.radio.Protocol] EEPROM traffic is unchanged vs USB serial.
  */
 @SuppressLint("MissingPermission")
 class BleManager(private val context: Context) {
@@ -53,7 +60,8 @@ class BleManager(private val context: Context) {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Start a BLE scan. Results arrive on the main thread via [onFound].
+     * Start a BLE scan filtered by [SUPPORTED_UART_SERVICE_UUIDS] so only adapters that
+     * advertise a known UART service appear. Results arrive on the main thread via [onFound].
      * Deduplicates by device address so [onFound] is called at most once per device.
      *
      * @param onFound  called for each newly-seen device: (device, rssiDbm)
@@ -80,8 +88,12 @@ class BleManager(private val context: Context) {
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
-        // No service-UUID filter — mirrors nicFWRemoteBT (radio may not advertise the UUID)
-        scanner.startScan(null, settings, cb)
+        val filters = SUPPORTED_UART_SERVICE_UUIDS.map { uuid ->
+            ScanFilter.Builder()
+                .setServiceUuid(ParcelUuid(uuid))
+                .build()
+        }
+        scanner.startScan(filters, settings, cb)
     }
 
     /** Stop an in-progress BLE scan. Safe to call when not scanning. */
@@ -97,8 +109,9 @@ class BleManager(private val context: Context) {
     /**
      * Connect to [device] via BLE GATT.
      *
-     * Sequence: connectGatt → requestMtu(512) → discoverServices →
-     * find FF00 service characteristics → enable notifications → [onResult] callback.
+     * Sequence: connectGatt → default chunk 20 → requestMtu (moderate size) →
+     * discoverServices (with timeout fallback if MTU callback never fires) →
+     * pick first supported UART service → enable notifications → [onResult] callback.
      *
      * [onResult] is always called exactly once, from an arbitrary thread.
      * Wrap with runOnUiThread in the Activity if UI updates are needed.
@@ -115,12 +128,41 @@ class BleManager(private val context: Context) {
             }
         }
 
+        val discoverLock = AtomicBoolean(false)
+        val mtuFallbackRef = AtomicReference<Runnable?>(null)
+
+        fun cancelMtuFallback() {
+            mtuFallbackRef.getAndSet(null)?.let { mainHandler.removeCallbacks(it) }
+        }
+
         val gattCallback = object : BluetoothGattCallback() {
 
             override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
                 when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> g.requestMtu(512)
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        // Safe default: many adapters fail or drop link on aggressive MTU (e.g. 512).
+                        stream.chunkSize = DEFAULT_ATT_CHUNK_BYTES
+                        discoverLock.set(false)
+                        cancelMtuFallback()
+                        val fallback = Runnable {
+                            if (discoverLock.compareAndSet(false, true)) {
+                                stream.chunkSize = DEFAULT_ATT_CHUNK_BYTES
+                                g.discoverServices()
+                            }
+                        }
+                        mtuFallbackRef.set(fallback)
+                        mainHandler.postDelayed(fallback, MTU_FALLBACK_DELAY_MS)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            g.requestMtu(PREFERRED_MTU_BYTES)
+                        } else {
+                            cancelMtuFallback()
+                            if (discoverLock.compareAndSet(false, true)) {
+                                g.discoverServices()
+                            }
+                        }
+                    }
                     BluetoothProfile.STATE_DISCONNECTED -> {
+                        cancelMtuFallback()
                         stream.close()
                         deliver(Result.failure(IOException("Disconnected (status=$status)")))
                     }
@@ -128,17 +170,29 @@ class BleManager(private val context: Context) {
             }
 
             override fun onMtuChanged(g: BluetoothGatt, mtu: Int, status: Int) {
-                stream.chunkSize = (mtu - 3).coerceAtLeast(20)
-                g.discoverServices()
+                cancelMtuFallback()
+                stream.chunkSize = if (status == BluetoothGatt.GATT_SUCCESS) {
+                    (mtu - 3).coerceIn(DEFAULT_ATT_CHUNK_BYTES, MAX_CHUNK_BYTES)
+                } else {
+                    DEFAULT_ATT_CHUNK_BYTES
+                }
+                if (discoverLock.compareAndSet(false, true)) {
+                    g.discoverServices()
+                }
             }
 
             override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     return deliver(Result.failure(IOException("Service discovery failed (status=$status)")))
                 }
-                val svc = g.getService(SERVICE_UUID)
+                val svc = SUPPORTED_UART_SERVICE_UUIDS.firstNotNullOfOrNull { uuid -> g.getService(uuid) }
                     ?: return deliver(
-                        Result.failure(IOException("FF00 service not found — is this a nicFW radio?"))
+                        Result.failure(
+                            IOException(
+                                "No supported UART service found. Expected one of: " +
+                                    SUPPORTED_UART_SERVICE_UUIDS.joinToString { it.toString() }
+                            )
+                        )
                     )
 
                 var notifyChar: BluetoothGattCharacteristic? = null
@@ -161,7 +215,13 @@ class BleManager(private val context: Context) {
                 }
 
                 if (notifyChar == null || writeChar == null) {
-                    return deliver(Result.failure(IOException("Required BLE characteristics not found on FF00 service")))
+                    return deliver(
+                        Result.failure(
+                            IOException(
+                                "Required notify + write characteristics not found on service ${svc.uuid}"
+                            )
+                        )
+                    )
                 }
 
                 // Prefer WRITE_TYPE_DEFAULT (with ACK) when available
@@ -255,8 +315,37 @@ class BleManager(private val context: Context) {
     }
 
     companion object {
-        /** BLE UART service exposed by nicFW radio firmware. */
+        /**
+         * Known BLE UART / serial bridge service UUIDs (cheap dongles, Nordic UART, nicFW, etc.).
+         * Order: try discovery in this order via [firstNotNullOfOrNull].
+         */
+        val SUPPORTED_UART_SERVICE_UUIDS: List<UUID> = listOf(
+            // TI / HM-10 — common Baofeng-clone adapters
+            UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb"),
+            // Nordic Semiconductor UART
+            UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e"),
+            // Microchip / ISSC
+            UUID.fromString("49535343-fe7d-4ae5-8fa9-9fafd205e455"),
+            // NICFW / TD-H3
+            UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb"),
+        )
+
+        @Deprecated("Use SUPPORTED_UART_SERVICE_UUIDS; nicFW service is included in the list.")
         val SERVICE_UUID: UUID = UUID.fromString("0000ff00-0000-1000-8000-00805f9b34fb")
+
+        /** Default ATT payload (MTU 23 → 20 bytes) until negotiation succeeds. */
+        private const val DEFAULT_ATT_CHUNK_BYTES = 20
+
+        /**
+         * Requested MTU in bytes (not chunk size). Avoids 512 on flaky adapters;
+         * stack may negotiate lower; on failure we keep [DEFAULT_ATT_CHUNK_BYTES].
+         */
+        private const val PREFERRED_MTU_BYTES = 247
+
+        private const val MAX_CHUNK_BYTES = 512
+
+        /** If [onMtuChanged] never fires, discover services with 20-byte chunks. */
+        private const val MTU_FALLBACK_DELAY_MS = 800L
 
         /** Client Characteristic Configuration Descriptor — used to enable notifications. */
         private val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
