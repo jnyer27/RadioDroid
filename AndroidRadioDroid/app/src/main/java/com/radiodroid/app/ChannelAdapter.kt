@@ -1,9 +1,11 @@
 package com.radiodroid.app
 
+import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -34,6 +36,11 @@ class ChannelAdapter(
     private val onSelectionChanged:  (count: Int) -> Unit,
     private val onDragStart:         (RecyclerView.ViewHolder) -> Unit
 ) : ListAdapter<Channel, ChannelAdapter.ViewHolder>(DiffCallback) {
+
+    companion object {
+        /** When groups summary is shown from [Channel.group1]–[Channel.group4], hide matching extra rows. */
+        private val GROUP_EXTRA_KEYS = setOf("group1", "group2", "group3", "group4")
+    }
 
     // ── Selection state ───────────────────────────────────────────────────────
 
@@ -145,7 +152,25 @@ class ChannelAdapter(
         private val channelSlot2:      TextView     = card.findViewById(R.id.channelSlot2)
         private val channelDragHandle: ImageView    = card.findViewById(R.id.channelDragHandle)
         private val channelDriverRow:  LinearLayout = card.findViewById(R.id.channelDriverRow)
-        private val channelGroups:     TextView     = card.findViewById(R.id.channelGroups)
+        private val channelRadioSpecColumns: LinearLayout = card.findViewById(R.id.channelRadioSpecColumns)
+
+        private var pendingRadioSpecItems: List<String>? = null
+        private var lastSpecCols: Int = -1
+        private var lastSpecItems: List<String>? = null
+
+        init {
+            channelRadioSpecColumns.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+                val w = right - left
+                val ow = oldRight - oldLeft
+                if (w > 0 && w != ow) {
+                    val pending = pendingRadioSpecItems
+                    if (pending != null && pending.isNotEmpty()) {
+                        lastSpecCols = -1
+                        applyRadioSpecColumns(pending)
+                    }
+                }
+            }
+        }
 
         @Suppress("ClickableViewAccessibility")
         fun bind(channel: Channel) {
@@ -163,6 +188,10 @@ class ChannelAdapter(
                 channelTxTone.text = ""; channelRxTone.text = ""
                 channelToneGroup.visibility = View.GONE
                 channelDriverRow.visibility = View.GONE
+                channelRadioSpecColumns.removeAllViews()
+                pendingRadioSpecItems = null
+                lastSpecCols = -1
+                lastSpecItems = null
             } else {
                 channelFreq.text   = channel.displayFreq()
                 channelName.text   = channel.name.ifEmpty { "-" }
@@ -181,12 +210,17 @@ class ChannelAdapter(
                 channelSlot2.text = v2
                 channelSlot2.visibility = if (v2.isEmpty()) View.GONE else View.VISIBLE
 
-                val groups = buildGroupsDisplay(channel)
-                val extraSummary = if (channel.extra.isNotEmpty())
-                    channel.extra.entries.joinToString("  ") { "${it.key}: ${it.value}" }
-                else ""
-                channelGroups.text = listOf(groups, extraSummary).filter { it.isNotEmpty() }.joinToString("  ")
-                channelDriverRow.visibility = if (groups.isEmpty() && extraSummary.isEmpty()) View.GONE else View.VISIBLE
+                val specItems = buildRadioSpecItems(channel)
+                pendingRadioSpecItems = specItems
+                channelDriverRow.visibility =
+                    if (specItems.isEmpty()) View.GONE else View.VISIBLE
+                if (specItems.isNotEmpty()) {
+                    channelRadioSpecColumns.post { applyRadioSpecColumns(specItems) }
+                } else {
+                    channelRadioSpecColumns.removeAllViews()
+                    lastSpecCols = -1
+                    lastSpecItems = null
+                }
 
                 val tx = channel.displayTxTone()
                 val rx = channel.displayRxTone()
@@ -225,6 +259,74 @@ class ChannelAdapter(
                     onLongClick(channel)
                 }
                 true
+            }
+        }
+
+        /**
+         * Ordered lines for the radio-specific grid: groups summary (if any), then
+         * `extra` entries. Omits `group1`–`group4` from extras when the groups line is shown.
+         */
+        private fun buildRadioSpecItems(channel: Channel): List<String> {
+            val groups = buildGroupsDisplay(channel)
+            val groupsNonEmpty = groups.isNotEmpty()
+            val extras = channel.extra.entries.filterNot { (k, _) ->
+                groupsNonEmpty && k in GROUP_EXTRA_KEYS
+            }
+            return buildList {
+                if (groupsNonEmpty) add(groups)
+                extras.forEach { add("${it.key}: ${it.value}") }
+            }
+        }
+
+        /**
+         * Distributes [items] across weighted vertical columns (row-major: 0..cols-1 on first row, etc.).
+         */
+        private fun applyRadioSpecColumns(items: List<String>) {
+            if (items.isEmpty()) return
+            val container = channelRadioSpecColumns
+            val w = container.width
+            if (w <= 0) {
+                container.post { applyRadioSpecColumns(items) }
+                return
+            }
+            val res = card.context.resources
+            val minCellPx = res.getDimensionPixelSize(R.dimen.channel_radio_spec_min_cell_width)
+            val maxCols = res.getInteger(R.integer.channel_radio_spec_max_columns)
+            val cols = maxOf(1, minOf(maxCols, w / minCellPx))
+            if (cols == lastSpecCols && items == lastSpecItems) return
+            lastSpecCols = cols
+            lastSpecItems = items.toList()
+
+            container.removeAllViews()
+            val density = res.displayMetrics.density
+            val gapEnd = (6 * density).toInt()
+            for (c in 0 until cols) {
+                val col = LinearLayout(card.context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    val padEnd = if (c < cols - 1) gapEnd else 0
+                    setPadding(0, 0, padEnd, 0)
+                }
+                var idx = c
+                while (idx < items.size) {
+                    col.addView(newSpecCell(items[idx]))
+                    idx += cols
+                }
+                container.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            }
+        }
+
+        private fun newSpecCell(text: CharSequence): TextView {
+            val ctx = card.context
+            return TextView(ctx).apply {
+                this.text = text
+                textSize = 11f
+                maxLines = 2
+                ellipsize = TextUtils.TruncateAt.END
+                val a = ctx.obtainStyledAttributes(intArrayOf(android.R.attr.textColorSecondary))
+                setTextColor(a.getColor(0, 0xFF888888.toInt()))
+                a.recycle()
+                val padB = (4 * ctx.resources.displayMetrics.density).toInt()
+                setPadding(0, 0, 0, padB)
             }
         }
 

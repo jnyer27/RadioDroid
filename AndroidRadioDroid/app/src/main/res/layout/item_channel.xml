@@ -123,30 +123,31 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Row 2: Driver-specific (e.g. Groups Slot 1–4) — below and to the right -->
+        <!-- Row 2: Driver-specific — caption + multi-column region (reflows with width) -->
         <LinearLayout
             android:id="@+id/channelDriverRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical|end"
+            android:gravity="top"
             android:layout_marginTop="4dp"
             android:visibility="gone">
             <TextView
                 android:id="@+id/channelDriverLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
                 android:textSize="10sp"
                 android:textColor="?android:attr/textColorTertiary"
                 android:text="@string/channel_driver_specific_label" />
-            <TextView
-                android:id="@+id/channelGroups"
-                android:layout_width="wrap_content"
+            <!-- Filled in code with weighted vertical columns (row-major item order) -->
+            <LinearLayout
+                android:id="@+id/channelRadioSpecColumns"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:textSize="11sp"
-                android:textColor="?android:attr/textColorSecondary"
-                android:text="" />
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="start|top" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
