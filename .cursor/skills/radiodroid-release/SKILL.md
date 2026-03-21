@@ -3,6 +3,8 @@ name: radiodroid-release
 description: Standard RadioDroid Android release workflow—version bump, release_notes file format, README/user guide, git tag, signed APK, and GitHub Release via gh. Use when cutting a release, publishing to GitHub Releases, or when the user mentions version bumps, release notes, or tagging.
 ---
 
+> **Claude Code users:** see `.claude/commands/release.md` — the canonical checklist is kept in sync between both skill files.
+
 # RadioDroid release process
 
 Follow this checklist so **markdown notes**, **GitHub Release titles**, and **git tags** stay consistent with **v2.1.0** and later.

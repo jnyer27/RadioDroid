@@ -3,6 +3,8 @@ name: radiodroid-userguide-mkdocs
 description: Refreshes the RadioDroid MkDocs site (GitHub Pages), PDF export, and latest-release PDF asset; documents schematic ASCII-art UI diagrams in the user guide. Use when updating userguide.md or docs, adding UI wireframe blocks, forcing a docs redeploy, or refreshing the online user guide or user-guide.pdf.
 ---
 
+> **Claude Code users:** see `.claude/commands/userguide.md` — kept in sync with this skill file.
+
 # RadioDroid user guide — MkDocs, Pages, and PDF
 
 ## Source of truth
