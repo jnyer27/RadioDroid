@@ -73,7 +73,7 @@ Workflow file: **`.github/workflows/update-userguide.yml`**. It runs **`mkdocs b
 
 The workflow runs automatically on:
 
-1. **`release: [published]`** — a new GitHub Release is published. PDF is attached to that release only.
+1. **`release: [published]`** — checks out **`main`**, runs **`mkdocs build`**, **`gh-deploy`**, then attaches PDFs. **Important:** whatever **`userguide.md`** says on **`main` at publish time** is what **jnyer27.github.io** gets. A **`release`-only verify step** fails the job if **`Current release: v…`** in **`userguide.md`** does not match **`versionName`** in **`AndroidRadioDroid/app/build.gradle.kts`** (prevents shipping a release while Pages still show the previous version). **`workflow_dispatch`** skips that verify (backfill / repair).
 2. **Push to `main`** when any of these change:
    - `userguide.md`
    - `docs/**`
@@ -83,7 +83,7 @@ The workflow runs automatically on:
 
    On a push run, the PDF is **backfilled onto all published releases**, not just the latest.
 
-If you only change files outside those paths (e.g. Android app only), the site does **not** rebuild until you dispatch manually or touch a watched path.
+If you only change files outside those paths (e.g. **`build.gradle.kts` only**), the site does **not** rebuild until you change a watched path or run **`gh workflow run "Update User Guide"`**.
 
 ## Local preview or dry-run build
 

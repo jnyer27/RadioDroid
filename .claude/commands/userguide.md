@@ -58,7 +58,7 @@ Workflow: **`.github/workflows/update-userguide.yml`** — runs `mkdocs build`, 
 
 ## Automatic triggers (no manual dispatch needed)
 
-1. **`release: [published]`** — new GitHub Release published; PDF attached to that release.
+1. **`release: [published]`** — builds from **`main`** and deploys Pages. **`userguide.md` must list `Current release: v…` matching `versionName` in `app/build.gradle.kts`** or CI fails (avoids publishing v2.5 APK while the site still says v2.4). **`workflow_dispatch`** skips that check.
 2. **Push to `main`** when any of these paths change:
    - `userguide.md`
    - `docs/**`
@@ -66,7 +66,7 @@ Workflow: **`.github/workflows/update-userguide.yml`** — runs `mkdocs build`, 
    - `requirements-docs.txt`
    - `.github/workflows/update-userguide.yml`
 
-If only app code changed (no docs paths), dispatch manually or touch a watched path.
+If only **`build.gradle.kts`** changed, dispatch manually or run after a doc commit.
 
 ## Local preview
 
@@ -82,4 +82,4 @@ Prefer Actions for the canonical deploy; local `mkdocs gh-deploy` requires git c
 
 ## Coordination with releases
 
-For version bumps, APK, and GitHub Release titles follow `.claude/commands/release.md`. After doc edits, apply this command to refresh Pages + PDF.
+For version bumps, APK, and GitHub Release titles follow `.claude/commands/release.md`. Update **`Current release:`** in **`userguide.md`** in the **same `main` commit as `versionName`** before publishing the release so the auto workflow deploys the right version.

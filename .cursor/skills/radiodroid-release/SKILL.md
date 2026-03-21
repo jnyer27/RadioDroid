@@ -51,7 +51,9 @@ In `AndroidRadioDroid/app/build.gradle.kts`:
 ## Docs and README
 
 1. **`README.md`** — Add a **What’s new in vX.Y.Z** block at the top of the changelog area; move the previous version under **Earlier:**. Update the line that cites the latest release APK if present.
-2. **`docs/UserGuide.md`** and **`userguide.md`** — Update the **Current release:** line near the top to **`**Current release: vX.Y.Z**`** (exact wording; no extra qualifiers in parentheses) and keep both files in sync if both exist.
+2. **`docs/UserGuide.md`** and **`userguide.md`** — Update the **Current release:** line near the top to **`**Current release: vX.Y.Z**`** (exact wording; `v` + same semver as **`versionName`** in Gradle, e.g. `2.5.0` → `v2.5.0`) and keep both files in sync if both exist.
+
+**Critical (MkDocs / GitHub Pages):** The **Update User Guide** workflow runs on **`release: published`** and builds from **`main` at that moment**. If you bump **`versionName`** but publish the GitHub Release **before** pushing the **`Current release:`** line, the site will deploy the **old** version text. Put **`userguide.md` + `docs/UserGuide.md` + `build.gradle.kts` in the same commit on `main` before** `gh release create`. CI now **fails** the release-triggered workflow if `userguide.md` does not contain `Current release: v` + `versionName`.
 
 ## Git workflow
 
@@ -98,8 +100,8 @@ gh release edit vX.Y.Z --repo jnyer27/RadioDroid --title "vX.Y.Z"
 
 - [ ] `release_notes_vX.Y.Z.md` with `## RadioDroid vX.Y.Z` and **Highlights / Install / Full context**
 - [ ] `versionCode` / `versionName` in `app/build.gradle.kts`
-- [ ] README + both user guides updated
+- [ ] README + **`userguide.md` + `docs/UserGuide.md`** — **`Current release: vX.Y.Z`** matches **`versionName`** (same commit as Gradle bump **before** tagging / publishing)
 - [ ] `main` + tag `vX.Y.Z` pushed
 - [ ] `assembleRelease` succeeds
 - [ ] `gh release create` with **`--title "vX.Y.Z"`** and APK attached
-- [ ] If **`userguide.md`** / **`docs/`** / **`mkdocs.yml`** changed: refresh **GitHub Pages + PDF** (see **`.cursor/skills/radiodroid-userguide-mkdocs/SKILL.md`**) — e.g. `gh workflow run "Update User Guide" --ref main`
+- [ ] Confirm **Update User Guide** workflow **green** (auto on publish, or `gh workflow run "Update User Guide" --ref main` after fixing docs)

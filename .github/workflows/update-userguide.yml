@@ -1,11 +1,13 @@
 name: Update User Guide
 
 # ── Triggers ──────────────────────────────────────────────────────────────────
-# 1. Every published GitHub Release — attaches User Guide PDF to THAT tag, and
-#    appends MkDocs / PDF links to release notes once (marker: radiodroid-docs:userguide).
+# 1. Every published GitHub Release — checks out main, builds MkDocs, gh-deploy.
+#    **Pitfall:** main must already have userguide.md "Current release: vX.Y.Z" matching
+#    versionName in app/build.gradle.kts, or the verify step fails (no stale Pages).
+#    PDFs attach to releases; notes get footer once (marker: radiodroid-docs:userguide).
 # 2. Push to main when userguide.md / docs / mkdocs.yml / requirements-docs.txt
-#    change — redeploys Pages and backfills the PDF onto ALL published releases.
-# 3. workflow_dispatch — same as (2), for manual runs / one-off backfill.
+#    change — redeploys Pages and backfills PDFs onto all published releases.
+# 3. workflow_dispatch — same as (2); no version verify (manual backfill).
 on:
   release:
     types: [published]
@@ -56,7 +58,23 @@ jobs:
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
 
-      # ── 4. Build site + PDF ───────────────────────────────────────────────────
+      # ── 4. On release: userguide must match app version (this job builds main as-is)
+      - name: Verify userguide Current release matches versionName (release only)
+        if: github.event_name == 'release'
+        run: |
+          set -euo pipefail
+          VERSION=$(grep 'versionName' AndroidRadioDroid/app/build.gradle.kts | head -1 | sed -n 's/.*"\([^"]*\)".*/\1/p')
+          if [[ -z "${VERSION}" ]]; then
+            echo "::error::Could not parse versionName from AndroidRadioDroid/app/build.gradle.kts"
+            exit 1
+          fi
+          if ! grep -F "Current release: v${VERSION}" userguide.md; then
+            echo "::error::userguide.md must contain **Current release: v${VERSION}** matching versionName on main. Push userguide.md + docs/UserGuide.md, then re-run \"Update User Guide\" or republish."
+            exit 1
+          fi
+          echo "OK: userguide matches versionName v${VERSION}"
+
+      # ── 5. Build site + PDF ───────────────────────────────────────────────────
       - name: Build MkDocs site (generates site/user-guide.pdf)
         run: python -m mkdocs build
 
@@ -65,13 +83,13 @@ jobs:
           ls -lh site/user-guide.pdf
           echo "PDF_SIZE=$(du -k site/user-guide.pdf | cut -f1) KB" >> $GITHUB_STEP_SUMMARY
 
-      # ── 5. Deploy updated GitHub Pages ────────────────────────────────────────
+      # ── 6. Deploy updated GitHub Pages ────────────────────────────────────────
       - name: Deploy to GitHub Pages
         run: python -m mkdocs gh-deploy --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 6. Attach PDF to this release or backfill ALL published releases ─────
+      # ── 7. Attach PDF to releases (this tag or backfill all) ─────────────────
       - name: Publish User Guide PDF to GitHub Releases
         run: |
           set -euo pipefail
@@ -124,7 +142,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 7. Summary ────────────────────────────────────────────────────────────
+      # ── 8. Summary ────────────────────────────────────────────────────────────
       - name: Summarise
         run: |
           echo "### User Guide pipeline" >> "$GITHUB_STEP_SUMMARY"

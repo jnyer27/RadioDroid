@@ -44,7 +44,7 @@ In `AndroidRadioDroid/app/build.gradle.kts`:
 ## Docs and README
 
 1. **`README.md`** — Add a **What's new in vX.Y.Z** block at the top of the changelog; move the previous version under **Earlier:**. Update any line citing the latest APK if present.
-2. **`userguide.md`** and **`docs/UserGuide.md`** — Update the **Current release:** line to `**Current release: vX.Y.Z**` (exact wording) and keep both files in sync.
+2. **`userguide.md`** and **`docs/UserGuide.md`** — Update the **Current release:** line to `**Current release: vX.Y.Z**` where **`vX.Y.Z`** matches **`versionName`** in Gradle (`2.5.0` → `v2.5.0`). **Commit this in the same push to `main` as the Gradle bump *before* `gh release create`**, or the **Update User Guide** workflow (triggered by the release) will deploy stale text to GitHub Pages. CI fails the release workflow if they mismatch.
 
 ## Git workflow
 
@@ -91,12 +91,12 @@ gh release edit vX.Y.Z --title "vX.Y.Z"
 
 ## After the release
 
-Trigger the user guide workflow so Pages and the PDF asset stay in sync:
+The **Update User Guide** workflow runs automatically on **`release: [published]`** (and on pushes to watched doc paths). It builds from **`main`**; **`userguide.md` must already match `versionName`** or the release-triggered run **fails** the new verify step.
+
+Manual re-run after fixing docs:
 ```bash
 gh workflow run "Update User Guide" --ref main
 ```
-
-The workflow runs automatically on `release: [published]`, so if your release was published (not drafted) the workflow fires on its own. Manual dispatch is a fallback or for re-runs.
 
 See `.claude/commands/userguide.md` for full MkDocs/PDF details.
 
