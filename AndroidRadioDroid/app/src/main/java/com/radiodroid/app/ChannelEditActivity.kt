@@ -131,14 +131,12 @@ class ChannelEditActivity : AppCompatActivity() {
         binding.textLabelRxTone.visibility = rxToneVis
         binding.rowRxTone.visibility       = rxToneVis
 
-        // Driver-specific section: show when this radio uses group slots or Memory.extra params
-        val hasDriverGroups = EepromHolder.groupLabels.any { it.isNotBlank() } ||
-            EepromHolder.channels.any { ch ->
-                listOf(ch.group1, ch.group2, ch.group3, ch.group4).any { it != "None" }
-            } ||
+        // Driver-specific section: show when this radio exposes Memory.extra (schema or data)
+        val hasDriverSpecific = EepromHolder.channelExtraSchema.isNotEmpty() ||
             EepromHolder.extraParamNames.isNotEmpty() ||
-            EepromHolder.channelExtraSchema.isNotEmpty()
-        binding.sectionDriverSpecific.visibility = if (hasDriverGroups) View.VISIBLE else View.GONE
+            EepromHolder.channels.any { it.extra.isNotEmpty() } ||
+            EepromHolder.groupLabels.any { it.isNotBlank() }
+        binding.sectionDriverSpecific.visibility = if (hasDriverSpecific) View.VISIBLE else View.GONE
 
         // Hide legacy Busy Lock row when the driver already exposes it under Radio-specific (Memory.extra).
         binding.sectionBusyLock.visibility =
@@ -543,13 +541,6 @@ class ChannelEditActivity : AppCompatActivity() {
         } else if (extraParamEditTexts.isNotEmpty()) {
             c.extra = extraParamEditTexts.mapValues { it.value.text?.toString()?.trim() ?: "" }
         }
-        // Sync group fields from extra so upload has correct group1–4
-        if (c.extra.isNotEmpty()) {
-            c.group1 = c.extra["Group 1"] ?: c.extra["group1"] ?: c.group1
-            c.group2 = c.extra["Group 2"] ?: c.extra["group2"] ?: c.group2
-            c.group3 = c.extra["Group 3"] ?: c.extra["group3"] ?: c.group3
-            c.group4 = c.extra["Group 4"] ?: c.extra["group4"] ?: c.group4
-        }
 
         // Busy Lock — force off when a repeater/split offset is present (radio rule)
         val hasOffset = duplexStr == "+" || duplexStr == "-" ||
@@ -566,7 +557,7 @@ class ChannelEditActivity : AppCompatActivity() {
 
         // Clone mode: apply this channel edit to the raw EEPROM so upload_mmap and Save EEPROM dump stay in sync
         val radio = EepromHolder.selectedRadio
-        if (eep != null && eep.isNotEmpty() && radio != null) {
+        if (eep.isNotEmpty() && radio != null) {
             lifecycleScope.launch {
                 try {
                     val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }

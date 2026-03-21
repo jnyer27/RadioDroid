@@ -51,4 +51,8 @@
     <string name="customize_main_screen_hint">Choose up to two channel values to show below Power on each channel row.</string>
     <string name="customize_main_screen_slot_1">Slot 1</string>
     <string name="customize_main_screen_slot_2">Slot 2</string>
+    <string name="bulk_extra_no_schema">No editable radio-specific fields for this model. Load from radio or open a channel so the driver schema is available.</string>
+    <string name="bulk_extra_pick_param">Radio-specific field — %1$d selected</string>
+    <string name="bulk_extra_applied">%1$s → %2$s on %3$d channel(s)</string>
+    <string name="bulk_extra_invalid_number">Enter a valid number</string>
 </resources>

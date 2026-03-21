@@ -28,10 +28,6 @@ data class Channel(
     var rxToneMode: String? = null,
     var rxToneVal: Double? = null,
     var rxTonePolarity: String? = null,
-    var group1: String = "None",
-    var group2: String = "None",
-    var group3: String = "None",
-    var group4: String = "None",
     /** Driver-specific params from Memory.extra (name -> value). Populated from download. */
     var extra: Map<String, String> = emptyMap(),
     var busyLock: Boolean = false,
@@ -50,11 +46,6 @@ data class Channel(
 
     fun displayTxTone(): String = formatTone(txToneMode, txToneVal, txTonePolarity)
     fun displayRxTone(): String = formatTone(rxToneMode, rxToneVal, rxTonePolarity)
-
-    /** Returns active group letters space-separated, e.g. "A B" — empty string if all None. */
-    fun displayGroups(): String = listOf(group1, group2, group3, group4)
-        .filter { it != "None" }
-        .joinToString("  ")
 
     private fun formatTone(mode: String?, value: Double?, polarity: String?): String = when (mode) {
         "Tone" -> "%.1f Hz".format(value ?: 0.0)
@@ -142,10 +133,6 @@ data class Channel(
                 rxToneVal       = if (obj.has("rx_tone_val")) obj.optDouble("rx_tone_val", 0.0) else null,
                 rxTonePolarity  = obj.optString("rx_tone_polarity", "").ifEmpty { null },
                 extra           = extra,
-                group1          = obj.optString("group1", "None"),
-                group2          = obj.optString("group2", "None"),
-                group3          = obj.optString("group3", "None"),
-                group4          = obj.optString("group4", "None"),
                 flagsRaw        = obj.optInt("flags_raw", 0),
             )
         }
@@ -167,10 +154,6 @@ data class Channel(
             put("rx_tone_mode",     ch.rxToneMode     ?: "")
             put("rx_tone_val",      ch.rxToneVal      ?: 0.0)
             put("rx_tone_polarity", ch.rxTonePolarity ?: "N")
-            put("group1",           ch.group1)
-            put("group2",           ch.group2)
-            put("group3",           ch.group3)
-            put("group4",           ch.group4)
             put("flags_raw",        ch.flagsRaw)
             if (ch.extra.isNotEmpty()) {
                 put("extra", org.json.JSONObject().apply {

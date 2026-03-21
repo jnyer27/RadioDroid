@@ -75,7 +75,7 @@ If cells do not fit at the configured minimum width, additional **wrap lines** s
 - Measure **usable width** for the column container (caption uses fixed space; remainder gets `layout_weight`).
 - `columnCount = clamp(1, maxColumns, floor(usableWidth / minCellWidthDp))` (convert `dp` to px with display density).
 - Recompute on **configuration change** (rotation, fold, window resize).
-- **Dedupe:** When the groups summary (from `Channel.group1`–`group4`) is non-empty, omit `extra` entries with keys `group1`–`group4` so group membership is not shown twice.
+- **Ordering:** Lines come from `Channel.extra` only: keys appear in `channelExtraSchema` order first, then any remaining keys alphabetically.
 
 ## Risks
 

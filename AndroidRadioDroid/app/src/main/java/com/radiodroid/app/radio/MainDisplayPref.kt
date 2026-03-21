@@ -46,13 +46,6 @@ object MainDisplayPref {
             "tx_tone" to "TX Tone",
             "rx_tone" to "RX Tone",
         )
-        val labels = EepromHolder.groupLabels
-        val groupNames = listOf("Group 1", "Group 2", "Group 3", "Group 4")
-        for (i in 0..3) {
-            val label = labels.getOrNull(i)?.trim() ?: ""
-            val name = if (label.isNotEmpty()) label else groupNames[i]
-            list.add("group${i + 1}" to name)
-        }
         for (name in EepromHolder.extraParamNames) {
             if (name.isNotBlank() && list.none { it.first == name })
                 list.add(name to name)
@@ -97,10 +90,11 @@ object MainDisplayPref {
             }
             "tx_tone" -> channel.displayTxTone().take(12)
             "rx_tone" -> channel.displayRxTone().take(12)
-            "group1" -> channel.group1
-            "group2" -> channel.group2
-            "group3" -> channel.group3
-            "group4" -> channel.group4
+            // Legacy pref keys: map to Memory.extra group fields when present
+            "group1" -> (channel.extra["Group 1"] ?: channel.extra["group1"] ?: "").trim()
+            "group2" -> (channel.extra["Group 2"] ?: channel.extra["group2"] ?: "").trim()
+            "group3" -> (channel.extra["Group 3"] ?: channel.extra["group3"] ?: "").trim()
+            "group4" -> (channel.extra["Group 4"] ?: channel.extra["group4"] ?: "").trim()
             else -> channel.extra[key] ?: ""  // radio-specific extra param
         }
     }

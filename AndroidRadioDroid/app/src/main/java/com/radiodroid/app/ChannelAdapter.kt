@@ -37,11 +37,6 @@ class ChannelAdapter(
     private val onDragStart:         (RecyclerView.ViewHolder) -> Unit
 ) : ListAdapter<Channel, ChannelAdapter.ViewHolder>(DiffCallback) {
 
-    companion object {
-        /** When groups summary is shown from [Channel.group1]–[Channel.group4], hide matching extra rows. */
-        private val GROUP_EXTRA_KEYS = setOf("group1", "group2", "group3", "group4")
-    }
-
     // ── Selection state ───────────────────────────────────────────────────────
 
     /** True while one or more channels are selected via long-press. */
@@ -263,19 +258,19 @@ class ChannelAdapter(
         }
 
         /**
-         * Ordered lines for the radio-specific grid: groups summary (if any), then
-         * `extra` entries. Omits `group1`–`group4` from extras when the groups line is shown.
+         * Lines for the radio-specific grid: [Channel.extra] only, ordered by
+         * [EepromHolder.channelExtraSchema] then remaining keys alphabetically.
          */
         private fun buildRadioSpecItems(channel: Channel): List<String> {
-            val groups = buildGroupsDisplay(channel)
-            val groupsNonEmpty = groups.isNotEmpty()
-            val extras = channel.extra.entries.filterNot { (k, _) ->
-                groupsNonEmpty && k in GROUP_EXTRA_KEYS
+            if (channel.extra.isEmpty()) return emptyList()
+            val ordered = linkedSetOf<String>()
+            for (s in EepromHolder.channelExtraSchema) {
+                if (s.name in channel.extra) ordered.add(s.name)
             }
-            return buildList {
-                if (groupsNonEmpty) add(groups)
-                extras.forEach { add("${it.key}: ${it.value}") }
+            for (k in channel.extra.keys.sorted()) {
+                ordered.add(k)
             }
+            return ordered.map { key -> "$key: ${channel.extra[key]}" }
         }
 
         /**
@@ -332,21 +327,6 @@ class ChannelAdapter(
                 val padB = (4 * ctx.resources.displayMetrics.density).toInt()
                 setPadding(0, 0, 0, padB)
             }
-        }
-
-        /**
-         * Builds the groups display string, resolving letter codes to user-defined
-         * labels (e.g. "All", "MURS"). Falls back to letter when label is blank.
-         */
-        private fun buildGroupsDisplay(channel: Channel): String {
-            val labels = EepromHolder.groupLabels
-            return listOf(channel.group1, channel.group2, channel.group3, channel.group4)
-                .filter { it != "None" }
-                .joinToString("  ") { letter ->
-                    val idx   = EepromConstants.GROUP_LETTERS.indexOf(letter)
-                    val label = labels.getOrNull(idx)?.trim() ?: ""
-                    if (label.isEmpty()) letter else label
-                }
         }
     }
 

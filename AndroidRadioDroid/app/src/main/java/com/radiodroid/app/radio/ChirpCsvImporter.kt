@@ -21,7 +21,7 @@ package com.radiodroid.app.radio
  * DCS codes: CHIRP "023" → parseInt = 23 → matches EepromConstants.DCS_CODES entries.
  *
  * Each parsed [Channel] has number = 0; the caller assigns the actual slot number.
- * Groups are left as "None"; the caller applies group assignments from the UI.
+ * Radio-specific fields live in [Channel.extra]; set them on the main screen after import if needed.
  */
 object ChirpCsvImporter {
 
@@ -169,9 +169,6 @@ object ChirpCsvImporter {
                         rxToneMode     = rxToneMode,
                         rxToneVal      = rxToneVal,
                         rxTonePolarity = rxPol,
-                        // Groups left as "None" — user assigns them in the import UI
-                        group1 = "None", group2 = "None",
-                        group3 = "None", group4 = "None",
                     )
                 )
             )

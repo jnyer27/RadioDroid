@@ -23,10 +23,9 @@ import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
 
 /**
- * Shows a preview of channels parsed from a CHIRP CSV and lets the user:
- *  1. Assign up to 4 groups to all imported channels at once.
- *  2. Confirm the import, which writes channels into the first available empty
- *     EEPROM slots without touching any used channel.
+ * Shows a preview of channels parsed from a CHIRP CSV and lets the user confirm import
+ * into the first available empty EEPROM slots. Optional TX power override applies to
+ * all imported rows. Radio-specific parameters can be set afterward on the main screen.
  *
  * Launched by [MainActivity] after the user picks a CSV file.
  * Writes directly into [EepromHolder.eeprom]; MainActivity refreshes on resume.
@@ -119,9 +118,6 @@ class ChirpImportActivity : AppCompatActivity() {
             }
         }
 
-        // ── Group spinners ────────────────────────────────────────────────────
-        setupGroupSpinners()
-
         // ── TX Power spinner ──────────────────────────────────────────────────
         setupPowerSpinner()
 
@@ -150,28 +146,6 @@ class ChirpImportActivity : AppCompatActivity() {
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
         // Default to "From CSV" (index 0)
         binding.spinnerImportPower.setSelection(0)
-    }
-
-    // ── Group spinners ────────────────────────────────────────────────────────
-
-    private fun setupGroupSpinners() {
-        val labels = EepromHolder.groupLabels
-        val items: List<String> = buildList {
-            add("None")
-            EepromConstants.GROUP_LETTERS.forEachIndexed { i, letter ->
-                val label = labels.getOrNull(i)?.trim() ?: ""
-                add(if (label.isEmpty()) letter else "$letter – $label")
-            }
-        }
-        val makeAdapter = {
-            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
-        }
-        listOf(
-            binding.spinnerImportGroup1,
-            binding.spinnerImportGroup2,
-            binding.spinnerImportGroup3,
-            binding.spinnerImportGroup4
-        ).forEach { it.adapter = makeAdapter() }
     }
 
     // ── Starting channel spinner ──────────────────────────────────────────────
@@ -264,15 +238,6 @@ class ChirpImportActivity : AppCompatActivity() {
         val slots     = currentSlots()
         val canImport = slots.size
 
-        // Read group selections
-        fun groupAt(spinner: Spinner) =
-            EepromConstants.GROUPS_LIST.getOrNull(spinner.selectedItemPosition) ?: "None"
-
-        val g1 = groupAt(binding.spinnerImportGroup1)
-        val g2 = groupAt(binding.spinnerImportGroup2)
-        val g3 = groupAt(binding.spinnerImportGroup3)
-        val g4 = groupAt(binding.spinnerImportGroup4)
-
         // Position 0 = "From CSV" (no override); positions 1+ map to POWERLEVEL_LIST index 0+
         val powerPos = binding.spinnerImportPower.selectedItemPosition
         val powerOverride: String? = if (powerPos > 0)
@@ -283,10 +248,6 @@ class ChirpImportActivity : AppCompatActivity() {
             val slot = slots[i]
             val ch   = entries[i].channel.copy(
                 number = slot,
-                group1 = g1,
-                group2 = g2,
-                group3 = g3,
-                group4 = g4,
                 power  = powerOverride ?: entries[i].channel.power,
             )
             EepromParser.writeChannel(eep, ch)

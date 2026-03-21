@@ -200,7 +200,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_group_label"
-                android:contentDescription="Set channel groups for selected channels" />
+                android:contentDescription="Set radio-specific field for selected channels" />
 
             <ImageButton
                 android:id="@+id/btnExportCsv"

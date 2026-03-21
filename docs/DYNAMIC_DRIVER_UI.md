@@ -39,21 +39,20 @@ No separate "full EEPROM" path is required; the same flow works. If Radio Settin
   - `Channel` gets `extra: Map<String, String>` (or `extraParams: Map<String, String>`). `Channel.fromPyObject` reads `obj.get("extra")` and fills the map. Upload JSON includes an `"extra"` object per channel.
   - **Schema**: No driver API for “list of extra param names”. We derive it from the first channel that has non-empty `extra` (all channels share the same structure per driver). Store `EepromHolder.extraParamNames: List<String>` after download.
 - **UI**:
-  - **Channel list**: “Radio-specific” row already exists; show `extra` values there (e.g. “group1: A, group2: G” or a short summary). Prefer same “down and to the right” layout.
-  - **Channel editor**: “Radio-specific settings” section shows one control per key in `extraParamNames` — for now a simple text field per param; later we can support list types if the bridge sends options.
-
-Existing hardcoded “Groups (Slot 1–4)” remains for backwards compatibility with nicFW/custom flows that populate `group1`–`group4` on `Channel` via a different path (e.g. EepromParser). When `extra` is present, the dynamic section can show both: known keys like `group1` can still use the group spinners; any other keys from `extra` use the generic dynamic row.
+  - **Channel list**: “Radio-specific” row shows `extra` as `key: value` lines (multi-column reflow). Ordering follows `channelExtraSchema`, then any other keys alphabetically.
+  - **Channel editor**: “Radio-specific settings” section is driven by `channelExtraSchema` from the bridge (list/bool/int/string controls).
+  - **Main screen (selection mode)**: bulk-edit one `Memory.extra` field across selected channels using the same schema (replaces legacy fixed “four group slots”).
 
 ## 3. Backward compatibility
 
 - Radios without `has_settings`: no “Radio settings” menu; no change.
-- Channels without `extra`: `extra` is empty map; “Radio-specific” section visibility unchanged (e.g. still driven by group labels or first-channel extra keys).
-- nicFW / custom drivers that set `group1`–`group4` on `Channel` directly (not via `extra`) continue to work; we can optionally also fill `group1`–`group4` from `extra` when keys match so one code path suffices.
+- Channels without `extra`: `extra` is empty map; “Radio-specific” section visibility is driven by schema/extra keys from the driver when available.
+- Per-channel group membership and other driver fields live only in `Channel.extra` (no separate `group1`–`group4` on `Channel`).
 
 ## Implementation order
 
 1. Bridge: add `extra` to `_memory_to_dict` and handle `extra` in `upload`.
 2. Kotlin: `Channel.extra`, fromPyObject, upload JSON; derive `extraParamNames` after download.
-3. Channel list + editor: show dynamic extra in Radio-specific section (and keep existing Groups when used).
+3. Channel list + editor: show dynamic extra in Radio-specific section; bulk extra edit on main screen from schema.
 4. Bridge: `get_radio_settings` / `set_radio_settings` with tree serialization.
 5. Android: Radio Settings activity (dynamic form from JSON).

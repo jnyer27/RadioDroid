@@ -42,8 +42,15 @@ import com.radiodroid.app.bridge.DownloadResult
 import com.radiodroid.app.bridge.UsbSerialBridge
 import com.radiodroid.app.databinding.ActivityMainBinding
 import android.text.Editable
+import android.text.InputFilter
+import android.text.InputType
 import android.text.TextWatcher
 import android.util.Log
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.NumberPicker
+import com.radiodroid.app.model.ChannelExtraSetting
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 import com.radiodroid.app.radio.ChirpCsvExporter
@@ -757,7 +764,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnMoveDown.setOnClickListener      { moveSelectedDown() }
         binding.btnMoveTo.setOnClickListener        { moveSelectedToPosition() }
         binding.btnSetTxPower.setOnClickListener    { setTxPowerSelected() }
-        binding.btnSetGroups.setOnClickListener     { setGroupsSelected() }
+        binding.btnSetGroups.setOnClickListener     { setRadioSpecificExtraSelected() }
         binding.btnExportCsv.setOnClickListener     { exportSelectedChannels() }
         binding.btnClearSelected.setOnClickListener { clearSelectedChannels() }
         binding.btnSelectionDone.setOnClickListener {
@@ -809,8 +816,9 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Submits the filtered (or full) channel list to the adapter based on [searchQuery].
-     * Matches are case-insensitive on channel name, RX frequency (MHz), or any resolved
-     * group label.
+     * Matches are case-insensitive on channel name, RX frequency (MHz), radio-specific
+     * [Channel.extra] keys/values, or group letter / resolved label for values that are
+     * single letters A–O (same labels as EEPROM group names).
      */
     private fun applyFilter() {
         if (searchQuery.isBlank()) {
@@ -822,16 +830,18 @@ class MainActivity : AppCompatActivity() {
         val filtered = channelList.filter { ch ->
             if (ch.empty) return@filter false
             if (ch.name.lowercase().contains(q)) return@filter true
-            // Match RX frequency displayed as MHz string (e.g. "462.5625")
             if (ch.displayFreq().contains(q)) return@filter true
-            // Match group letter directly OR its resolved label
-            listOf(ch.group1, ch.group2, ch.group3, ch.group4).any { letter ->
-                if (letter == "None") return@any false
-                if (letter.lowercase().contains(q)) return@any true
-                val idx   = EepromConstants.GROUP_LETTERS.indexOf(letter)
-                val label = labels.getOrNull(idx)?.trim() ?: ""
-                label.lowercase().contains(q)
+            for ((k, vRaw) in ch.extra) {
+                if (k.lowercase().contains(q)) return@filter true
+                val v = vRaw.trim()
+                if (v.lowercase().contains(q)) return@filter true
+                val letterIdx = EepromConstants.GROUP_LETTERS.indexOf(v)
+                if (letterIdx >= 0) {
+                    val label = labels.getOrNull(letterIdx)?.trim() ?: ""
+                    if (label.lowercase().contains(q)) return@filter true
+                }
             }
+            false
         }
         adapter.submitList(filtered)
     }
@@ -1726,124 +1736,205 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Shows a group-slot picker and applies the chosen assignments to every
-     * non-empty selected channel in one operation.
-     *
-     * Each of the four group slots has its own spinner.  The first item in each
-     * spinner is "— Keep —": leaving it there leaves that slot unchanged on all
-     * selected channels so the user can update only specific slots.
-     *
-     * Custom group label names (from [EepromHolder.groupLabels]) are appended to
-     * each option so the user can see e.g. "A — GMRS" instead of just "A".
+     * Bulk-edit one [Channel.extra] field on all non-empty selected channels.
+     * Field list and types come from [EepromHolder.channelExtraSchema] (same as the channel editor).
      */
-    private fun setGroupsSelected() {
+    private fun setRadioSpecificExtraSelected() {
         val eep = eeprom ?: return
         val selected = adapter.selectedChannelNumbers
         if (selected.isEmpty()) return
 
-        val channels = EepromParser.parseAllChannels(eep)
-
-        // Build display labels: "A — Custom Name" when a custom label is set, else "A".
-        val customLabels = EepromHolder.groupLabels   // List<String>, may be empty
-        val groupDisplayOptions: List<String> = listOf("— Keep —", "None") +
-            EepromConstants.GROUP_LETTERS.mapIndexed { i, letter ->
-                val custom = customLabels.getOrNull(i)?.takeIf { it.isNotBlank() }
-                if (custom != null) "$letter — $custom" else letter
-            }
-        val displayArray = groupDisplayOptions.toTypedArray()
-
-        // Pre-seed each spinner to "— Keep —" (index 0).
-        // Mapping: spinner position p → GROUPS_LIST[p-1] for p≥1; p=0 = no change.
-        val slotNames = listOf("Group Slot 1", "Group Slot 2", "Group Slot 3", "Group Slot 4")
-        val spinners = List(4) { _ ->
-            android.widget.Spinner(this).apply {
-                adapter = ArrayAdapter(
-                    this@MainActivity,
-                    android.R.layout.simple_spinner_dropdown_item,
-                    displayArray
-                )
-                setSelection(0) // "— Keep —"
-            }
+        val writable = EepromHolder.channelExtraSchema.filter { !it.readOnly }
+        if (writable.isEmpty()) {
+            Toast.makeText(this, R.string.bulk_extra_no_schema, Toast.LENGTH_LONG).show()
+            return
         }
-
-        // Dialog view: vertical list of label+spinner rows with consistent padding
-        val hPx = (20 * resources.displayMetrics.density).toInt()
-        val vPx = (6  * resources.displayMetrics.density).toInt()
-        val minLabelW = (80 * resources.displayMetrics.density).toInt()
-
-        val container = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(hPx, vPx, hPx, vPx)
-        }
-        slotNames.forEachIndexed { i, name ->
-            val row = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(0, vPx, 0, vPx)
-            }
-            val label = android.widget.TextView(this).apply {
-                text = name
-                minWidth = minLabelW
-            }
-            row.addView(label)
-            row.addView(
-                spinners[i],
-                android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-            container.addView(row)
-        }
-
+        val labels = writable.map { it.name }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle("Set Channel Groups — ${selected.size} selected")
-            .setView(container)
-            .setPositiveButton("Apply") { _, _ ->
-                // Map each spinner position back to a GROUPS_LIST value (or null = keep).
-                val newGroups: List<String?> = spinners.map { sp ->
-                    val pos = sp.selectedItemPosition
-                    if (pos == 0) null else EepromConstants.GROUPS_LIST[pos - 1]
-                }
-
-                if (newGroups.all { it == null }) {
-                    Toast.makeText(this, "No group slots changed", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-
-                var count = 0
-                for (ch in channels) {
-                    if (ch.number in selected && !ch.empty) {
-                        EepromParser.writeChannel(
-                            eep, ch.copy(
-                                group1 = newGroups[0] ?: ch.group1,
-                                group2 = newGroups[1] ?: ch.group2,
-                                group3 = newGroups[2] ?: ch.group3,
-                                group4 = newGroups[3] ?: ch.group4
-                            )
-                        )
-                        count++
-                    }
-                }
-                eeprom = eep
-                EepromHolder.eeprom = eep
-                channelList = EepromParser.parseAllChannels(eep)
-                dragWorkList = channelList.toMutableList()
-                adapter.submitList(channelList)
-                // Keep selection active — user may want to chain other bulk actions
-
-                val changed = newGroups.mapIndexedNotNull { i, v ->
-                    if (v != null) "Slot ${i + 1}=$v" else null
-                }.joinToString(", ")
-                Toast.makeText(
-                    this@MainActivity,
-                    "Groups ($changed) set on $count channel(s)",
-                    Toast.LENGTH_SHORT
-                ).show()
-                syncCloneMmapAfterChannelListEdits()
+            .setTitle(getString(R.string.bulk_extra_pick_param, selected.size))
+            .setItems(labels) { dialog, which ->
+                dialog.dismiss()
+                showBulkExtraValueDialog(writable[which], eep, selected)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private fun showBulkExtraValueDialog(setting: ChannelExtraSetting, eep: ByteArray, selected: Set<Int>) {
+        val channels = EepromParser.parseAllChannels(eep)
+        val firstSample = channels.firstOrNull { it.number in selected && !it.empty }
+        val currentVal = firstSample?.extra?.get(setting.name) ?: setting.value
+
+        when (setting.type) {
+            "list" -> {
+                val opts = setting.options
+                if (opts.isNullOrEmpty()) {
+                    showBulkExtraTextFieldDialog(setting, eep, selected, currentVal, InputType.TYPE_CLASS_TEXT, null, null)
+                    return
+                }
+                var chosenIdx = opts.indexOfFirst { it == currentVal }.let { if (it >= 0) it else 0 }
+                AlertDialog.Builder(this)
+                    .setTitle(setting.name)
+                    .setSingleChoiceItems(opts.toTypedArray(), chosenIdx) { _, which ->
+                        chosenIdx = which
+                    }
+                    .setPositiveButton(R.string.ok) { _, _ ->
+                        applyBulkExtraToSelection(eep, selected, setting.name, opts[chosenIdx])
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+            "bool" -> {
+                val check = CheckBox(this).apply {
+                    text = setting.name
+                    isChecked = currentVal.equals("True", ignoreCase = true)
+                }
+                val pad = (20 * resources.displayMetrics.density).toInt()
+                val wrap = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(pad, pad / 2, pad, 0)
+                    addView(check)
+                }
+                AlertDialog.Builder(this)
+                    .setTitle(setting.name)
+                    .setView(wrap)
+                    .setPositiveButton(R.string.ok) { _, _ ->
+                        val v = if (check.isChecked) "True" else "False"
+                        applyBulkExtraToSelection(eep, selected, setting.name, v)
+                    }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }
+            "int" -> {
+                val min = setting.min
+                val max = setting.max
+                if (min != null && max != null) {
+                    val initial = currentVal.toIntOrNull()?.coerceIn(min, max) ?: min
+                    val np = NumberPicker(this).apply {
+                        minValue = min
+                        maxValue = max
+                        value = initial
+                        wrapSelectorWheel = false
+                    }
+                    val pad = (20 * resources.displayMetrics.density).toInt()
+                    val wrap = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(pad, pad / 2, pad, 0)
+                        gravity = android.view.Gravity.CENTER_HORIZONTAL
+                        addView(np)
+                    }
+                    AlertDialog.Builder(this)
+                        .setTitle(setting.name)
+                        .setView(wrap)
+                        .setPositiveButton(R.string.ok) { _, _ ->
+                            applyBulkExtraToSelection(eep, selected, setting.name, np.value.toString())
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                } else {
+                    showBulkExtraTextFieldDialog(
+                        setting, eep, selected, currentVal,
+                        InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED,
+                        null,
+                        "int",
+                    )
+                }
+            }
+            "float" -> showBulkExtraTextFieldDialog(
+                setting, eep, selected, currentVal,
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED,
+                null,
+                "float",
+            )
+            else -> {
+                val maxLen = setting.maxLength
+                val filters: Array<InputFilter>? = if (maxLen != null && maxLen > 0) {
+                    arrayOf<InputFilter>(InputFilter.LengthFilter(maxLen))
+                } else null
+                showBulkExtraTextFieldDialog(
+                    setting, eep, selected, currentVal,
+                    InputType.TYPE_CLASS_TEXT,
+                    filters,
+                    "string",
+                )
+            }
+        }
+    }
+
+    /**
+     * @param numberKind `int`, `float`, `string`, or null for no numeric check
+     */
+    private fun showBulkExtraTextFieldDialog(
+        setting: ChannelExtraSetting,
+        eep: ByteArray,
+        selected: Set<Int>,
+        initial: String,
+        inputType: Int,
+        filters: Array<InputFilter>?,
+        numberKind: String?,
+    ) {
+        val edit = EditText(this).apply {
+            setText(initial)
+            this.inputType = inputType
+            filters?.let { this.filters = it }
+        }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad / 2, pad, 0)
+            addView(edit)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(setting.name)
+            .setView(wrap)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val raw = edit.text?.toString()?.trim() ?: ""
+                val value = when (numberKind) {
+                    "int" -> {
+                        val n = raw.toIntOrNull()
+                        if (n == null) {
+                            Toast.makeText(this, R.string.bulk_extra_invalid_number, Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        n.toString()
+                    }
+                    "float" -> {
+                        val n = raw.toDoubleOrNull()
+                        if (n == null) {
+                            Toast.makeText(this, R.string.bulk_extra_invalid_number, Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        raw
+                    }
+                    else -> raw
+                }
+                applyBulkExtraToSelection(eep, selected, setting.name, value)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun applyBulkExtraToSelection(eep: ByteArray, selected: Set<Int>, paramName: String, value: String) {
+        val channels = EepromParser.parseAllChannels(eep)
+        var count = 0
+        for (ch in channels) {
+            if (ch.number in selected && !ch.empty) {
+                val newExtra = ch.extra.toMutableMap().apply { put(paramName, value) }
+                EepromParser.writeChannel(eep, ch.copy(extra = newExtra))
+                count++
+            }
+        }
+        eeprom = eep
+        EepromHolder.eeprom = eep
+        channelList = EepromParser.parseAllChannels(eep)
+        dragWorkList = channelList.toMutableList()
+        adapter.submitList(channelList)
+        Toast.makeText(
+            this,
+            getString(R.string.bulk_extra_applied, paramName, value, count),
+            Toast.LENGTH_SHORT,
+        ).show()
+        syncCloneMmapAfterChannelListEdits()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
