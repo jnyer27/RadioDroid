@@ -1,6 +1,6 @@
 ---
 name: radiodroid-userguide-mkdocs
-description: Refreshes the RadioDroid MkDocs site (GitHub Pages), PDF export, and latest-release PDF asset; documents schematic HTML/CSS UI mocks in the user guide. Use when updating userguide.md or docs, adding UI wireframe blocks, forcing a docs redeploy, or refreshing the online user guide or user-guide.pdf.
+description: Refreshes the RadioDroid MkDocs site (GitHub Pages), PDF export, and latest-release PDF asset; documents schematic ASCII-art UI diagrams in the user guide. Use when updating userguide.md or docs, adding UI wireframe blocks, forcing a docs redeploy, or refreshing the online user guide or user-guide.pdf.
 ---
 
 # RadioDroid user guide — MkDocs, Pages, and PDF
@@ -12,14 +12,39 @@ description: Refreshes the RadioDroid MkDocs site (GitHub Pages), PDF export, an
 
 ## Schematic UI blocks (not screenshots)
 
-The guide uses **HTML + CSS** wireframes so readers see approximate layout without maintaining PNGs.
+The guide uses **ASCII art in fenced code blocks** so diagrams are human-readable on GitHub, on the MkDocs site, and in plain-text editors — without requiring CSS or screenshots.
 
-- **Site CSS:** `docs/stylesheets/ui-mock.css` (loaded via **`extra_css`** in `mkdocs.yml`).
-- **PDF export:** `docs/stylesheets/pdf.css` includes print-safe overrides (no animation, high contrast).
-- **Markup:** Raw `<div class="ui-mock …">` blocks **at column 0** in Markdown (indented HTML can be parsed as code).
-- **Copy pattern:** Each block has a short `### Schematic: …` heading and a caption line `*Schematic.* …` under `<p class="ui-mock-caption">`.
+**Do not use HTML `<div class="ui-mock …">` blocks.** The old CSS-based wireframes (`docs/stylesheets/ui-mock.css`) are no longer used for schematics and caused raw/unstyled HTML to appear when viewing the file directly on GitHub (issue #3).
 
-When adding a new schematic, reuse existing classes (`ui-mock-appbar`, `ui-mock-actions`, `ui-mock-row`, etc.) before inventing new ones.
+### Schematic format
+
+Each schematic follows this pattern:
+
+````markdown
+### Schematic: <name>
+
+```
+┌──────────────────────────────────────────┐
+│ ← Screen title                           │
+├──────────────────────────────────────────┤
+│  Field label  │ Value / [pill]           │
+│  Field label  │ Value / [pill]           │
+├──────────────────────────────────────────┤
+│ [Cancel]                      [Done]     │
+└──────────────────────────────────────────┘
+```
+
+*Schematic. Brief description of what is shown.*
+````
+
+**Common conventions:**
+- `←` for back arrow, `⋮` for overflow menu icon
+- `[Button]` for action buttons, `[Pill]` for dropdown/chip values
+- `▒` on a button label = disabled state
+- `▓▓▓░░░` for an indeterminate progress bar
+- `▼ Section title` for collapsible groups
+- Use `├──┬──┤` / `├──┴──┤` for column separators within a table layout
+- Caption line is plain italic Markdown: `*Schematic. …*`
 
 ## What gets published
 

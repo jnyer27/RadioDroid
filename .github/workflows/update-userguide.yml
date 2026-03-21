@@ -11,6 +11,7 @@ on:
       - 'userguide.md'
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'requirements-docs.txt'
   workflow_dispatch:   # manual trigger
 
 # ── Permissions ───────────────────────────────────────────────────────────────
@@ -81,13 +82,12 @@ jobs:
         if: steps.latest_release.outputs.tag != ''
         run: |
           TAG=${{ steps.latest_release.outputs.tag }}
-          ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
-          for asset in $ASSETS; do
+          while IFS= read -r asset; do
             if [[ "$asset" == *userguide*.pdf ]]; then
               echo "Deleting old asset: $asset"
               gh release delete-asset "$TAG" "$asset" --yes
             fi
-          done
+          done < <(gh release view "$TAG" --json assets --jq '.assets[].name')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
