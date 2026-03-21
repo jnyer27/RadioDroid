@@ -205,6 +205,28 @@ object ChirpBridge {
         }
 
     /**
+     * Parses a raw EEPROM binary (base64-encoded) for the given radio model without
+     * requiring a serial connection. Only works for clone-mode radios.
+     *
+     * @param radio        The selected radio model.
+     * @param eepromBase64 Base64-encoded raw EEPROM bytes (e.g. from a .img file).
+     * @return             [DownloadResult] with channels and the original eeprom_base64.
+     * @throws             Exception if the radio is not clone-mode or the data is invalid.
+     */
+    suspend fun importEeprom(radio: RadioInfo, eepromBase64: String): DownloadResult =
+        withContext(Dispatchers.IO) {
+            val jsonStr = bridge.callAttr("import_eeprom", radio.vendor, radio.model, eepromBase64).toString()
+            val obj = org.json.JSONObject(jsonStr)
+            val arr = obj.getJSONArray("channels")
+            val channels = (0 until arr.length()).map { i ->
+                Channel.fromJson(i + 1, arr.getJSONObject(i))
+            }
+            val eepromStr = obj.optString("eeprom_base64", "")
+            val eepromB64 = eepromStr.takeIf { it.isNotBlank() && it != "null" }
+            DownloadResult(channels = channels, eepromBase64 = eepromB64)
+        }
+
+    /**
      * Uploads the in-memory EEPROM dump to the radio (clone mode only).
      */
     suspend fun uploadMmap(radio: RadioInfo, port: String, eepromBase64: String) =

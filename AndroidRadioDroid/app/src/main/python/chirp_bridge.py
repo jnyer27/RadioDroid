@@ -1172,3 +1172,55 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
         raise
     finally:
         radio.pipe.close()
+
+
+def import_eeprom(vendor: str, model: str, eeprom_base64: str) -> str:
+    """
+    Parse an EEPROM binary (provided as base64) for the given radio model and
+    return its channel list — identical format to download() but without a
+    serial connection.
+
+    Intended for clone-mode radios only.  Non-clone radios store no EEPROM so
+    there is nothing to parse; an error is raised in that case.
+
+    Args:
+        vendor:        Radio vendor string (e.g. "Baofeng")
+        model:         Radio model string  (e.g. "UV-5R")
+        eeprom_base64: Base64-encoded raw EEPROM bytes read from a .img file.
+
+    Returns:
+        JSON string {"channels": [...], "eeprom_base64": "<base64>"} — same
+        shape as download() so the Kotlin side can reuse DownloadResult parsing.
+
+    Raises:
+        ValueError:  if the radio is not a clone-mode radio.
+        Exception:   if the EEPROM data is invalid for the selected driver.
+    """
+    import base64
+    import json as _json
+    _ensure_drivers()
+    from chirp import chirp_common
+    from chirp import memmap
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise ValueError(
+            f"{vendor} {model} is not a clone-mode radio — EEPROM import is only "
+            "supported for clone-mode radios."
+        )
+
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+
+    features = radio.get_features()
+    lo, hi = features.memory_bounds
+    channels = []
+    for n in range(lo, hi + 1):
+        try:
+            mem = radio.get_memory(n)
+            channels.append(_memory_to_dict(mem))
+        except Exception:
+            channels.append({"number": n, "empty": True})
+
+    return _json.dumps({"channels": channels, "eeprom_base64": eeprom_base64})

@@ -6,16 +6,19 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Base64
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityRadioSelectBinding
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.CustomDriverManager
+import com.radiodroid.app.EepromHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,6 +48,12 @@ class RadioSelectActivity : AppCompatActivity() {
     /** Full sorted radio list (built-in + any loaded custom drivers). */
     private var allRadios: MutableList<RadioInfo> = mutableListOf()
 
+    /**
+     * Radio that was just selected but is awaiting the EEPROM-import dialog
+     * decision.  Cleared once [deliverResult] is called or the dialog is dismissed.
+     */
+    private var pendingRadio: RadioInfo? = null
+
     // ─────────────────────────────────────────────────────────────────────────
     // File picker launcher — picks a .py file for custom driver sideloading
     // ─────────────────────────────────────────────────────────────────────────
@@ -53,6 +62,23 @@ class RadioSelectActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) importCustomDriver(uri)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // File picker launcher — picks a binary EEPROM (.img / .bin / any) file
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private val pickEepromFile = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        val radio = pendingRadio
+        if (uri != null && radio != null) {
+            importEepromFile(radio, uri)
+        } else if (radio != null) {
+            // User cancelled the file picker — proceed without EEPROM
+            pendingRadio = null
+            deliverResult(radio)
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -95,7 +121,7 @@ class RadioSelectActivity : AppCompatActivity() {
         binding.btnLastRadio.text = "Continue with: $lastVendor $lastModel"
         binding.btnLastRadio.visibility = View.VISIBLE
         binding.btnLastRadio.setOnClickListener {
-            deliverResult(RadioInfo(lastVendor, lastModel, lastBaud))
+            showEepromImportDialog(RadioInfo(lastVendor, lastModel, lastBaud))
         }
     }
 
@@ -112,7 +138,7 @@ class RadioSelectActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         radioListAdapter = RadioListAdapter { radio ->
             persistLastRadio(radio)
-            deliverResult(radio)
+            showEepromImportDialog(radio)
         }
         binding.recyclerRadios.adapter = radioListAdapter
     }
@@ -303,8 +329,89 @@ class RadioSelectActivity : AppCompatActivity() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Result delivery
+    // EEPROM import — offered after radio selection
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * After the user picks a radio model, ask whether they want to import an
+     * EEPROM file for offline editing before opening MainActivity.
+     */
+    private fun showEepromImportDialog(radio: RadioInfo) {
+        pendingRadio = radio
+        AlertDialog.Builder(this)
+            .setTitle("Import EEPROM?")
+            .setMessage(
+                "Would you like to import an EEPROM image file for " +
+                "${radio.vendor} ${radio.model}?\n\n" +
+                "This lets you edit channels offline without connecting to the radio."
+            )
+            .setPositiveButton("Import EEPROM") { _, _ ->
+                pickEepromFile.launch(arrayOf("*/*"))
+            }
+            .setNegativeButton("Skip") { _, _ ->
+                pendingRadio = null
+                deliverResult(radio)
+            }
+            .setOnCancelListener {
+                pendingRadio = null
+                deliverResult(radio)
+            }
+            .show()
+    }
+
+    /**
+     * Read the selected EEPROM file, parse it via [ChirpBridge.importEeprom],
+     * populate [EepromHolder], then navigate to MainActivity.
+     */
+    private fun importEepromFile(radio: RadioInfo, uri: Uri) {
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            runCatching {
+                // Read file bytes on IO dispatcher
+                val eepromBase64 = withContext(Dispatchers.IO) {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: throw IllegalStateException("Could not open EEPROM file")
+                    Base64.encodeToString(bytes, Base64.NO_WRAP)
+                }
+
+                // Parse EEPROM via Python CHIRP bridge (no radio connection needed)
+                val result = ChirpBridge.importEeprom(radio, eepromBase64)
+
+                // Populate EepromHolder so MainActivity has data ready
+                EepromHolder.selectedRadio    = radio
+                EepromHolder.eeprom           = Base64.decode(eepromBase64, Base64.NO_WRAP)
+                EepromHolder.channels         = result.channels.toMutableList()
+                EepromHolder.extraParamNames  = result.channels
+                    .firstOrNull { it.extra.isNotEmpty() }
+                    ?.extra?.keys?.toList() ?: emptyList()
+                EepromHolder.channelExtraSchema = ChirpBridge.getChannelExtraSchema(radio, eepromBase64)
+
+                result.channels.size
+            }.fold(
+                onSuccess = { count ->
+                    binding.progressBar.visibility = View.GONE
+                    pendingRadio = null
+                    Toast.makeText(
+                        this@RadioSelectActivity,
+                        "EEPROM imported: $count channels loaded for ${radio.vendor} ${radio.model}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    deliverResult(radio)
+                },
+                onFailure = { e ->
+                    binding.progressBar.visibility = View.GONE
+                    pendingRadio = null
+                    AlertDialog.Builder(this@RadioSelectActivity)
+                        .setTitle("EEPROM Import Failed")
+                        .setMessage(e.message ?: "Unknown error")
+                        .setPositiveButton("OK") { _, _ -> deliverResult(radio) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            )
+        }
+    }
 
     private fun persistLastRadio(radio: RadioInfo) {
         getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE).edit()
