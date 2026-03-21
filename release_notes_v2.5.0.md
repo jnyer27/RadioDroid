@@ -14,8 +14,16 @@
 
 ### Install
 
-Download **`app-release.apk`** and install on Android 7.0+. See **`userguide.md`** or the PDF **User Guide** on this release.
+Download **`app-release.apk`** and install on Android 7.0+.
+
+### User guide
+
+- **Online (MkDocs):** https://jnyer27.github.io/RadioDroid/
+- **PDF:** file **`radiodroid-v2.5.0-userguide.pdf`** in Assets (uploaded by the *Update User Guide* workflow), or live at https://jnyer27.github.io/RadioDroid/user-guide.pdf
+- **Source:** [`userguide.md`](https://github.com/jnyer27/RadioDroid/blob/main/userguide.md) in the repo
 
 ### Full context
 
 [README](https://github.com/jnyer27/RadioDroid/blob/main/README.md) — features and architecture.
+
+<!-- radiodroid-docs:userguide -->
