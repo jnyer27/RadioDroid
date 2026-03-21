@@ -176,7 +176,8 @@ def get_radio_list():
 
 
 def _memory_to_dict(mem) -> dict:
-    tmode    = getattr(mem, "tmode",  "") or ""
+    tmode      = getattr(mem, "tmode",      "") or ""
+    cross_mode = getattr(mem, "cross_mode", "") or ""
     duplex   = getattr(mem, "duplex", "") or ""
     freq     = getattr(mem, "freq",   0)  or 0
     offset   = getattr(mem, "offset", 0)  or 0
@@ -185,6 +186,27 @@ def _memory_to_dict(mem) -> dict:
     dtcs_pol = getattr(mem, "dtcs_polarity", "NN") or "NN"
     tx_pol   = dtcs_pol[0:1] if dtcs_pol else "N"
     rx_pol   = dtcs_pol[1:2] if len(dtcs_pol) > 1 else "N"
+
+    # Resolve per-side tone mode/value, handling CHIRP's "Cross" tmode.
+    # Drivers like nicFW use split_tone_decode() which sets tmode="Cross" whenever
+    # TX and RX tones differ (e.g. DTCS->DTCS repeater with different codes).
+    if tmode == "Cross":
+        _tx_type, _, _rx_type = cross_mode.partition("->")
+        tx_tone_mode = _tx_type if _tx_type in ("Tone", "DTCS") else ""
+        rx_tone_mode = _rx_type if _rx_type in ("Tone", "DTCS") else ""
+        tx_tone_val  = (getattr(mem, "rtone",   0.0) if _tx_type == "Tone"
+                        else getattr(mem, "dtcs",    0)   if _tx_type == "DTCS" else 0.0)
+        rx_tone_val  = (getattr(mem, "ctone",   0.0) if _rx_type == "Tone"
+                        else getattr(mem, "rx_dtcs", 0)   if _rx_type == "DTCS" else 0.0)
+    else:
+        tx_tone_mode = tmode if tmode in ("Tone", "TSQL", "DTCS") else ""
+        tx_tone_val  = (getattr(mem, "rtone", 0.0) if tmode in ("Tone", "TSQL")
+                        else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0)
+        rx_tone_mode = ("TSQL" if tmode == "TSQL" else
+                        "DTCS" if tmode == "DTCS" else "")
+        rx_tone_val  = (getattr(mem, "ctone", 0.0) if tmode == "TSQL"
+                        else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0)
+
     out = {
         "number":            mem.number,
         "name":              getattr(mem, "name", "") or "",
@@ -194,14 +216,11 @@ def _memory_to_dict(mem) -> dict:
         "offset":            offset,
         "power":             str(getattr(mem, "power", "1") or "1"),
         "mode":              getattr(mem, "mode", "FM") or "FM",
-        "tx_tone_mode":      tmode if tmode in ("Tone", "TSQL", "DTCS") else "",
-        "tx_tone_val":       (getattr(mem, "rtone", 0.0) if tmode in ("Tone", "TSQL")
-                              else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
+        "tx_tone_mode":      tx_tone_mode,
+        "tx_tone_val":       tx_tone_val,
         "tx_tone_polarity":  tx_pol,
-        "rx_tone_mode":      ("TSQL" if tmode == "TSQL" else
-                              "DTCS" if tmode == "DTCS" else ""),
-        "rx_tone_val":       (getattr(mem, "ctone", 0.0) if tmode == "TSQL"
-                              else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0),
+        "rx_tone_mode":      rx_tone_mode,
+        "rx_tone_val":       rx_tone_val,
         "rx_tone_polarity":  rx_pol,
         "empty":             getattr(mem, "empty", False),
         "skip":              getattr(mem, "skip",  "") or "",
@@ -889,6 +908,47 @@ def upload_mmap(vendor: str, model: str, port: str, baudrate: int, eeprom_base64
         radio.pipe.close()
 
 
+def load_from_eeprom(vendor: str, model: str, eeprom_base64: str) -> str:
+    """
+    Load channels from a raw EEPROM dump (clone-mode radios only). No radio connection needed.
+    Instantiates the CHIRP driver from the provided EEPROM bytes, reads channels, and returns
+    the same JSON structure as download(): {"channels": [...], "eeprom_base64": "<str>"}.
+
+    Args:
+        vendor:        Radio vendor string (e.g. "Radioddity")
+        model:         Radio model string (e.g. "TD-H3 (nicFW)")
+        eeprom_base64: Base64-encoded raw EEPROM bytes (e.g. from a saved .img file)
+
+    Raises:
+        Exception: if the driver is not clone-mode or the EEPROM cannot be parsed
+    """
+    import base64
+    import json as _json
+    _ensure_drivers()
+    from chirp import chirp_common
+    from chirp import memmap
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        raise Exception("load_from_eeprom requires a clone-mode radio driver")
+
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+
+    features = radio.get_features()
+    lo, hi = features.memory_bounds
+    channels = []
+    for n in range(lo, hi + 1):
+        try:
+            mem = radio.get_memory(n)
+            channels.append(_memory_to_dict(mem))
+        except Exception:
+            channels.append({"number": n, "empty": True})
+
+    return _json.dumps({"channels": channels, "eeprom_base64": eeprom_base64})
+
+
 def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_json: str) -> str:
     """
     Apply a single channel edit to the in-memory EEPROM (clone-mode only).
@@ -929,6 +989,69 @@ def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_j
     return base64.b64encode(new_raw).decode()
 
 
+def _apply_tones_to_memory(mem, ch, features):
+    """
+    Set mem.tmode / tone fields from a channel dict produced by _memory_to_dict().
+
+    Handles all CHIRP tone modes including "Cross" (e.g. DTCS->DTCS repeaters
+    where TX and RX DCS codes differ).  When the driver's valid_tmodes includes
+    "Cross", the correct cross_mode is reconstructed so a round-trip through
+    the driver is lossless.
+    """
+    tx_tmode  = ch.get("tx_tone_mode", "") or ""
+    rx_tmode  = ch.get("rx_tone_mode", "") or ""
+    tx_val    = ch.get("tx_tone_val")
+    rx_val    = ch.get("rx_tone_val")
+    tx_pol    = (ch.get("tx_tone_polarity") or "N")[:1]
+    rx_pol    = (ch.get("rx_tone_polarity") or "N")[:1]
+    valid_tmodes = getattr(features, "valid_tmodes", None)
+
+    def _supports(mode):
+        return not valid_tmodes or mode in valid_tmodes
+
+    if tx_tmode == "DTCS" and rx_tmode == "DTCS":
+        tx_code = int(tx_val or 23)
+        rx_code = int(rx_val or 23)
+        mem.dtcs_polarity = tx_pol + rx_pol
+        if tx_code == rx_code and _supports("DTCS"):
+            mem.tmode = "DTCS"
+            mem.dtcs  = tx_code
+        elif _supports("Cross"):
+            mem.tmode      = "Cross"
+            mem.cross_mode = "DTCS->DTCS"
+            mem.dtcs       = tx_code
+            mem.rx_dtcs    = rx_code
+        else:
+            # Driver doesn't support Cross — best effort: use TX code
+            mem.tmode = "DTCS"
+            mem.dtcs  = tx_code
+    elif tx_tmode == "DTCS" and _supports("Cross"):
+        # DTCS-> or DTCS->Tone
+        mem.tmode       = "Cross"
+        mem.cross_mode  = "DTCS->%s" % (rx_tmode or "")
+        mem.dtcs        = int(tx_val or 23)
+        mem.dtcs_polarity = tx_pol + rx_pol
+        if rx_tmode == "Tone":
+            mem.ctone = float(rx_val or 88.5)
+    elif rx_tmode == "DTCS" and _supports("Cross"):
+        # ->DTCS or Tone->DTCS
+        mem.tmode      = "Cross"
+        mem.cross_mode = "%s->DTCS" % (tx_tmode or "")
+        mem.rx_dtcs    = int(rx_val or 23)
+        mem.dtcs_polarity = tx_pol + rx_pol
+        if tx_tmode == "Tone":
+            mem.rtone = float(tx_val or 88.5)
+    elif tx_tmode == "TSQL":
+        mem.tmode = "TSQL"
+        mem.rtone = float(tx_val or 88.5)
+        mem.ctone = float(rx_val or 88.5)
+    elif tx_tmode == "Tone":
+        mem.tmode = "Tone"
+        mem.rtone = float(tx_val or 88.5)
+    else:
+        mem.tmode = ""
+
+
 def _channel_dict_into_memory(mem, ch, features):
     """Fill a CHIRP Memory from a channel dict (same logic as upload() loop)."""
     from chirp import chirp_common
@@ -947,25 +1070,7 @@ def _channel_dict_into_memory(mem, ch, features):
     if valid_modes and mode not in valid_modes:
         mode = "FM"
     mem.mode = mode
-    tmode = ch.get("tx_tone_mode", "") or ""
-    valid_tmodes = getattr(features, "valid_tmodes", None)
-    if valid_tmodes and tmode not in valid_tmodes:
-        tmode = ""
-    if tmode == "Tone":
-        mem.tmode = "Tone"
-        mem.rtone = float(ch.get("tx_tone_val") or 88.5)
-    elif tmode == "TSQL":
-        mem.tmode = "TSQL"
-        mem.rtone = float(ch.get("tx_tone_val") or 88.5)
-        mem.ctone = float(ch.get("rx_tone_val") or 88.5)
-    elif tmode == "DTCS":
-        mem.tmode = "DTCS"
-        mem.dtcs = int(ch.get("tx_tone_val") or 23)
-        tx_pol = (ch.get("tx_tone_polarity") or "N")[:1]
-        rx_pol = (ch.get("rx_tone_polarity") or "N")[:1]
-        mem.dtcs_polarity = tx_pol + rx_pol
-    else:
-        mem.tmode = ""
+    _apply_tones_to_memory(mem, ch, features)
     power_str = ch.get("power", "") or ""
     if power_str and features.valid_power_levels:
         matched = next(
@@ -1101,29 +1206,7 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
             mem.mode = mode
 
             # ── Tone / CTCSS / DCS ───────────────────────────────────────────────
-            # tx_tone_mode drives mem.tmode; values mirror CHIRP's own tmode strings.
-            # Guard against tone modes the radio doesn't support.
-            tmode = ch.get("tx_tone_mode", "") or ""
-            valid_tmodes = getattr(features, "valid_tmodes", None)
-            if valid_tmodes and tmode not in valid_tmodes:
-                tmode = ""
-            if tmode == "Tone":
-                mem.tmode = "Tone"
-                mem.rtone = float(ch.get("tx_tone_val") or 88.5)
-            elif tmode == "TSQL":
-                mem.tmode = "TSQL"
-                mem.rtone = float(ch.get("tx_tone_val") or 88.5)
-                mem.ctone = float(ch.get("rx_tone_val") or 88.5)
-            elif tmode == "DTCS":
-                mem.tmode = "DTCS"
-                mem.dtcs  = int(ch.get("tx_tone_val") or 23)
-                # Polarity is stored as two chars "NN"/"NR"/"RN"/"RR" in CHIRP.
-                # tx_tone_polarity / rx_tone_polarity default to "N" (normal).
-                tx_pol = (ch.get("tx_tone_polarity") or "N")[:1]
-                rx_pol = (ch.get("rx_tone_polarity") or "N")[:1]
-                mem.dtcs_polarity = tx_pol + rx_pol
-            else:
-                mem.tmode = ""
+            _apply_tones_to_memory(mem, ch, features)
 
             # ── Power level ──────────────────────────────────────────────────────
             # CHIRP uses driver-specific PowerLevel objects.  Try to match the

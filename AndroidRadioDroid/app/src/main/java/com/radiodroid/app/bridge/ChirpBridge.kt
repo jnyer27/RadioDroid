@@ -213,6 +213,29 @@ object ChirpBridge {
         }
 
     /**
+     * Loads channels from a raw EEPROM file dump (clone-mode radios only). No radio connection
+     * is needed — the driver is instantiated directly from the provided bytes.
+     *
+     * Returns a [DownloadResult] in the same shape as [download] so the caller can populate
+     * [EepromHolder] exactly as if the data had come from a live radio download.
+     *
+     * @param radio       Selected radio model (must be clone-mode)
+     * @param eepromBase64 Base64-encoded raw EEPROM bytes read from a .img / .bin file
+     */
+    suspend fun loadFromEeprom(radio: RadioInfo, eepromBase64: String): DownloadResult =
+        withContext(Dispatchers.IO) {
+            val jsonStr = bridge.callAttr("load_from_eeprom", radio.vendor, radio.model, eepromBase64).toString()
+            val obj = org.json.JSONObject(jsonStr)
+            val arr = obj.getJSONArray("channels")
+            val channels = (0 until arr.length()).map { i ->
+                Channel.fromJson(i + 1, arr.getJSONObject(i))
+            }
+            val eepromStr = obj.optString("eeprom_base64", "")
+            val eepromBase64Out = eepromStr.takeIf { it.isNotBlank() && it != "null" }
+            DownloadResult(channels = channels, eepromBase64 = eepromBase64Out)
+        }
+
+    /**
      * Applies a single channel edit to the in-memory clone EEPROM so the raw dump
      * stays in sync with the channel list. Returns new eeprom bytes (base64 decoded).
      */
