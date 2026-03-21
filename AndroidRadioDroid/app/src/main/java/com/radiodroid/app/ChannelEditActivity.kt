@@ -544,12 +544,7 @@ class ChannelEditActivity : AppCompatActivity() {
             c.extra = extraParamEditTexts.mapValues { it.value.text?.toString()?.trim() ?: "" }
         }
         // Sync group fields from extra so upload has correct group1–4
-        if (c.extra.isNotEmpty()) {
-            c.group1 = c.extra["Group 1"] ?: c.extra["group1"] ?: c.group1
-            c.group2 = c.extra["Group 2"] ?: c.extra["group2"] ?: c.group2
-            c.group3 = c.extra["Group 3"] ?: c.extra["group3"] ?: c.group3
-            c.group4 = c.extra["Group 4"] ?: c.extra["group4"] ?: c.group4
-        }
+        c.syncGroupsFromExtra()
 
         // Busy Lock — force off when a repeater/split offset is present (radio rule)
         val hasOffset = duplexStr == "+" || duplexStr == "-" ||

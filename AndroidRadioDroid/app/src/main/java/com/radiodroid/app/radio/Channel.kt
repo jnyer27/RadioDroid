@@ -62,6 +62,19 @@ data class Channel(
         else   -> ""
     }
 
+    /**
+     * Copies group letter slots from [extra] into [group1]–[group4].
+     * Drivers (e.g. NICFW H3) store these only under Memory.extra; the main list uses [group1]–[group4].
+     * Key fallbacks match [com.radiodroid.app.ChannelEditActivity] save path.
+     */
+    fun syncGroupsFromExtra() {
+        if (extra.isEmpty()) return
+        group1 = extra["Group 1"] ?: extra["group1"] ?: group1
+        group2 = extra["Group 2"] ?: extra["group2"] ?: group2
+        group3 = extra["Group 3"] ?: extra["group3"] ?: group3
+        group4 = extra["Group 4"] ?: extra["group4"] ?: group4
+    }
+
     companion object {
         /**
          * Construct a Channel from a Python dict returned by chirp_bridge.download().
@@ -97,7 +110,7 @@ data class Channel(
                 rxToneVal       = obj.callAttr("get", "rx_tone_val")?.toDouble(),
                 rxTonePolarity  = obj.callAttr("get", "rx_tone_polarity")?.toString()?.ifEmpty { null },
                 extra           = parseExtraFromPyObject(obj),
-            )
+            ).also { it.syncGroupsFromExtra() }
         }
 
         /** Build a map from Python dict "extra" (Memory.extra). */
@@ -147,7 +160,7 @@ data class Channel(
                 group3          = obj.optString("group3", "None"),
                 group4          = obj.optString("group4", "None"),
                 flagsRaw        = obj.optInt("flags_raw", 0),
-            )
+            ).also { it.syncGroupsFromExtra() }
         }
 
         /** Serialize Channel to JSON for a RadioDroid backup file (all fields). */

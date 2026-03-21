@@ -81,3 +81,5 @@ If cells do not fit at the configured minimum width, additional **wrap lines** s
 
 - Long values: use `maxLines` + `ellipsize` on cells.
 - Very many extras: grid grows vertically; acceptable for v1.
+- **RecyclerView:** Deferred `post { … }` layout for the radio-specific block must not run after the row is rebound to another channel (stale closure). Use a per-bind layout token + `bindingAdapterPosition` / channel-number checks before applying columns.
+- **Zero-width passes:** On some fold/narrow layouts the column container can measure `width == 0` briefly; cap blind reposts and fall back to one pre-draw retry or a single-column layout so the block does not stay empty.

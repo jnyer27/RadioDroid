@@ -5,7 +5,9 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.view.ViewTreeObserver
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -40,6 +42,9 @@ class ChannelAdapter(
     companion object {
         /** When groups summary is shown from [Channel.group1]–[Channel.group4], hide matching extra rows. */
         private val GROUP_EXTRA_KEYS = setOf("group1", "group2", "group3", "group4")
+
+        /** Avoid infinite repost when width stays 0 (foldables / narrow passes). */
+        private const val MAX_ZERO_WIDTH_SPEC_RETRIES = 5
     }
 
     // ── Selection state ───────────────────────────────────────────────────────
@@ -157,6 +162,9 @@ class ChannelAdapter(
         private var pendingRadioSpecItems: List<String>? = null
         private var lastSpecCols: Int = -1
         private var lastSpecItems: List<String>? = null
+        /** Incremented each [bind]; stale [post] runnables bail when this mismatches. */
+        private var radioSpecLayoutToken: Long = 0L
+        private var zeroWidthSpecRetries: Int = 0
 
         init {
             channelRadioSpecColumns.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
@@ -165,8 +173,9 @@ class ChannelAdapter(
                 if (w > 0 && w != ow) {
                     val pending = pendingRadioSpecItems
                     if (pending != null && pending.isNotEmpty()) {
+                        val token = radioSpecLayoutToken
                         lastSpecCols = -1
-                        applyRadioSpecColumns(pending)
+                        applyRadioSpecColumns(pending, token)
                     }
                 }
             }
@@ -177,6 +186,8 @@ class ChannelAdapter(
             channelNumber.text = card.context.getString(R.string.channel_number, channel.number)
 
             if (channel.empty) {
+                radioSpecLayoutToken++
+                zeroWidthSpecRetries = 0
                 channelFreq.text   = card.context.getString(R.string.empty_channel)
                 channelName.text   = ""
                 channelDuplex.text = ""
@@ -212,10 +223,21 @@ class ChannelAdapter(
 
                 val specItems = buildRadioSpecItems(channel)
                 pendingRadioSpecItems = specItems
+                radioSpecLayoutToken++
+                zeroWidthSpecRetries = 0
+                val layoutToken = radioSpecLayoutToken
+                val boundChannelNumber = channel.number
                 channelDriverRow.visibility =
                     if (specItems.isEmpty()) View.GONE else View.VISIBLE
                 if (specItems.isNotEmpty()) {
-                    channelRadioSpecColumns.post { applyRadioSpecColumns(specItems) }
+                    channelRadioSpecColumns.post {
+                        if (layoutToken != radioSpecLayoutToken) return@post
+                        val pos = bindingAdapterPosition
+                        if (pos == RecyclerView.NO_POSITION) return@post
+                        if (this@ChannelAdapter.getItem(pos).number != boundChannelNumber) return@post
+                        val items = pendingRadioSpecItems ?: return@post
+                        applyRadioSpecColumns(items, layoutToken)
+                    }
                 } else {
                     channelRadioSpecColumns.removeAllViews()
                     lastSpecCols = -1
@@ -282,14 +304,25 @@ class ChannelAdapter(
          * Distributes [items] across weighted vertical columns **column-major**:
          * fill column 0 top→bottom, then column 1 top→bottom, etc.
          */
-        private fun applyRadioSpecColumns(items: List<String>) {
+        private fun applyRadioSpecColumns(items: List<String>, layoutToken: Long) {
+            if (layoutToken != radioSpecLayoutToken) return
             if (items.isEmpty()) return
             val container = channelRadioSpecColumns
             val w = container.width
             if (w <= 0) {
-                container.post { applyRadioSpecColumns(items) }
+                if (zeroWidthSpecRetries < MAX_ZERO_WIDTH_SPEC_RETRIES) {
+                    zeroWidthSpecRetries++
+                    container.post {
+                        if (layoutToken != radioSpecLayoutToken) return@post
+                        applyRadioSpecColumns(items, layoutToken)
+                    }
+                } else {
+                    zeroWidthSpecRetries = 0
+                    scheduleRadioSpecPreDrawOrSingleColumn(items, layoutToken)
+                }
                 return
             }
+            zeroWidthSpecRetries = 0
             val res = card.context.resources
             val minCellPx = res.getDimensionPixelSize(R.dimen.channel_radio_spec_min_cell_width)
             val maxCols = res.getInteger(R.integer.channel_radio_spec_max_columns)
@@ -317,6 +350,46 @@ class ChannelAdapter(
                 }
                 container.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             }
+        }
+
+        /**
+         * After repeated width==0, wait one pre-draw; if still zero, lay out as a single column
+         * so narrow/fold transitions still show content.
+         */
+        private fun scheduleRadioSpecPreDrawOrSingleColumn(items: List<String>, layoutToken: Long) {
+            val container = channelRadioSpecColumns
+            val vto = container.viewTreeObserver
+            if (!vto.isAlive) {
+                applyRadioSpecSingleColumn(items, layoutToken)
+                return
+            }
+            vto.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    container.viewTreeObserver.removeOnPreDrawListener(this)
+                    if (layoutToken != radioSpecLayoutToken) return true
+                    if (container.width > 0) {
+                        applyRadioSpecColumns(items, layoutToken)
+                    } else {
+                        applyRadioSpecSingleColumn(items, layoutToken)
+                    }
+                    return true
+                }
+            })
+        }
+
+        /** One vertical column, full width — used when measured width is still 0. */
+        private fun applyRadioSpecSingleColumn(items: List<String>, layoutToken: Long) {
+            if (layoutToken != radioSpecLayoutToken) return
+            if (items.isEmpty()) return
+            lastSpecCols = 1
+            lastSpecItems = items.toList()
+            val container = channelRadioSpecColumns
+            container.removeAllViews()
+            val col = LinearLayout(card.context).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+            items.forEach { col.addView(newSpecCell(it)) }
+            container.addView(col, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 0f))
         }
 
         private fun newSpecCell(text: CharSequence): TextView {
