@@ -252,7 +252,8 @@ RadioDroid ships with the same set of drivers as CHIRP. **Any radio that works w
 Examples of supported families (this is not a full list):
 
 - **Baofeng** — UV-5R, BF-F8HP, UV-82, UV-K5, and others  
-- **TID Radio** — TD-H3 (including nicFW), and other TID models  
+- **TID Radio** — Pick the entry that matches your firmware: **TD-H3** is the stock CHIRP layout; **TD-H3 nicFW 2.5** is the separate driver for **nicFW V2.5** codeplugs (different EEPROM layout). Using the wrong one will misread channels or show blanks. Other TID models (e.g. TD-H6, TD-H8, TD-M11) have their own entries.  
+- **Duplicate driver (sideloaded `.py`)** — If you used **Load .py Driver** for a module that is **also bundled** (e.g. `tidradio_h3_nicfw25.py`), the app may try to load it again on startup and hit a **duplicate driver** warning—the built-in copy is the one you should use. Delete the extra copy from `files/custom_drivers/` (e.g. with adb) or clear app data to drop sideloaded drivers; the FAB is only needed for drivers **not** in the build.  
 - **Retevis** — RA25, RT85, and others  
 - **Yaesu** — FT-60, FT-65, and others  
 - **Kenwood** — TH-D74, and others  
