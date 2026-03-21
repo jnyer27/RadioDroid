@@ -65,15 +65,21 @@ gh run list --workflow "Update User Guide" --limit 1
 gh run watch <RUN_ID> --exit-status
 ```
 
-Workflow file: **`.github/workflows/update-userguide.yml`**. It runs **`mkdocs build`**, then **`mkdocs gh-deploy --force`**, then uploads the PDF to the **latest** release returned by `gh release list`.
+Workflow file: **`.github/workflows/update-userguide.yml`**. It runs **`mkdocs build`**, then **`mkdocs gh-deploy --force`**, then uploads the PDF to **all published releases** (backfill). It also appends MkDocs/PDF links to each release's notes once (idempotent marker: `radiodroid-docs:userguide`).
 
 ## Automatic runs (no manual dispatch)
 
-On **push to `main`**, the same workflow runs when **any** of these change:
+The workflow runs automatically on:
 
-- `userguide.md`
-- `docs/**`
-- `mkdocs.yml`
+1. **`release: [published]`** — a new GitHub Release is published. PDF is attached to that release only.
+2. **Push to `main`** when any of these change:
+   - `userguide.md`
+   - `docs/**`
+   - `mkdocs.yml`
+   - `requirements-docs.txt`
+   - `.github/workflows/update-userguide.yml`
+
+   On a push run, the PDF is **backfilled onto all published releases**, not just the latest.
 
 If you only change files outside those paths (e.g. Android app only), the site does **not** rebuild until you dispatch manually or touch a watched path.
 
