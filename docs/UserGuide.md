@@ -51,16 +51,21 @@ RadioDroid is an Android app that programs amateur and GMRS radios using the sam
 
 ### Schematic: BLE device list
 
-<div class="ui-mock ui-mock--phone" role="figure" aria-label="Schematic BLE scan list">
-<div class="ui-mock-bar">Nearby devices</div>
-<div class="ui-mock-appbar"><span class="ui-mock-title">Connect via BLE</span><span class="ui-mock-icon">←</span></div>
-<div class="ui-mock-list">
-<div class="ui-mock-row ui-mock-row--single"><div class="ui-mock-row-main"><span class="ui-mock-freq">HM-10-5C12</span></div><div class="ui-mock-sub">UART adapter · RSSI -58</div></div>
-<div class="ui-mock-row ui-mock-row--single"><div class="ui-mock-row-main"><span class="ui-mock-freq">NUS-Prog</span></div><div class="ui-mock-sub">Nordic UART · Paired</div></div>
-</div>
-</div>
+```
+┌─────────────────────────────────────────┐
+│ Nearby devices                          │
+├─────────────────────────────────────────┤
+│ ← Connect via BLE                       │
+├─────────────────────────────────────────┤
+│  HM-10-5C12                             │
+│  UART adapter · RSSI -58                │
+├─────────────────────────────────────────┤
+│  NUS-Prog                               │
+│  Nordic UART · Paired                   │
+└─────────────────────────────────────────┘
+```
 
-<p class="ui-mock-caption"><em>Schematic.</em> Device names vary; tap a row to select that adapter.</p>
+*Schematic. Device names vary; tap a row to select that adapter.*
 
 After a successful download, the main screen shows the channel list and you can edit and upload.
 
@@ -99,34 +104,25 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
 
 ### Schematic: main list
 
-<div class="ui-mock ui-mock--phone" role="figure" aria-label="Schematic main screen">
-<div class="ui-mock-bar">Connected · USB</div>
-<div class="ui-mock-appbar"><span class="ui-mock-title">RadioDroid</span><span class="ui-mock-icon">⋮</span></div>
-<div class="ui-mock-actions">
-<span class="ui-mock-btn">Disconnect</span>
-<span class="ui-mock-btn ui-mock-btn--primary">Load from radio</span>
-<span class="ui-mock-btn">Save to radio</span>
-</div>
-<div class="ui-mock-list">
-<div class="ui-mock-row">
-<span class="ui-mock-ch">1</span>
-<div>
-<div class="ui-mock-row-main"><span class="ui-mock-freq">462.5625</span> MHz · FM · High</div>
-<div class="ui-mock-name">GMRS 1 · Simplex</div>
-</div>
-</div>
-<div class="ui-mock-row">
-<span class="ui-mock-ch">2</span>
-<div>
-<div class="ui-mock-row-main"><span class="ui-mock-freq">462.5875</span> MHz · NFM · Low</div>
-<div class="ui-mock-name">GMRS 2 · + 5 MHz</div>
-<div class="ui-mock-sub">Bandwidth · Wide · Group A</div>
-</div>
-</div>
-</div>
-</div>
+```
+┌─────────────────────────────────────────┐
+│ Connected · USB                         │
+├─────────────────────────────────────────┤
+│ RadioDroid                           ⋮  │
+├─────────────────────────────────────────┤
+│ [Disconnect]  [Load from radio]         │
+│               [Save to radio]           │
+├────┬────────────────────────────────────┤
+│  1 │ 462.5625 MHz · FM · High           │
+│    │ GMRS 1 · Simplex                   │
+├────┼────────────────────────────────────┤
+│  2 │ 462.5875 MHz · NFM · Low           │
+│    │ GMRS 2 · + 5 MHz                   │
+│    │ Bandwidth · Wide · Group A         │
+└────┴────────────────────────────────────┘
+```
 
-<p class="ui-mock-caption"><em>Schematic.</em> App bar, connection actions, and sample channel rows (extra line when the driver exposes radio-specific fields).</p>
+*Schematic. App bar, connection actions, and sample channel rows (extra line when the driver exposes radio-specific fields).*
 
 Import, export, and radio settings are enabled only when channels are loaded (and, for radio settings, when the radio has settings support and is connected or has a clone image).
 
@@ -142,20 +138,21 @@ Import, export, and radio settings are enabled only when channels are loaded (an
 
 ### Schematic: transfer in progress
 
-<div class="ui-mock ui-mock--phone" role="figure" aria-label="Schematic transfer progress">
-<div class="ui-mock-appbar"><span class="ui-mock-title">RadioDroid</span></div>
-<div class="ui-mock-actions">
-<span class="ui-mock-btn ui-mock-btn--disabled">Load from radio</span>
-<span class="ui-mock-btn ui-mock-btn--disabled">Save to radio</span>
-</div>
-<div class="ui-mock-progress-wrap">
-<div class="ui-mock-progress-track" role="presentation"></div>
-<div class="ui-mock-status">Reading radio memory…</div>
-</div>
-<div class="ui-mock-note">v2.2+: status text rotates; there is no numeric percent from the radio bridge.</div>
-</div>
+```
+┌─────────────────────────────────────────┐
+│ RadioDroid                              │
+├─────────────────────────────────────────┤
+│ [Load from radio ▒]  [Save to radio ▒]  │
+├─────────────────────────────────────────┤
+│ ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░    │
+│ Reading radio memory…                   │
+│                                         │
+│ (v2.2+: status text rotates; no         │
+│  numeric percent from radio bridge)     │
+└─────────────────────────────────────────┘
+```
 
-<p class="ui-mock-caption"><em>Schematic.</em> Indeterminate bar and status line during <strong>Load from radio</strong> or <strong>Save to radio</strong>.</p>
+*Schematic. Indeterminate bar and status line during **Load from radio** or **Save to radio**.*
 
 For **clone-mode** radios (e.g. many Baofeng, TID Radio, Retevis), the app keeps a full EEPROM image in memory after download. **Radio settings** and channel edits apply to that image; **Save to radio** sends the whole image back.
 
@@ -167,22 +164,21 @@ Tap a channel in the list to open the **channel editor**.
 
 ### Schematic: channel editor
 
-<div class="ui-mock ui-mock--wide" role="figure" aria-label="Schematic channel editor">
-<div class="ui-mock-appbar"><span class="ui-mock-title">Channel 1</span><span class="ui-mock-icon">←</span></div>
-<div class="ui-mock-card">
-<div class="ui-mock-field"><label>RX frequency</label><span class="ui-mock-value">462.5625</span></div>
-<div class="ui-mock-field"><label>Duplex</label><span class="ui-mock-pill">Simplex</span></div>
-<div class="ui-mock-field"><label>Name</label><span class="ui-mock-value">GMRS 1</span></div>
-<div class="ui-mock-field"><label>Power</label><span class="ui-mock-pill">High</span></div>
-<div class="ui-mock-field"><label>Mode</label><span class="ui-mock-pill">FM</span></div>
-</div>
-<div class="ui-mock-footer">
-<span class="ui-mock-btn">Cancel</span>
-<span class="ui-mock-btn ui-mock-btn--primary">Done</span>
-</div>
-</div>
+```
+┌─────────────────────────────────────────────┐
+│ ← Channel 1                                 │
+├──────────────┬──────────────────────────────┤
+│ RX frequency │ 462.5625                     │
+│ Duplex       │ [Simplex]                    │
+│ Name         │ GMRS 1                       │
+│ Power        │ [High]                       │
+│ Mode         │ [FM]                         │
+├──────────────┴──────────────────────────────┤
+│ [Cancel]                         [Done]     │
+└─────────────────────────────────────────────┘
+```
 
-<p class="ui-mock-caption"><em>Schematic.</em> Typical fields; your radio may show more options (tones, radio-specific rows, etc.).</p>
+*Schematic. Typical fields; your radio may show more options (tones, radio-specific rows, etc.).*
 
 - **RX Frequency** — receive frequency in MHz.
 - **Duplex / Offset** — Simplex, **+** (positive offset), **−** (negative offset), or **Split** (separate TX frequency). Offset is in kHz or MHz as appropriate.
@@ -207,21 +203,22 @@ Tap **Done** to save the channel and return to the list, or **Cancel** to discar
 
 ### Schematic: radio settings
 
-<div class="ui-mock ui-mock--wide" role="figure" aria-label="Schematic radio settings">
-<div class="ui-mock-appbar"><span class="ui-mock-title">Radio settings</span><span class="ui-mock-icon">←</span></div>
-<div class="ui-mock-progress-wrap">
-<div class="ui-mock-status" style="margin-top:0">Search settings</div>
-<div class="ui-mock-pill" style="margin-top:6px;width:100%;box-sizing:border-box;border-style:dashed;color:#757575">Filter by name or value…</div>
-</div>
-<div class="ui-mock-card">
-<div class="ui-mock-card-title">Display &amp; sound</div>
-<div class="ui-mock-field"><label>Backlight</label><span class="ui-mock-pill">On</span></div>
-<div class="ui-mock-field"><label>Beeps</label><span class="ui-mock-pill">Key only</span></div>
-</div>
-<div class="ui-mock-footer"><span class="ui-mock-btn ui-mock-btn--primary">Update settings</span></div>
-</div>
+```
+┌─────────────────────────────────────────────┐
+│ ← Radio settings                            │
+├─────────────────────────────────────────────┤
+│  Search settings                            │
+│  [ Filter by name or value… ]               │
+├─────────────────────────────────────────────┤
+│  ▼ Display & sound                          │
+│     Backlight  │ [On]                       │
+│     Beeps      │ [Key only]                 │
+├─────────────────────────────────────────────┤
+│          [Update settings]                  │
+└─────────────────────────────────────────────┘
+```
 
-<p class="ui-mock-caption"><em>Schematic.</em> Group titles and fields come from the CHIRP driver; layout varies by model.</p>
+*Schematic. Group titles and fields come from the CHIRP driver; layout varies by model.*
 
 Radio settings are available only when:
 - The radio driver supports settings, and  
