@@ -59,23 +59,31 @@ class BleBridge(private val bleManager: BleManager) {
 
         // Python → BLE radio
         CoroutineScope(Dispatchers.IO).launch {
-            val buf = ByteArray(512)
-            while (true) {
-                val n = fromPython.read(buf)
-                if (n < 0) break
-                radioStream.output.write(buf, 0, n)
-                radioStream.output.flush()
+            try {
+                val buf = ByteArray(512)
+                while (true) {
+                    val n = fromPython.read(buf)
+                    if (n < 0) break
+                    radioStream.output.write(buf, 0, n)
+                    radioStream.output.flush()
+                }
+            } catch (_: Exception) {
+                // BLE disconnected or write failed — relay ends silently
             }
         }
 
         // BLE radio → Python
         CoroutineScope(Dispatchers.IO).launch {
-            val buf = ByteArray(512)
-            while (true) {
-                val n = radioStream.input.read(buf)
-                if (n < 0) break
-                toPython.write(buf, 0, n)
-                toPython.flush()
+            try {
+                val buf = ByteArray(512)
+                while (true) {
+                    val n = radioStream.input.read(buf)
+                    if (n < 0) break
+                    toPython.write(buf, 0, n)
+                    toPython.flush()
+                }
+            } catch (_: Exception) {
+                // BLE disconnected or read failed — relay ends silently
             }
         }
     }
