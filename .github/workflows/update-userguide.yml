@@ -1,9 +1,14 @@
 name: Update User Guide
 
 # ── Triggers ──────────────────────────────────────────────────────────────────
-# Runs whenever userguide.md or the MkDocs source/config changes on main.
-# Can also be triggered manually from the Actions tab.
+# 1. Every published GitHub Release — attaches User Guide PDF to THAT tag, and
+#    appends MkDocs / PDF links to release notes once (marker: radiodroid-docs:userguide).
+# 2. Push to main when userguide.md / docs / mkdocs.yml / requirements-docs.txt
+#    change — redeploys Pages and backfills the PDF onto ALL published releases.
+# 3. workflow_dispatch — same as (2), for manual runs / one-off backfill.
 on:
+  release:
+    types: [published]
   push:
     branches:
       - main
@@ -12,11 +17,16 @@ on:
       - 'docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
-  workflow_dispatch:   # manual trigger
+      - '.github/workflows/update-userguide.yml'
+  workflow_dispatch:
 
 # ── Permissions ───────────────────────────────────────────────────────────────
 permissions:
-  contents: write    # needed to push gh-pages + upload release assets
+  contents: write    # needed to upload/replace release assets + push gh-pages
+
+concurrency:
+  group: userguide-pages
+  cancel-in-progress: false
 
 jobs:
   build-and-publish:
@@ -24,13 +34,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      # ── 1. Checkout (always main — PDF is current guide, distributed on every release)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0   # full history needed for gh-deploy
 
-      # ── 2. Python ───────────────────────────────────────────────────────────
+      # ── 2. Python ────────────────────────────────────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -38,14 +49,14 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements-docs.txt'
 
-      # ── 3. Install dependencies ─────────────────────────────────────────────
+      # ── 3. Install dependencies ───────────────────────────────────────────────
       - name: Install MkDocs + exporter
         run: pip install -r requirements-docs.txt
 
       - name: Install Playwright Chromium
         run: python -m playwright install --with-deps chromium
 
-      # ── 4. Build site + PDF ─────────────────────────────────────────────────
+      # ── 4. Build site + PDF ───────────────────────────────────────────────────
       - name: Build MkDocs site (generates site/user-guide.pdf)
         run: python -m mkdocs build
 
@@ -54,57 +65,69 @@ jobs:
           ls -lh site/user-guide.pdf
           echo "PDF_SIZE=$(du -k site/user-guide.pdf | cut -f1) KB" >> $GITHUB_STEP_SUMMARY
 
-      # ── 5. Deploy to GitHub Pages ──────────────────────────────────────────
+      # ── 5. Deploy updated GitHub Pages ────────────────────────────────────────
       - name: Deploy to GitHub Pages
         run: python -m mkdocs gh-deploy --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 6. Update latest release asset (if a release exists) ───────────────
-      - name: Get latest release tag
-        id: latest_release
+      # ── 6. Attach PDF to this release or backfill ALL published releases ─────
+      - name: Publish User Guide PDF to GitHub Releases
         run: |
-          TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Latest release: ${TAG:-<none>}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "${{ github.event.release.tag_name }}" > /tmp/release-tags.txt
+          else
+            # Do not use `gh ... --jq -r` — gh parses `-r` as --repo, not jq raw output.
+            gh release list -L 500 --json tagName | jq -r '.[].tagName' > /tmp/release-tags.txt
+          fi
 
-      - name: Stage PDF with release-versioned filename
-        if: steps.latest_release.outputs.tag != ''
-        run: |
-          TAG=${{ steps.latest_release.outputs.tag }}
-          FILENAME="radiodroid-${TAG}-userguide.pdf"
-          cp site/user-guide.pdf "$FILENAME"
-          echo "RELEASE_PDF=$FILENAME" >> $GITHUB_ENV
+          COUNT=0
+          while IFS= read -r TAG || [[ -n "${TAG:-}" ]]; do
+            [[ -z "${TAG// }" ]] && continue
+            TAG="${TAG//[$'\t\r\n']}"
+            echo "Processing release: $TAG"
+            FILENAME="radiodroid-${TAG}-userguide.pdf"
+            cp site/user-guide.pdf "$FILENAME"
 
-      - name: Remove old userguide PDF from release (if present)
-        if: steps.latest_release.outputs.tag != ''
-        run: |
-          TAG=${{ steps.latest_release.outputs.tag }}
-          while IFS= read -r asset; do
-            if [[ "$asset" == *userguide*.pdf ]]; then
-              echo "Deleting old asset: $asset"
-              gh release delete-asset "$TAG" "$asset" --yes
+            gh release view "$TAG" --json assets 2>/dev/null | jq -r '.assets[].name // empty' | while read -r asset; do
+              [[ -z "$asset" ]] && continue
+              [[ "$asset" == *userguide*.pdf ]] || continue
+              echo "  Removing old asset: $asset"
+              gh release delete-asset "$TAG" "$asset" --yes || true
+            done
+
+            gh release upload "$TAG" "$FILENAME#User Guide (PDF)"
+            echo "  Uploaded $FILENAME"
+            rm -f "$FILENAME"
+
+            # Append online user guide + PDF links to release notes (idempotent)
+            BODY=$(gh release view "$TAG" --json body | jq -r '.body // empty')
+            if [[ "$BODY" == *'<!-- radiodroid-docs:userguide -->'* ]]; then
+              echo "  Release notes already include user guide links"
+            else
+              PDF_NAME="radiodroid-${TAG}-userguide.pdf"
+              FOOTER="$(printf '%s\n' '' '<!-- radiodroid-docs:userguide -->' '### User guide' \
+                '- **Online (MkDocs):** https://jnyer27.github.io/RadioDroid/' \
+                "- **PDF (this release):** File **${PDF_NAME}** in Assets below" \
+                '- **PDF (live on GitHub Pages):** https://jnyer27.github.io/RadioDroid/user-guide.pdf')"
+              printf '%s%s' "$BODY" "$FOOTER" > "/tmp/release-notes-${TAG}.md"
+              gh release edit "$TAG" --notes-file "/tmp/release-notes-${TAG}.md"
+              echo "  Appended user guide links to release notes"
             fi
-          done < <(gh release view "$TAG" --json assets --jq '.assets[].name')
+
+            COUNT=$((COUNT + 1))
+          done < /tmp/release-tags.txt
+
+          echo "PROCESSED_COUNT=$COUNT" >> "$GITHUB_ENV"
+          echo "### Releases updated: $COUNT" >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload updated PDF to release
-        if: steps.latest_release.outputs.tag != ''
-        run: |
-          TAG=${{ steps.latest_release.outputs.tag }}
-          gh release upload "$TAG" "${{ env.RELEASE_PDF }}#User Guide (PDF)"
-          echo "✅ Uploaded ${{ env.RELEASE_PDF }} to release $TAG" >> $GITHUB_STEP_SUMMARY
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ── 7. Summary ─────────────────────────────────────────────────────────
+      # ── 7. Summary ────────────────────────────────────────────────────────────
       - name: Summarise
         run: |
-          echo "### User Guide updated" >> $GITHUB_STEP_SUMMARY
-          echo "- GitHub Pages redeployed" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.latest_release.outputs.tag }}" ]; then
-            echo "- PDF uploaded to release ${{ steps.latest_release.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "### User Guide pipeline" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Site:** https://jnyer27.github.io/RadioDroid/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **PDF (live):** https://jnyer27.github.io/RadioDroid/user-guide.pdf" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Releases refreshed:** ${{ env.PROCESSED_COUNT }}" >> "$GITHUB_STEP_SUMMARY"
