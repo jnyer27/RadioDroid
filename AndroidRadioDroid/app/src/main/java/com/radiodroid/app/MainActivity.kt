@@ -43,6 +43,7 @@ import com.radiodroid.app.bridge.UsbSerialBridge
 import com.radiodroid.app.databinding.ActivityMainBinding
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import com.radiodroid.app.model.RadioInfo
 import com.radiodroid.app.radio.Channel
 import com.radiodroid.app.radio.ChirpCsvExporter
@@ -97,6 +98,13 @@ class MainActivity : AppCompatActivity() {
             R.string.radio_transfer_upload_1,
             R.string.radio_transfer_upload_2,
             R.string.radio_transfer_upload_3,
+        )
+    }
+    private val exportBackupStatusMessages: IntArray by lazy {
+        intArrayOf(
+            R.string.export_backup_1,
+            R.string.export_backup_2,
+            R.string.export_backup_3,
         )
     }
     private var activeDeviceName: String? = null
@@ -246,8 +254,11 @@ class MainActivity : AppCompatActivity() {
      * otherwise it is treated as a raw EEPROM binary (legacy .img/.bin).
      *
      * JSON backup handling:
-     * - Clone radios with an "eeprom_base64" key: loaded via [ChirpBridge.loadFromEeprom]
-     *   (full fidelity — channels and settings come from the binary image).
+     * - Clone radios with an "eeprom_base64" key: the image is loaded via
+     *   [ChirpBridge.loadFromEeprom]. If the file also contains a **settings** array,
+     *   those path+value pairs are applied into the mmap via
+     *   [ChirpBridge.setRadioSettingsToMmap] so the restored image matches the JSON
+     *   (export always writes both; previously settings in the file were ignored).
      * - Non-clone radios (or clone backups without eeprom_base64): channels are parsed
      *   directly from the "channels" array; settings JSON is stored in
      *   [EepromHolder.pendingSettingsJson] and applied on next Save to Radio.
@@ -288,16 +299,32 @@ class MainActivity : AppCompatActivity() {
 
                     val isClone = ChirpBridge.isCloneModeRadio(radio)
                     if (eepromB64 != null && isClone) {
-                        // Clone mode with EEPROM: full-fidelity restore via driver
-                        val eepBytes = Base64.decode(eepromB64, Base64.NO_WRAP)
-                        val result = ChirpBridge.loadFromEeprom(radio, eepromB64)
+                        // Clone backup: start from file image, merge in JSON settings (if any),
+                        // then decode channels from the final bytes.
+                        var workingB64 = eepromB64
+                        val settingsArr = try {
+                            settingsJsonStr?.let { org.json.JSONObject(it).optJSONArray("settings") }
+                        } catch (_: Exception) {
+                            null
+                        }
+                        if (settingsArr != null && settingsArr.length() > 0 && settingsJsonStr != null) {
+                            val mmapResponse = ChirpBridge.setRadioSettingsToMmap(
+                                radio,
+                                workingB64,
+                                settingsJsonStr
+                            )
+                            workingB64 = parseSetMmapResponseEepromBase64(mmapResponse)
+                        }
+                        val eepBytes = Base64.decode(workingB64, Base64.NO_WRAP)
+                        val result = ChirpBridge.loadFromEeprom(radio, workingB64)
                         eeprom = eepBytes
                         EepromHolder.eeprom = eepBytes
                         EepromHolder.channels = result.channels.toMutableList()
                         EepromHolder.extraParamNames = result.channels
                             .firstOrNull { it.extra.isNotEmpty() }
                             ?.extra?.keys?.toList() ?: emptyList()
-                        EepromHolder.channelExtraSchema = ChirpBridge.getChannelExtraSchema(radio, eepromB64)
+                        EepromHolder.channelExtraSchema =
+                            ChirpBridge.getChannelExtraSchema(radio, workingB64)
                         EepromHolder.pendingSettingsJson = null
                     } else {
                         // Non-clone or clone backup without EEPROM: load channels + settings.
@@ -375,6 +402,60 @@ class MainActivity : AppCompatActivity() {
         return org.json.JSONObject().apply { put("settings", minimal) }
     }
 
+    /** Same shape as [RadioSettingsActivity] save path: JSON object or raw base64 string. */
+    private fun parseSetMmapResponseEepromBase64(response: String): String =
+        if (response.trimStart().startsWith("{")) {
+            org.json.JSONObject(response).getString("eepromBase64")
+        } else {
+            response.trim()
+        }
+
+    /**
+     * Filesystem-safe `Vendor_Model` prefix for export filenames (non-alphanumeric → `_`).
+     */
+    private fun sanitizedVendorModelFilePrefix(radio: RadioInfo?): String {
+        fun segment(raw: String?, fallback: String): String =
+            (raw ?: "")
+                .replace(Regex("[^a-zA-Z0-9]"), "_")
+                .trim('_')
+                .ifBlank { fallback }
+        val v = segment(radio?.vendor, "radio")
+        val m = segment(radio?.model, "model")
+        return "${v}_$m"
+    }
+
+    /**
+     * For clone-mode radios, rewrites [EepromHolder.eeprom] by applying every slot in
+     * [EepromHolder.channels] through the CHIRP driver so the raw image matches the list.
+     * [EepromParser.writeChannel] only updates the list, not bytes — without this, backup
+     * and upload could use a stale mmap after bulk edits or CSV import.
+     */
+    private suspend fun syncCloneEepromIfNeeded(radio: RadioInfo) {
+        val eep = EepromHolder.eeprom ?: return
+        if (eep.isEmpty()) return
+        val synced = withContext(Dispatchers.IO) {
+            ChirpBridge.syncCloneMmapToChannelList(radio, eep, EepromHolder.channels.toList())
+        }
+        EepromHolder.eeprom = synced
+        eeprom = synced
+    }
+
+    /** Fire-and-forget [syncCloneEepromIfNeeded] after UI bulk channel operations. */
+    private fun syncCloneMmapAfterChannelListEdits() {
+        val radio = selectedRadio ?: EepromHolder.selectedRadio ?: return
+        lifecycleScope.launch {
+            try {
+                syncCloneEepromIfNeeded(radio)
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "EEPROM image sync failed: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
     /**
      * Exports a RadioDroid backup JSON containing channels, settings, and (for clone-mode
      * radios) the raw EEPROM bytes. The file can be re-imported on any device running
@@ -384,10 +465,22 @@ class MainActivity : AppCompatActivity() {
      * bloated by CHIRP UI metadata such as long `options` lists.
      */
     private fun exportRadioBackup() {
-        val radio = selectedRadio ?: return
-        if (EepromHolder.channels.isEmpty()) return
+        val radio = selectedRadio ?: run {
+            Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (EepromHolder.channels.isEmpty()) {
+            Toast.makeText(this, "No channels loaded to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+        binding.progressBar.visibility = View.VISIBLE
+        binding.progressText.visibility = View.VISIBLE
+        binding.progressBar.isIndeterminate = true
+        startTransferStatusHints(exportBackupStatusMessages)
         lifecycleScope.launch {
             try {
+                syncCloneEepromIfNeeded(radio)
+
                 val obj = org.json.JSONObject()
                 obj.put("vendor", radio.vendor)
                 obj.put("model", radio.model)
@@ -400,7 +493,7 @@ class MainActivity : AppCompatActivity() {
                 // Settings + optional EEPROM
                 val eep = EepromHolder.eeprom
                 val hasEeprom = eep != null && eep.isNotEmpty()
-                if (hasEeprom && eep != null) {
+                if (hasEeprom) {
                     val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
                     obj.put("eeprom_base64", b64)
                     val settingsJson = withContext(Dispatchers.IO) {
@@ -421,8 +514,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                val vendor = radio.vendor.replace(Regex("[^a-zA-Z0-9]"), "_")
-                val fileName = "radiodroid_backup_${vendor}_$ts.json"
+                val prefix = sanitizedVendorModelFilePrefix(radio)
+                val fileName = "${prefix}_radiodroid_backup_$ts.json"
                 val dir = getExternalFilesDir(null) ?: filesDir
                 val file = File(dir, fileName)
                 file.writeText(obj.toString(2))
@@ -434,8 +527,15 @@ class MainActivity : AppCompatActivity() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 startActivity(Intent.createChooser(shareIntent, "Export Radio Backup"))
-            } catch (e: Exception) {
-                Toast.makeText(this@MainActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (t: Throwable) {
+                Log.e(TAG, "exportRadioBackup", t)
+                Toast.makeText(
+                    this@MainActivity,
+                    "Export failed: ${t.message ?: t.javaClass.simpleName}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                hideRadioTransferProgress()
             }
         }
     }
@@ -447,23 +547,33 @@ class MainActivity : AppCompatActivity() {
      * [exportRadioBackup] instead.
      */
     private fun exportRawEeprom() {
-        val eep = EepromHolder.eeprom ?: return
-        if (eep.isEmpty()) return
-        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val vendor = selectedRadio?.vendor?.replace(Regex("[^a-zA-Z0-9]"), "_") ?: "radio"
-        val fileName = "eeprom_${vendor}_$ts.img"
-        val dir = getExternalFilesDir(null) ?: filesDir
-        val file = File(dir, fileName)
-        file.writeBytes(eep)
-        val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/octet-stream"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "EEPROM dump — $fileName")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        lifecycleScope.launch {
+            try {
+                selectedRadio?.let { syncCloneEepromIfNeeded(it) }
+                val eep = EepromHolder.eeprom
+                if (eep == null || eep.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No EEPROM to export", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val prefix = sanitizedVendorModelFilePrefix(selectedRadio)
+                val fileName = "${prefix}_eeprom_$ts.img"
+                val dir = getExternalFilesDir(null) ?: filesDir
+                val file = File(dir, fileName)
+                withContext(Dispatchers.IO) { file.writeBytes(eep) }
+                val uri = FileProvider.getUriForFile(this@MainActivity, "${packageName}.fileprovider", file)
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/octet-stream"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, "EEPROM dump — $fileName")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(shareIntent, "Export Raw EEPROM"))
+                Toast.makeText(this@MainActivity, "Raw EEPROM exported as $fileName", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
-        startActivity(Intent.createChooser(shareIntent, "Export Raw EEPROM"))
-        Toast.makeText(this, "Raw EEPROM exported as $fileName", Toast.LENGTH_SHORT).show()
     }
 
     /**
@@ -1451,6 +1561,7 @@ class MainActivity : AppCompatActivity() {
         dragWorkList = channels.toMutableList()
         adapter.submitList(channelList)
         adapter.updateSelection(newSelected)
+        syncCloneMmapAfterChannelListEdits()
         // updateSelectionBar called via onSelectionChanged
     }
 
@@ -1482,6 +1593,7 @@ class MainActivity : AppCompatActivity() {
         // Update the ListAdapter — DiffUtil detects position changes
         adapter.submitList(channelList)
         adapter.updateSelection(newSelected)
+        syncCloneMmapAfterChannelListEdits()
         // updateSelectionBar called via onSelectionChanged
     }
 
@@ -1511,6 +1623,7 @@ class MainActivity : AppCompatActivity() {
                 dragWorkList = channelList.toMutableList()
                 adapter.submitList(channelList)
                 adapter.exitSelectionMode()
+                syncCloneMmapAfterChannelListEdits()
                 // updateSelectionBar(0) called via onSelectionChanged → hides bar
             }
             .setNegativeButton("Cancel", null)
@@ -1606,6 +1719,7 @@ class MainActivity : AppCompatActivity() {
                     "TX power → $powerStr on $count channel(s)",
                     Toast.LENGTH_SHORT
                 ).show()
+                syncCloneMmapAfterChannelListEdits()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -1726,6 +1840,7 @@ class MainActivity : AppCompatActivity() {
                     "Groups ($changed) set on $count channel(s)",
                     Toast.LENGTH_SHORT
                 ).show()
+                syncCloneMmapAfterChannelListEdits()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -1844,11 +1959,19 @@ class MainActivity : AppCompatActivity() {
         binding.btnSave.isEnabled = false
         lifecycleScope.launch {
             try {
-                val eep = EepromHolder.eeprom
-                val isCloneWithEeprom = eep != null && eep.isNotEmpty() && ChirpBridge.isCloneModeRadio(radio)
+                val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
+                var eep = EepromHolder.eeprom
+                if (isClone && eep != null && eep.isNotEmpty()) {
+                    eep = withContext(Dispatchers.IO) {
+                        ChirpBridge.syncCloneMmapToChannelList(radio, eep!!, EepromHolder.channels.toList())
+                    }
+                    EepromHolder.eeprom = eep
+                    this@MainActivity.eeprom = eep
+                }
+                val isCloneWithEeprom = isClone && eep != null && eep.isNotEmpty()
                 if (isCloneWithEeprom) {
-                    // Clone mode: EEPROM already contains all channel and settings edits
-                    val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                    // Clone mode: mmap was just synced from the channel list, then settings in EEPROM
+                    val b64 = Base64.encodeToString(eep!!, Base64.NO_WRAP)
                     ChirpBridge.uploadMmap(radio, port, b64)
                 } else {
                     // Non-clone: upload channels, then apply any pending settings edits
@@ -1879,6 +2002,7 @@ class MainActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────────
 
     companion object {
+        private const val TAG = "MainActivity"
         /** Broadcast action for USB host permission results. */
         private const val ACTION_USB_PERMISSION = "com.radiodroid.app.USB_PERMISSION"
     }

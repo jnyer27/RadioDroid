@@ -12,7 +12,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
+import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityChirpImportBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.radiodroid.app.radio.ChirpCsvImporter
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
@@ -290,13 +295,31 @@ class ChirpImportActivity : AppCompatActivity() {
         // Persist in EepromHolder so MainActivity picks it up on resume
         EepromHolder.eeprom = eep
 
-        Toast.makeText(
-            this,
-            "Imported $canImport channel(s). Tap Save to upload to radio.",
-            Toast.LENGTH_LONG
-        ).show()
-
-        setResult(RESULT_OK)
-        finish()
+        // Clone radios: list was updated via writeChannel but bytes were not — sync before finish
+        // (lifecycleScope is cancelled on finish(), so we must not return until sync completes).
+        val radio = EepromHolder.selectedRadio
+        lifecycleScope.launch {
+            try {
+                if (radio != null && eep.isNotEmpty()) {
+                    val synced = withContext(Dispatchers.IO) {
+                        ChirpBridge.syncCloneMmapToChannelList(radio, eep, EepromHolder.channels.toList())
+                    }
+                    EepromHolder.eeprom = synced
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@ChirpImportActivity,
+                    "Channels imported; EEPROM sync failed: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            Toast.makeText(
+                this@ChirpImportActivity,
+                "Imported $canImport channel(s). Tap Save to upload to radio.",
+                Toast.LENGTH_LONG
+            ).show()
+            setResult(RESULT_OK)
+            finish()
+        }
     }
 }

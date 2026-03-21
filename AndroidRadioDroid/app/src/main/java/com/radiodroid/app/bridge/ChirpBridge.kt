@@ -277,4 +277,27 @@ object ChirpBridge {
             val newB64 = bridge.callAttr("apply_channel_to_mmap", radio.vendor, radio.model, eepromBase64, channelJson).toString()
             android.util.Base64.decode(newB64, android.util.Base64.NO_WRAP)
         }
+
+    /**
+     * Re-applies every channel in [channels] to the clone-mode mmap so raw EEPROM bytes match
+     * that list. Needed because [com.radiodroid.app.radio.EepromParser.writeChannel]
+     * only updates the in-memory list, not the byte image — bulk edits and CSV import would
+     * otherwise leave [initialEeprom] stale while the list reflects user changes.
+     *
+     * No-op if [initialEeprom] is empty or [radio] is not clone-mode.
+     */
+    suspend fun syncCloneMmapToChannelList(
+        radio: RadioInfo,
+        initialEeprom: ByteArray,
+        channels: List<Channel>,
+    ): ByteArray {
+        if (initialEeprom.isEmpty()) return initialEeprom
+        if (!isCloneModeRadio(radio)) return initialEeprom
+        var b64 = android.util.Base64.encodeToString(initialEeprom, android.util.Base64.NO_WRAP)
+        for (ch in channels.sortedBy { it.number }) {
+            val bytes = applyChannelToMmap(radio, b64, ch)
+            b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        }
+        return android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)
+    }
 }

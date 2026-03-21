@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
@@ -512,7 +513,7 @@ class BleRadioStream : RadioStream {
         writeType: Int
     ): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            g.writeCharacteristic(wc, data, writeType) == 0 // 0 = BluetoothStatusCodes.SUCCESS
+            g.writeCharacteristic(wc, data, writeType) == BluetoothStatusCodes.SUCCESS
         } else {
             wc.value = data
             wc.writeType = writeType

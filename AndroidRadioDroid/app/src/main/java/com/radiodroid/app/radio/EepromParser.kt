@@ -9,6 +9,10 @@ import com.radiodroid.app.TuneSettings
  * [EepromHolder], not as a raw EEPROM byte array.  All methods that accept
  * a [ByteArray] parameter ignore it and delegate to the in-memory list.
  *
+ * **Clone-mode radios:** [writeChannel] does not patch the real mmap bytes; the app
+ * syncs [com.radiodroid.app.EepromHolder.eeprom] separately (e.g. after save in the
+ * channel editor, bulk actions on the main screen, CSV import, or before backup/upload).
+ *
  * This preserves the call-site API inherited from the nicFW project so that
  * minimally-changed callers (ChannelEditActivity, etc.)
  * continue to compile without large-scale rewrites.

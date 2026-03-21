@@ -18,6 +18,9 @@
     <string name="radio_transfer_upload_1">Uploading to radio…</string>
     <string name="radio_transfer_upload_2">Writing memory…</string>
     <string name="radio_transfer_upload_3">Almost done — please wait…</string>
+    <string name="export_backup_1">Preparing backup…</string>
+    <string name="export_backup_2">Syncing channels to EEPROM image…</string>
+    <string name="export_backup_3">Still working — large clone codeplugs can take a minute…</string>
     <string name="save_confirm_title">Save to radio?</string>
     <string name="save_confirm_message">This will overwrite the radio memory. Continue?</string>
     <string name="cancel">Cancel</string>

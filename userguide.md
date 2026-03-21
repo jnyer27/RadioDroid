@@ -244,8 +244,11 @@ Radio settings are available only when:
 
 **⋮** → **Export Radio Backup…** saves a JSON file with vendor/model, all **channels**, optional **`eeprom_base64`** (clone radios), and **radio settings** as stored in the app.
 
+- **Default filenames** start with a sanitized **`Vendor_Model`** prefix (special characters become `_`), then a timestamp — e.g. `Baofeng_UV_5R_radiodroid_backup_20250316_143022.json` for backup and `Baofeng_UV_5R_eeprom_20250316_143022.img` for **Export Raw EEPROM…**.
+
 - **Settings entries** are written as **`path` + `value` only** (small files). The app does **not** embed long CHIRP UI lists (e.g. every power-level label) in the backup — when you import, RadioDroid rebuilds field types and options from the selected driver, same as after **Import Radio Backup…**.
 - **Import:** ⋮ → **Import Radio Backup…** — select the same **radio model**, then pick the `.json` file. Clone backups with EEPROM restore full fidelity; others load channels and queue settings for the next **Save to radio**.
+- **Clone radios:** When **`eeprom_base64`** is present, RadioDroid loads that image, then applies any **`settings`** entries from the file into the in-memory image (same mechanism as **Radio Settings → Save**), and **then** decodes channels from the result — so **`path`/`value`-only settings** in the backup are not ignored. The app keeps the raw image in sync with the channel list when you export, save to radio, or after bulk edits / CSV import, so the JSON **`channels`** array and **`eeprom_base64`** should match after a normal export.
 
 ---
 
