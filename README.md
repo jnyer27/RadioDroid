@@ -16,7 +16,14 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v2.2.0**
+### What’s new in **v2.3.0**
+
+- **Channel edits now persist to EEPROM** — fixed a bitwise `TypeError` in the nicFW H3 CHIRP driver where `MemoryMapBytes` single-byte reads return `bytes` not `int`; all channel edits now survive export/re-import.
+- **Export Raw EEPROM re-enabled after JSON import** — the channel editor no longer clears the in-memory EEPROM when opened.
+- **Channel editor spinners/switches restored after JSON import** — clone-mode drivers can now return field schemas from an existing in-memory EEPROM even when the JSON backup has no embedded EEPROM bytes.
+- **DCS tone encoding corrected** — fixed octal/binary mismatch in nicFW H3 `_decode_tone`/`_encode_tone`. See [release notes](release_notes_v2.3.0.md).
+
+### Earlier: **v2.2.0**
 
 - **Radio transfer feedback** — **Load from radio** / **Save to radio** show an indeterminate progress bar and rotating status messages so it’s clear work is ongoing (replacing a stale “cloning… 0 / 256” style indicator). See [release notes](release_notes_v2.2.md).
 

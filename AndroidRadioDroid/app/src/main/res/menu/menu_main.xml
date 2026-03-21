@@ -35,13 +35,18 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_import_eeprom"
-        android:title="Import EEPROM…"
+        android:id="@+id/action_import_backup"
+        android:title="Import Radio Backup…"
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_save_eeprom_dump"
-        android:title="Save EEPROM dump…"
+        android:id="@+id/action_export_backup"
+        android:title="Export Radio Backup…"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export_raw_eeprom"
+        android:title="Export Raw EEPROM…"
         app:showAsAction="never" />
 
     <item

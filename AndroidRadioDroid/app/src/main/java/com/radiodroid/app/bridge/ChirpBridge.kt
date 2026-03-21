@@ -170,6 +170,16 @@ object ChirpBridge {
         }
 
     /**
+     * Applies pending settings to a live non-clone radio.
+     * Called during Save to Radio after channels have been uploaded.
+     * Does NOT call sync_in/sync_out — those are clone-mode operations.
+     */
+    suspend fun setSettingsLive(radio: RadioInfo, port: String, settingsJson: String) =
+        withContext(Dispatchers.IO) {
+            bridge.callAttr("set_settings_live", radio.vendor, radio.model, port, radio.baudRate, settingsJson)
+        }
+
+    /**
      * Fetches the radio's current settings (requires connection).
      * Returns JSON string: {"settings": [ {"path", "name", "type", "value", ...}, ... ]}.
      */
