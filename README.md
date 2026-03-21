@@ -16,7 +16,12 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v2.3.0**
+### What’s new in **v2.4.0**
+
+- **Radio-specific channel row** — extras and groups display in a responsive **multi-column** layout on the main channel list (column-major reflow). See [release notes](release_notes_v2.4.0.md).
+- **Channel editor** — **Busy Lock** is no longer duplicated when the driver already shows it under Radio-specific settings (e.g. nicFW H3).
+
+### Earlier: **v2.3.0**
 
 - **Channel edits now persist to EEPROM** — fixed a bitwise `TypeError` in the nicFW H3 CHIRP driver where `MemoryMapBytes` single-byte reads return `bytes` not `int`; all channel edits now survive export/re-import.
 - **Export Raw EEPROM re-enabled after JSON import** — the channel editor no longer clears the in-memory EEPROM when opened.
@@ -45,7 +50,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v2.2.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v2.4.0).
 
 ## Related
 
