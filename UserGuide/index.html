@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="User Guide for RadioDroid — Android CHIRP-compatible universal radio programmer" name="description"/>
+<meta content="RadioDroid" name="author"/>
+<link href="https://jnyer27.github.io/RadioDroid/UserGuide/" rel="canonical"/>
+<link href="../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.6" name="generator"/>
+<title>UserGuide - RadioDroid</title>
+<link href="../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../stylesheets/ui-mock.css" rel="stylesheet"/>
+<script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#radiodroid-user-guide">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="RadioDroid" class="md-header__button md-logo" data-md-component="logo" href=".." title="RadioDroid">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            RadioDroid
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              UserGuide
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/jnyer27/RadioDroid" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+</div>
+<div class="md-source__repository">
+    jnyer27/RadioDroid
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary md-nav--integrated" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="RadioDroid" class="md-nav__button md-logo" data-md-component="logo" href=".." title="RadioDroid">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    RadioDroid
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/jnyer27/RadioDroid" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+</div>
+<div class="md-source__repository">
+    jnyer27/RadioDroid
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="..">
+<span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+
+<h1 id="radiodroid-user-guide">RadioDroid User Guide<a class="headerlink" href="#radiodroid-user-guide" title="Permanent link">¶</a></h1>
+<p>RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
+<p><strong>Current release: v2.5.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
+<hr/>
+<h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="#requirements">Requirements</a></li>
+<li><a href="#connecting-to-a-radio">Connecting to a radio</a></li>
+<li><a href="#bluetooth-le-adapters-v21">Bluetooth LE adapters (v2.1+)</a></li>
+<li><a href="#main-screen">Main screen</a></li>
+<li><a href="#downloading-and-uploading">Downloading and uploading</a></li>
+<li><a href="#editing-channels">Editing channels</a></li>
+<li><a href="#radio-settings">Radio settings</a></li>
+<li><a href="#chirp-csv-import-and-export">CHIRP CSV import and export</a></li>
+<li><a href="#radio-backup-json">Radio backup (JSON)</a></li>
+<li><a href="#customize-main-screen">Customize main screen</a></li>
+<li><a href="#supported-radios">Supported radios</a></li>
+</ol>
+<hr/>
+<div class="admonition note">
+<p class="admonition-title">Schematic layouts in this guide</p>
+<p>Some sections include <strong>boxed diagrams</strong> that resemble the phone UI (toolbar, lists, dialogs). They are <strong>not screenshots</strong>—wording, colors, and spacing are simplified. Your theme and Android version may differ slightly.</p>
+</div>
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Android 7.0 or later</strong> (API 24+)</li>
+<li><strong>USB OTG cable</strong> (for wired programming) <strong>or</strong> a <strong>Bluetooth LE–capable</strong> Android device and a BLE-to-serial adapter (for wireless)</li>
+<li>A <strong>CHIRP-compatible radio</strong> — if it works with CHIRP on a PC, it should work with RadioDroid</li>
+</ul>
+<hr/>
+<h2 id="connecting-to-a-radio">Connecting to a radio<a class="headerlink" href="#connecting-to-a-radio" title="Permanent link">¶</a></h2>
+<h3 id="usb-otg">USB OTG<a class="headerlink" href="#usb-otg" title="Permanent link">¶</a></h3>
+<ol>
+<li>Connect the programming cable to the radio.</li>
+<li>Connect the other end to your Android device using a USB OTG adapter.</li>
+<li>Open RadioDroid; the app will detect the USB serial device.</li>
+<li>Tap the <strong>⋮</strong> menu → <strong>Select Radio Model…</strong> and choose your radio’s vendor and model.</li>
+<li>Tap <strong>Connect</strong> (or <strong>Load from radio</strong> / <strong>Download</strong>) to open the port and read the radio.</li>
+</ol>
+<h3 id="bluetooth-le">Bluetooth LE<a class="headerlink" href="#bluetooth-le" title="Permanent link">¶</a></h3>
+<ol>
+<li>Pair your BLE-to-serial adapter with your Android device in system Bluetooth settings (if your phone requires it).</li>
+<li>In RadioDroid, tap <strong>Connect</strong> and choose <strong>Connect via BLE</strong>, then select your adapter from the scan list.</li>
+<li>Select your radio model (⋮ → <strong>Select Radio Model…</strong> if needed).</li>
+<li>Tap <strong>Load from radio</strong> to download the channel list.</li>
+</ol>
+<h3 id="schematic-ble-device-list">Schematic: BLE device list<a class="headerlink" href="#schematic-ble-device-list" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>┌─────────────────────────────────────────┐
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>│ Nearby devices                          │
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>│ ← Connect via BLE                       │
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>│  HM-10-5C12                             │
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>│  UART adapter · RSSI -58                │
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a>│  NUS-Prog                               │
+<a href="#__codelineno-0-10" id="__codelineno-0-10" name="__codelineno-0-10"></a>│  Nordic UART · Paired                   │
+<a href="#__codelineno-0-11" id="__codelineno-0-11" name="__codelineno-0-11"></a>└─────────────────────────────────────────┘
+</code></pre></div>
+<p><em>Schematic. Device names vary; tap a row to select that adapter.</em></p>
+<p>After a successful download, the main screen shows the channel list and you can edit and upload.</p>
+<hr/>
+<h2 id="bluetooth-le-adapters-v21">Bluetooth LE adapters (v2.1+)<a class="headerlink" href="#bluetooth-le-adapters-v21" title="Permanent link">¶</a></h2>
+<p><strong>v2.1</strong> improves support for common low-cost BLE-to-serial dongles used with Baofeng, TIDRADIO, and similar radios.</p>
+<ul>
+<li><strong>UART services supported</strong> — The app looks for a serial/UART-style GATT service in this order: <strong>HM-10 / TI-style</strong> (<code>FFE0</code>), <strong>Nordic UART</strong>, <strong>Microchip / ISSC</strong>, <strong>NICFW / TD-H3</strong> (<code>FF00</code>). The first service present on the adapter is used; TX/RX characteristics are picked automatically (notify/indicate for data from radio, write for data to radio).</li>
+<li><strong>Scan filtering</strong> — BLE scan only shows devices that <strong>advertise</strong> one of those UART services. That reduces clutter but means: if your dongle does <strong>not</strong> list the UART UUID in its advertisement packet, it may <strong>not</strong> appear in the list even though it would work after a direct connect (future app versions may add an optional “show all BLE devices” mode).</li>
+<li><strong>MTU and chunk size</strong> — Writes default to <strong>20-byte</strong> chunks (safe for all adapters). The app then negotiates a <strong>moderate</strong> MTU; if negotiation fails or never completes, operation continues at 20 bytes so flaky adapters are less likely to disconnect.</li>
+</ul>
+<p>If connection fails, try another USB cable path, ensure the dongle is powered and not paired exclusively to another app, and confirm the radio model is correct in <strong>Select Radio Model…</strong>.</p>
+<hr/>
+<h2 id="main-screen">Main screen<a class="headerlink" href="#main-screen" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Toolbar</strong></li>
+<li><strong>Connect / Disconnect</strong> — open or close the connection to the radio.</li>
+<li><strong>Load from radio</strong> — download channel memory from the radio (clone/sync in).</li>
+<li><strong>Save to radio</strong> — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.</li>
+<li><strong>Channel list</strong> — scrollable list of channels (e.g. 1–198). Each row shows:</li>
+<li>Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in <strong>Customize main screen</strong>.</li>
+<li>For radios that support them: <strong>Radio-specific</strong> fields (e.g. groups, bandwidth) under the main row.</li>
+<li><strong>⋮ Menu</strong></li>
+<li><strong>Search Channels</strong> — show a search bar to filter by name, group, or frequency.</li>
+<li><strong>Import CHIRP CSV from File…</strong> — load a <code>.csv</code> exported from desktop CHIRP.</li>
+<li><strong>Import CHIRP CSV from Clipboard…</strong> — paste and import CSV text.</li>
+<li><strong>Select Radio Model…</strong> — pick vendor and model for the connected radio.</li>
+<li><strong>Customize main screen</strong> — choose which two values appear below Power on each channel row.</li>
+<li><strong>Radio settings…</strong> — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.</li>
+<li><strong>Save EEPROM dump…</strong> — save the current in-memory image to a file (for backup or inspection).</li>
+<li><strong>Import Radio Backup…</strong> — load a RadioDroid <strong>JSON</strong> backup (channels, optional EEPROM, settings).</li>
+<li><strong>Export Radio Backup…</strong> — share/save that JSON backup (see <a href="#radio-backup-json">Radio backup (JSON)</a>).</li>
+<li><strong>Export Raw EEPROM…</strong> — binary image for clone radios (tools / low-level backup).</li>
+<li><strong>Export CHIRP CSV (selected slots)…</strong> — export selected channels as a CHIRP CSV to share or use in desktop CHIRP.</li>
+</ul>
+<h3 id="schematic-main-list">Schematic: main list<a class="headerlink" href="#schematic-main-list" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>┌─────────────────────────────────────────┐
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>│ Connected · USB                         │
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>│ RadioDroid                           ⋮  │
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>│ [Disconnect]  [Load from radio]         │
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>│               [Save to radio]           │
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>├────┬────────────────────────────────────┤
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>│  1 │ 462.5625 MHz · FM · High           │
+<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a>│    │ GMRS 1 · Simplex                   │
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>├────┼────────────────────────────────────┤
+<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>│  2 │ 462.5875 MHz · NFM · Low           │
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>│    │ GMRS 2 · + 5 MHz                   │
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>│    │ Bandwidth · Wide · Group A         │
+<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>└────┴────────────────────────────────────┘
+</code></pre></div>
+<p><em>Schematic. App bar, connection actions, and sample channel rows (extra line when the driver exposes radio-specific fields).</em></p>
+<p>Import, export, and radio settings are enabled only when channels are loaded (and, for radio settings, when the radio has settings support and is connected or has a clone image).</p>
+<hr/>
+<h2 id="downloading-and-uploading">Downloading and uploading<a class="headerlink" href="#downloading-and-uploading" title="Permanent link">¶</a></h2>
+<ul>
+<li>
+<p><strong>Download (Load from radio)</strong><br/>
+  Reads the full channel memory from the radio using the CHIRP driver’s sync/clone logic. <strong>v2.2+:</strong> An <strong>indeterminate</strong> progress bar and <strong>rotating status text</strong> show that work is in progress (the app does not receive a real percent/byte count from the CHIRP bridge). When it finishes, the channel list is filled and you can edit and save to file or upload later.</p>
+</li>
+<li>
+<p><strong>Upload (Save to radio)</strong><br/>
+  Writes the current in-memory channel list back to the radio. The app asks for confirmation because this overwrites the radio’s memory. Upload uses the same driver as download (e.g. full clone for many handhelds). <strong>v2.2+:</strong> The same indeterminate bar and rotating messages appear during upload.</p>
+</li>
+</ul>
+<h3 id="schematic-transfer-in-progress">Schematic: transfer in progress<a class="headerlink" href="#schematic-transfer-in-progress" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>┌─────────────────────────────────────────┐
+<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>│ RadioDroid                              │
+<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>│ [Load from radio ▒]  [Save to radio ▒]  │
+<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>├─────────────────────────────────────────┤
+<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>│ ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░    │
+<a href="#__codelineno-2-7" id="__codelineno-2-7" name="__codelineno-2-7"></a>│ Reading radio memory…                   │
+<a href="#__codelineno-2-8" id="__codelineno-2-8" name="__codelineno-2-8"></a>│                                         │
+<a href="#__codelineno-2-9" id="__codelineno-2-9" name="__codelineno-2-9"></a>│ (v2.2+: status text rotates; no         │
+<a href="#__codelineno-2-10" id="__codelineno-2-10" name="__codelineno-2-10"></a>│  numeric percent from radio bridge)     │
+<a href="#__codelineno-2-11" id="__codelineno-2-11" name="__codelineno-2-11"></a>└─────────────────────────────────────────┘
+</code></pre></div>
+<p><em>Schematic. Indeterminate bar and status line during </em><em>Load from radio</em><em> or </em><em>Save to radio</em><em>.</em></p>
+<p>For <strong>clone-mode</strong> radios (e.g. many Baofeng, TID Radio, Retevis), the app keeps a full EEPROM image in memory after download. <strong>Radio settings</strong> and channel edits apply to that image; <strong>Save to radio</strong> sends the whole image back.</p>
+<hr/>
+<h2 id="editing-channels">Editing channels<a class="headerlink" href="#editing-channels" title="Permanent link">¶</a></h2>
+<p>Tap a channel in the list to open the <strong>channel editor</strong>.</p>
+<h3 id="schematic-channel-editor">Schematic: channel editor<a class="headerlink" href="#schematic-channel-editor" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a>┌─────────────────────────────────────────────┐
+<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>│ ← Channel 1                                 │
+<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>├──────────────┬──────────────────────────────┤
+<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>│ RX frequency │ 462.5625                     │
+<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>│ Duplex       │ [Simplex]                    │
+<a href="#__codelineno-3-6" id="__codelineno-3-6" name="__codelineno-3-6"></a>│ Name         │ GMRS 1                       │
+<a href="#__codelineno-3-7" id="__codelineno-3-7" name="__codelineno-3-7"></a>│ Power        │ [High]                       │
+<a href="#__codelineno-3-8" id="__codelineno-3-8" name="__codelineno-3-8"></a>│ Mode         │ [FM]                         │
+<a href="#__codelineno-3-9" id="__codelineno-3-9" name="__codelineno-3-9"></a>├──────────────┴──────────────────────────────┤
+<a href="#__codelineno-3-10" id="__codelineno-3-10" name="__codelineno-3-10"></a>│ [Cancel]                         [Done]     │
+<a href="#__codelineno-3-11" id="__codelineno-3-11" name="__codelineno-3-11"></a>└─────────────────────────────────────────────┘
+</code></pre></div>
+<p><em>Schematic. Typical fields; your radio may show more options (tones, radio-specific rows, etc.).</em></p>
+<ul>
+<li><strong>RX Frequency</strong> — receive frequency in MHz.</li>
+<li><strong>Duplex / Offset</strong> — Simplex, <strong>+</strong> (positive offset), <strong>−</strong> (negative offset), or <strong>Split</strong> (separate TX frequency). Offset is in kHz or MHz as appropriate.</li>
+<li><strong>Channel name</strong> — short label (length limit depends on the driver, often 8–16 characters).</li>
+<li><strong>Power</strong> — transmit power (e.g. High, Low, or driver-specific levels).</li>
+<li><strong>Mode</strong> — e.g. FM, NFM, AM, USB (driver-dependent).</li>
+<li><strong>TX tone / RX tone</strong> — CTCSS or DCS encode/decode; choose from the tone list or “Off”.</li>
+<li><strong>Busy lock</strong> — optional; may be disabled when duplex is not Simplex (driver-dependent).</li>
+<li><strong>Radio-specific settings</strong> — extra parameters from the CHIRP driver (e.g. bandwidth, group slots). Shown as spinners or switches when the driver defines options; otherwise as text fields.</li>
+</ul>
+<p>Tap <strong>Done</strong> to save the channel and return to the list, or <strong>Cancel</strong> to discard changes.</p>
+<hr/>
+<h2 id="radio-settings">Radio settings<a class="headerlink" href="#radio-settings" title="Permanent link">¶</a></h2>
+<p><strong>⋮</strong> → <strong>Radio settings…</strong> opens a dynamic form built from the CHIRP driver’s <strong>global</strong> settings (e.g. backlight, timeouts, beeps, display options).</p>
+<ul>
+<li>The list is grouped by the driver’s setting groups; expand or collapse sections as needed.</li>
+<li>Use the <strong>search</strong> field at the top to filter by setting name or value.</li>
+<li>Change values, then tap <strong>Update settings</strong> to write them to the radio (or to the in-memory image for clone radios; then use <strong>Save to radio</strong> to upload).</li>
+</ul>
+<h3 id="schematic-radio-settings">Schematic: radio settings<a class="headerlink" href="#schematic-radio-settings" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a>┌─────────────────────────────────────────────┐
+<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a>│ ← Radio settings                            │
+<a href="#__codelineno-4-3" id="__codelineno-4-3" name="__codelineno-4-3"></a>├─────────────────────────────────────────────┤
+<a href="#__codelineno-4-4" id="__codelineno-4-4" name="__codelineno-4-4"></a>│  Search settings                            │
+<a href="#__codelineno-4-5" id="__codelineno-4-5" name="__codelineno-4-5"></a>│  [ Filter by name or value… ]               │
+<a href="#__codelineno-4-6" id="__codelineno-4-6" name="__codelineno-4-6"></a>├─────────────────────────────────────────────┤
+<a href="#__codelineno-4-7" id="__codelineno-4-7" name="__codelineno-4-7"></a>│  ▼ Display &amp; sound                          │
+<a href="#__codelineno-4-8" id="__codelineno-4-8" name="__codelineno-4-8"></a>│     Backlight  │ [On]                       │
+<a href="#__codelineno-4-9" id="__codelineno-4-9" name="__codelineno-4-9"></a>│     Beeps      │ [Key only]                 │
+<a href="#__codelineno-4-10" id="__codelineno-4-10" name="__codelineno-4-10"></a>├─────────────────────────────────────────────┤
+<a href="#__codelineno-4-11" id="__codelineno-4-11" name="__codelineno-4-11"></a>│          [Update settings]                  │
+<a href="#__codelineno-4-12" id="__codelineno-4-12" name="__codelineno-4-12"></a>└─────────────────────────────────────────────┘
+</code></pre></div>
+<p><em>Schematic. Group titles and fields come from the CHIRP driver; layout varies by model.</em></p>
+<p>Radio settings are available only when:
+- The radio driver supports settings, and<br/>
+- The app has a connection to the radio <strong>or</strong> a clone image already loaded (for clone radios, settings are applied to the in-memory image).</p>
+<hr/>
+<h2 id="chirp-csv-import-and-export">CHIRP CSV import and export<a class="headerlink" href="#chirp-csv-import-and-export" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>Import</strong></li>
+<li><strong>From file:</strong> ⋮ → <strong>Import CHIRP CSV from File…</strong> → choose a <code>.csv</code> exported from desktop CHIRP. Channels are merged into the current list by slot.</li>
+<li>
+<p><strong>From clipboard:</strong> Copy CSV text (e.g. from CHIRP or email), then ⋮ → <strong>Import CHIRP CSV from Clipboard…</strong>. Same merge behavior as file import.</p>
+</li>
+<li>
+<p><strong>Export</strong></p>
+</li>
+<li>Select one or more channels (long-press or use the selection UI), then use the export action (e.g. from the menu or toolbar). Name the file and share or save. Format is CHIRP CSV so you can open it in CHIRP on a PC or share with others.</li>
+</ul>
+<hr/>
+<h2 id="radio-backup-json">Radio backup (JSON)<a class="headerlink" href="#radio-backup-json" title="Permanent link">¶</a></h2>
+<p><strong>⋮</strong> → <strong>Export Radio Backup…</strong> saves a JSON file with vendor/model, all <strong>channels</strong>, optional <strong><code>eeprom_base64</code></strong> (clone radios), and <strong>radio settings</strong> as stored in the app.</p>
+<ul>
+<li>
+<p><strong>Default filenames</strong> start with a sanitized <strong><code>Vendor_Model</code></strong> prefix (special characters become <code>_</code>), then a timestamp — e.g. <code>Baofeng_UV_5R_radiodroid_backup_20250316_143022.json</code> for backup and <code>Baofeng_UV_5R_eeprom_20250316_143022.img</code> for <strong>Export Raw EEPROM…</strong>.</p>
+</li>
+<li>
+<p><strong>Settings entries</strong> are written as <strong><code>path</code> + <code>value</code> only</strong> (small files). The app does <strong>not</strong> embed long CHIRP UI lists (e.g. every power-level label) in the backup — when you import, RadioDroid rebuilds field types and options from the selected driver, same as after <strong>Import Radio Backup…</strong>.</p>
+</li>
+<li><strong>Import:</strong> ⋮ → <strong>Import Radio Backup…</strong> — select the same <strong>radio model</strong>, then pick the <code>.json</code> file. Clone backups with EEPROM restore full fidelity; others load channels and queue settings for the next <strong>Save to radio</strong>.</li>
+<li><strong>Clone radios:</strong> When <strong><code>eeprom_base64</code></strong> is present, RadioDroid loads that image, then applies any <strong><code>settings</code></strong> entries from the file into the in-memory image (same mechanism as <strong>Radio Settings → Save</strong>), and <strong>then</strong> decodes channels from the result — so <strong><code>path</code>/<code>value</code>-only settings</strong> in the backup are not ignored. The app keeps the raw image in sync with the channel list when you export, save to radio, or after bulk edits / CSV import, so the JSON <strong><code>channels</code></strong> array and <strong><code>eeprom_base64</code></strong> should match after a normal export.</li>
+</ul>
+<hr/>
+<h2 id="customize-main-screen">Customize main screen<a class="headerlink" href="#customize-main-screen" title="Permanent link">¶</a></h2>
+<p><strong>⋮</strong> → <strong>Customize main screen</strong></p>
+<p>Choose <strong>Slot 1</strong> and <strong>Slot 2</strong> — the two values that appear below the power level on each channel row on the main list (e.g. Duplex, Mode, or other driver-defined fields). This only changes the display; it does not alter channel data.</p>
+<hr/>
+<h2 id="supported-radios">Supported radios<a class="headerlink" href="#supported-radios" title="Permanent link">¶</a></h2>
+<p>RadioDroid ships with the same set of drivers as CHIRP. <strong>Any radio that works with CHIRP on a PC should work with RadioDroid</strong> over USB OTG or (with a BLE adapter) over Bluetooth LE.</p>
+<p>Examples of supported families (this is not a full list):</p>
+<ul>
+<li><strong>Baofeng</strong> — UV-5R, BF-F8HP, UV-82, UV-K5, and others  </li>
+<li><strong>TID Radio</strong> — Pick the entry that matches your firmware: <strong>TD-H3</strong> is the stock CHIRP layout; <strong>TD-H3 nicFW 2.5</strong> is the separate driver for <strong>nicFW V2.5</strong> codeplugs (different EEPROM layout). Using the wrong one will misread channels or show blanks. Other TID models (e.g. TD-H6, TD-H8, TD-M11) have their own entries.  </li>
+<li><strong>Duplicate driver (sideloaded <code>.py</code>)</strong> — If you used <strong>Load .py Driver</strong> for a module that is <strong>also bundled</strong> (e.g. <code>tidradio_h3_nicfw25.py</code>), the app may try to load it again on startup and hit a <strong>duplicate driver</strong> warning—the built-in copy is the one you should use. Delete the extra copy from <code>files/custom_drivers/</code> (e.g. with adb) or clear app data to drop sideloaded drivers; the FAB is only needed for drivers <strong>not</strong> in the build.  </li>
+<li><strong>Retevis</strong> — RA25, RT85, and others  </li>
+<li><strong>Yaesu</strong> — FT-60, FT-65, and others  </li>
+<li><strong>Kenwood</strong> — TH-D74, and others  </li>
+<li><strong>BTECH</strong> — UV-50X3, and others  </li>
+</ul>
+<p>Select <strong>Select Radio Model…</strong> from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see the <a href="https://github.com/jnyer27/RadioDroid/blob/main/docs/DYNAMIC_DRIVER_UI.md">Dynamic driver-based UI</a> doc in the repository for technical details.</p>
+<hr/>
+<h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>First time:</strong> Connect the radio, select the exact model, then <strong>Load from radio</strong>. After the list is loaded, you can disconnect and still edit; reconnect when you want to <strong>Save to radio</strong> or open <strong>Radio settings</strong>.</li>
+<li><strong>Clone radios:</strong> For radios that use a full EEPROM clone, <strong>Radio settings</strong> and channel edits apply to the in-memory image. Use <strong>Save to radio</strong> to write everything back in one go.</li>
+<li><strong>Search:</strong> Use <strong>Search Channels</strong> to quickly find channels by name, group, or frequency.</li>
+<li><strong>Backup:</strong> Use <strong>Export Radio Backup…</strong> for a portable JSON snapshot (channels + settings + EEPROM when available), or <strong>Save EEPROM dump…</strong> / <strong>Export Raw EEPROM…</strong> for a raw clone image before big changes.</li>
+</ul>
+<hr/>
+<p><em>RadioDroid uses <a href="https://github.com/kk7ds/chirp">CHIRP</a> drivers and <a href="https://chaquo.com/chaquopy/">Chaquopy</a> to run them on Android.</em></p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+<div class="md-social">
+<a class="md-social__link" href="https://github.com/jnyer27/RadioDroid" rel="noopener" target="_blank" title="github.com">
+<svg viewbox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+</a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.top", "navigation.sections", "navigation.expand", "toc.integrate", "search.highlight", "search.share", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+</body>
+</html>

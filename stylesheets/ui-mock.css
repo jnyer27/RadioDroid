@@ -1,0 +1,284 @@
+/**
+ * Schematic “phone UI” blocks for the User Guide — not screenshots.
+ * Scoped under .md-typeset; uses color-scheme: light so mocks stay readable in dark site theme.
+ */
+
+.md-typeset .ui-mock {
+  --ui-border: #c5cae9;
+  --ui-bar: #e8eaf6;
+  --ui-appbar: #3949ab;
+  --ui-appbar-text: #fff;
+  --ui-row-alt: #f5f5f5;
+  --ui-text: #212121;
+  --ui-muted: #616161;
+  --ui-accent: #5c6bc0;
+  color-scheme: light;
+  box-sizing: border-box;
+  max-width: 320px;
+  margin: 1rem auto 0.5rem;
+  border: 2px solid var(--ui-border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ui-text);
+  background: #fafafa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.md-typeset .ui-mock--wide {
+  max-width: 360px;
+}
+
+.md-typeset .ui-mock-bar {
+  display: flex;
+  justify-content: center;
+  padding: 4px 8px;
+  font-size: 0.65rem;
+  color: var(--ui-muted);
+  background: var(--ui-bar);
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.md-typeset .ui-mock-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--ui-appbar);
+  color: var(--ui-appbar-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.md-typeset .ui-mock-title {
+  letter-spacing: 0.02em;
+}
+
+.md-typeset .ui-mock-icon {
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.md-typeset .ui-mock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.md-typeset .ui-mock-btn {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  color: var(--ui-text);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.md-typeset .ui-mock-btn--primary {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: #fff;
+}
+
+.md-typeset .ui-mock-btn[disabled],
+.md-typeset .ui-mock-btn--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.md-typeset .ui-mock-list {
+  background: #fff;
+  max-height: none;
+}
+
+.md-typeset .ui-mock-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.72rem;
+}
+
+.md-typeset .ui-mock-row--single {
+  grid-template-columns: 1fr;
+}
+
+.md-typeset .ui-mock-row:nth-child(even) {
+  background: var(--ui-row-alt);
+}
+
+.md-typeset .ui-mock-ch {
+  font-weight: 700;
+  color: var(--ui-accent);
+}
+
+.md-typeset .ui-mock-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.md-typeset .ui-mock-freq {
+  font-family: "Roboto Mono", monospace;
+  font-weight: 600;
+}
+
+.md-typeset .ui-mock-name {
+  color: var(--ui-muted);
+  flex: 1 1 100%;
+}
+
+.md-typeset .ui-mock-sub {
+  grid-column: 1 / -1;
+  font-size: 0.68rem;
+  color: var(--ui-muted);
+  padding-left: 0;
+}
+
+/* Progress / status area */
+.md-typeset .ui-mock-progress-wrap {
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.md-typeset .ui-mock-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ui-accent),
+    var(--ui-accent) 8px,
+    #9fa8da 8px,
+    #9fa8da 16px
+  );
+  background-size: 200% 100%;
+  animation: ui-mock-shimmer 1.2s linear infinite;
+}
+
+@keyframes ui-mock-shimmer {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 32px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .ui-mock-progress-track {
+    animation: none;
+    background: var(--ui-accent);
+  }
+}
+
+.md-typeset .ui-mock-status {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--ui-muted);
+}
+
+/* Form / editor card */
+.md-typeset .ui-mock-card {
+  margin: 0;
+  padding: 0 0 8px;
+  background: #fff;
+}
+
+.md-typeset .ui-mock-card-title {
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-bar);
+}
+
+.md-typeset .ui-mock-field {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.72rem;
+  align-items: center;
+}
+
+.md-typeset .ui-mock-field label {
+  color: var(--ui-muted);
+  font-weight: 500;
+}
+
+.md-typeset .ui-mock-value {
+  font-weight: 500;
+}
+
+.md-typeset .ui-mock-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  font-size: 0.68rem;
+}
+
+.md-typeset .ui-mock-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-top: 1px solid var(--ui-border);
+}
+
+/* Overflow menu */
+.md-typeset .ui-mock-menu {
+  position: relative;
+  padding: 8px;
+  background: #fff;
+  min-height: 48px;
+}
+
+.md-typeset .ui-mock-menu-pop {
+  margin-left: auto;
+  max-width: 200px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.md-typeset .ui-mock-menu-item {
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  border-bottom: 1px solid #eee;
+}
+
+.md-typeset .ui-mock-menu-item:last-child {
+  border-bottom: none;
+}
+
+.md-typeset .ui-mock-caption {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--md-typeset-color, #666);
+  margin: 0 auto 1.25rem;
+  max-width: 360px;
+}
+
+.md-typeset .ui-mock-note {
+  font-size: 0.68rem;
+  color: var(--ui-muted);
+  padding: 6px 12px;
+  background: #fff8e1;
+  border-top: 1px solid #ffe082;
+}

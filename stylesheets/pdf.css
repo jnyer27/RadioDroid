@@ -1,0 +1,272 @@
+/*
+ * pdf.css — injected by mkdocs-exporter for PDF rendering only.
+ *
+ * Design goals:
+ *   • Simple black-on-white typography — works in any PDF viewer,
+ *     light or dark mode (PDF viewers that invert colours handle
+ *     explicit black-on-white content cleanly).
+ *   • Full-width content — no wasted margins from the Material sidebar.
+ *   • Minimal colour — only used where it genuinely aids comprehension
+ *     (table header, code background).
+ *   • Print-friendly page breaks.
+ */
+
+/* ── Reset Material layout to full-width single column ───────────────────── */
+.md-main__inner,
+.md-content,
+.md-content__inner {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  float: none !important;
+}
+
+/* ── Base typography ──────────────────────────────────────────────────────── */
+body,
+.md-typeset {
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif !important;
+  font-size: 11pt !important;
+  line-height: 1.65 !important;
+  color: #000 !important;
+  background: #fff !important;
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────────── */
+.md-typeset h1 {
+  font-size: 22pt !important;
+  font-weight: 700 !important;
+  color: #000 !important;
+  border-bottom: 2px solid #000 !important;
+  padding-bottom: 6px !important;
+  margin-top: 0 !important;
+  page-break-after: avoid !important;
+}
+
+.md-typeset h2 {
+  font-size: 16pt !important;
+  font-weight: 700 !important;
+  color: #000 !important;
+  border-bottom: 1px solid #555 !important;
+  padding-bottom: 4px !important;
+  margin-top: 28px !important;
+  page-break-after: avoid !important;
+  page-break-before: auto !important;
+}
+
+.md-typeset h3 {
+  font-size: 13pt !important;
+  font-weight: 700 !important;
+  color: #000 !important;
+  margin-top: 20px !important;
+  page-break-after: avoid !important;
+}
+
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+  font-size: 11pt !important;
+  font-weight: 700 !important;
+  color: #000 !important;
+  page-break-after: avoid !important;
+}
+
+/* ── Paragraphs & lists ───────────────────────────────────────────────────── */
+.md-typeset p,
+.md-typeset li {
+  color: #000 !important;
+  orphans: 3;
+  widows: 3;
+}
+
+.md-typeset ul,
+.md-typeset ol {
+  padding-left: 1.4em !important;
+}
+
+/* ── Links — blue + underlined so they look clickable in the PDF ──────────── */
+.md-typeset a,
+.md-typeset a:visited {
+  color: #0055cc !important;
+  text-decoration: underline !important;
+  text-decoration-color: #0055cc !important;
+}
+
+.md-typeset ol li a,
+.md-typeset ul li a {
+  color: #0055cc !important;
+  text-decoration: underline !important;
+  font-weight: 500 !important;
+}
+
+/* ── Horizontal rules ─────────────────────────────────────────────────────── */
+.md-typeset hr {
+  border: none !important;
+  border-top: 1px solid #aaa !important;
+  margin: 16px 0 !important;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+.md-typeset table:not([class]) {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 10pt !important;
+  page-break-inside: auto !important;
+}
+
+.md-typeset table:not([class]) th {
+  background: #333 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  padding: 6px 10px !important;
+  border: 1px solid #333 !important;
+  text-align: left !important;
+}
+
+.md-typeset table:not([class]) td {
+  color: #000 !important;
+  padding: 5px 10px !important;
+  border: 1px solid #bbb !important;
+  vertical-align: top !important;
+}
+
+.md-typeset table:not([class]) tr:nth-child(even) td {
+  background: #f5f5f5 !important;
+}
+
+/* ── Code ─────────────────────────────────────────────────────────────────── */
+.md-typeset code {
+  font-family: 'Consolas', 'Courier New', monospace !important;
+  font-size: 9.5pt !important;
+  color: #000 !important;
+  background: #f0f0f0 !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  border: 1px solid #ddd !important;
+}
+
+.md-typeset pre {
+  background: #f5f5f5 !important;
+  border: 1px solid #ccc !important;
+  border-left: 4px solid #555 !important;
+  border-radius: 4px !important;
+  padding: 12px 14px !important;
+  font-size: 9pt !important;
+  line-height: 1.45 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  page-break-inside: avoid !important;
+  color: #000 !important;
+}
+
+.md-typeset pre code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  color: #000 !important;
+}
+
+/* ── Blockquotes / admonitions ────────────────────────────────────────────── */
+.md-typeset blockquote {
+  border-left: 4px solid #888 !important;
+  padding: 4px 12px !important;
+  margin: 12px 0 !important;
+  color: #222 !important;
+  background: #f9f9f9 !important;
+  font-style: italic !important;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border: 1px solid #bbb !important;
+  border-left: 4px solid #555 !important;
+  background: #f9f9f9 !important;
+  color: #000 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  page-break-inside: avoid !important;
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  font-weight: 700 !important;
+  color: #000 !important;
+}
+
+/* ── Hide navigation chrome for PDF ────────────────────────────────────────── */
+.md-header,
+.md-footer,
+.md-sidebar,
+.md-nav,
+.md-search,
+.md-tabs,
+.md-top,
+[data-md-component="skip"],
+[data-md-component="announce"],
+.md-source,
+.headerlink,
+.md-clipboard {
+  display: none !important;
+}
+
+/* ── Schematic UI mocks (User Guide) — print-safe, no animation ───────────── */
+.md-typeset .ui-mock {
+  color-scheme: light !important;
+  max-width: 100% !important;
+  margin: 12px auto !important;
+  border: 2px solid #333 !important;
+  border-radius: 8px !important;
+  background: #fafafa !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  page-break-inside: avoid !important;
+}
+
+.md-typeset .ui-mock-bar,
+.md-typeset .ui-mock-card-title {
+  background: #e0e0e0 !important;
+  color: #000 !important;
+  border-color: #999 !important;
+}
+
+.md-typeset .ui-mock-appbar {
+  background: #333 !important;
+  color: #fff !important;
+}
+
+.md-typeset .ui-mock-actions,
+.md-typeset .ui-mock-list,
+.md-typeset .ui-mock-card,
+.md-typeset .ui-mock-menu,
+.md-typeset .ui-mock-progress-wrap {
+  background: #fff !important;
+}
+
+.md-typeset .ui-mock-btn {
+  border: 1px solid #666 !important;
+  color: #000 !important;
+  background: #fff !important;
+}
+
+.md-typeset .ui-mock-btn--primary {
+  background: #333 !important;
+  color: #fff !important;
+  border-color: #333 !important;
+}
+
+.md-typeset .ui-mock-progress-track {
+  animation: none !important;
+  background: #555 !important;
+  height: 6px !important;
+}
+
+.md-typeset .ui-mock-caption {
+  color: #333 !important;
+  font-size: 9pt !important;
+}
+
+.md-typeset .ui-mock-note {
+  background: #fff9e6 !important;
+  color: #000 !important;
+  border-color: #cc9 !important;
+}
