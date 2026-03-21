@@ -140,7 +140,7 @@
                 android:textSize="10sp"
                 android:textColor="?android:attr/textColorTertiary"
                 android:text="@string/channel_driver_specific_label" />
-            <!-- Filled in code with weighted vertical columns (row-major item order) -->
+            <!-- Filled in code with weighted vertical columns (column-major: top→down, then next column) -->
             <LinearLayout
                 android:id="@+id/channelRadioSpecColumns"
                 android:layout_width="0dp"

@@ -279,7 +279,8 @@ class ChannelAdapter(
         }
 
         /**
-         * Distributes [items] across weighted vertical columns (row-major: 0..cols-1 on first row, etc.).
+         * Distributes [items] across weighted vertical columns **column-major**:
+         * fill column 0 top→bottom, then column 1 top→bottom, etc.
          */
         private fun applyRadioSpecColumns(items: List<String>) {
             if (items.isEmpty()) return
@@ -297,6 +298,8 @@ class ChannelAdapter(
             lastSpecCols = cols
             lastSpecItems = items.toList()
 
+            val rowCount = (items.size + cols - 1) / cols
+
             container.removeAllViews()
             val density = res.displayMetrics.density
             val gapEnd = (6 * density).toInt()
@@ -306,10 +309,11 @@ class ChannelAdapter(
                     val padEnd = if (c < cols - 1) gapEnd else 0
                     setPadding(0, 0, padEnd, 0)
                 }
-                var idx = c
-                while (idx < items.size) {
-                    col.addView(newSpecCell(items[idx]))
-                    idx += cols
+                for (r in 0 until rowCount) {
+                    val idx = c * rowCount + r
+                    if (idx < items.size) {
+                        col.addView(newSpecCell(items[idx]))
+                    }
                 }
                 container.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             }

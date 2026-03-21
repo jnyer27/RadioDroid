@@ -140,6 +140,10 @@ class ChannelEditActivity : AppCompatActivity() {
             EepromHolder.channelExtraSchema.isNotEmpty()
         binding.sectionDriverSpecific.visibility = if (hasDriverGroups) View.VISIBLE else View.GONE
 
+        // Hide legacy Busy Lock row when the driver already exposes it under Radio-specific (Memory.extra).
+        binding.sectionBusyLock.visibility =
+            if (busyLockControlledByDriverExtras()) View.GONE else View.VISIBLE
+
         // Enforce driver name-length limit (0 = driver didn't declare one → cap at 16)
         val maxNameLen = if (features.validNameLength > 0) features.validNameLength else 16
         binding.editName.filters = arrayOf(InputFilter.LengthFilter(maxNameLen))
@@ -211,8 +215,10 @@ class ChannelEditActivity : AppCompatActivity() {
                 }
             }
 
-            // Busy Lock — populate first, then enforce the duplex rule
-            binding.switchBusyLock.isChecked = c.busyLock
+            // Busy Lock — standalone switch only when not already a driver extra (e.g. busyLock on NICFW H3)
+            if (!busyLockControlledByDriverExtras()) {
+                binding.switchBusyLock.isChecked = c.busyLock
+            }
             updateBusyLockState()
 
         }
@@ -380,6 +386,24 @@ class ChannelEditActivity : AppCompatActivity() {
     // Busy Lock / Duplex rule
     // ─────────────────────────────────────────────────────────────────────────
 
+    /** True if [name] is a CHIRP Memory.extra key for busy / BCL (camelCase or snake_case). */
+    private fun matchesBusyLockExtraKey(name: String): Boolean =
+        name.equals("busyLock", ignoreCase = true) || name.equals("busy_lock", ignoreCase = true)
+
+    /**
+     * When the loaded driver defines Busy Lock inside channel extras, the typed row in
+     * [binding.sectionDriverSpecific] is authoritative — hide the legacy [binding.sectionBusyLock].
+     */
+    private fun busyLockControlledByDriverExtras(): Boolean =
+        EepromHolder.channelExtraSchema.any { matchesBusyLockExtraKey(it.name) } ||
+            EepromHolder.extraParamNames.any { matchesBusyLockExtraKey(it) }
+
+    /** Extra keys that map to busy lock for the current radio (schema + fallback names). */
+    private fun busyLockExtraKeys(): List<String> = buildList {
+        EepromHolder.channelExtraSchema.forEach { if (matchesBusyLockExtraKey(it.name)) add(it.name) }
+        EepromHolder.extraParamNames.forEach { if (matchesBusyLockExtraKey(it)) add(it) }
+    }.distinct()
+
     /**
      * Enforces the radio rule: Busy Lock is incompatible with a repeater/split offset.
      * When a duplex value (+, -, split) is present the switch is unchecked and disabled
@@ -390,6 +414,29 @@ class ChannelEditActivity : AppCompatActivity() {
         // Simplex ("") and TX-off ("off") are the only values where it is allowed.
         val duplex    = duplexValues.getOrNull(binding.spinnerDuplex.selectedItemPosition) ?: ""
         val hasOffset = duplex != "" && duplex != "off"
+
+        if (busyLockControlledByDriverExtras()) {
+            busyLockExtraKeys().forEach { key ->
+                extraSchemaSwitches[key]?.let { sw ->
+                    if (hasOffset) {
+                        sw.isChecked = false
+                        sw.isEnabled = false
+                    } else {
+                        sw.isEnabled = true
+                    }
+                }
+                extraParamEditTexts[key]?.let { edit ->
+                    if (hasOffset) {
+                        edit.setText("False")
+                        edit.isEnabled = false
+                    } else {
+                        edit.isEnabled = true
+                    }
+                }
+            }
+            return
+        }
+
         if (hasOffset) {
             binding.switchBusyLock.isChecked = false
             binding.switchBusyLock.isEnabled = false
@@ -507,7 +554,13 @@ class ChannelEditActivity : AppCompatActivity() {
         // Busy Lock — force off when a repeater/split offset is present (radio rule)
         val hasOffset = duplexStr == "+" || duplexStr == "-" ||
                         duplexStr.equals("split", ignoreCase = true)
-        c.busyLock = if (hasOffset) false else binding.switchBusyLock.isChecked
+        c.busyLock = if (busyLockControlledByDriverExtras()) {
+            val key = busyLockExtraKeys().firstOrNull()
+            val on = key != null && c.extra[key]?.equals("True", ignoreCase = true) == true
+            if (hasOffset) false else on
+        } else {
+            if (hasOffset) false else binding.switchBusyLock.isChecked
+        }
 
         EepromParser.writeChannel(eep, c)
 
