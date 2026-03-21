@@ -37,6 +37,13 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - **BLE compatibility** — Multiple UART service UUIDs, filtered BLE scan, and conservative MTU handling so more cheap Chinese BLE-to-serial dongles work reliably (Baofeng-style, Nordic, Microchip/ISSC, NICFW).
 - **Docs** — README and [user guide](https://jnyer27.github.io/RadioDroid/) updated for this release.
 
+## CHIRP submodule (fork)
+
+The bundled CHIRP tree is a **Git submodule** pointing at **[github.com/jnyer27/chirp](https://github.com/jnyer27/chirp)** (RadioDroid-maintained fork), not kk7ds/chirp directly. That keeps Android-specific driver commits (e.g. nicFW H3 fixes) **cloneable** with the app repo.
+
+- Maintainer workflow: [docs/CHIRP_SUBMODULE.md](docs/CHIRP_SUBMODULE.md)
+- Clone with submodules: `git clone --recurse-submodules https://github.com/jnyer27/RadioDroid.git`
+
 ## Architecture
 
 RadioDroid uses [Chaquopy](https://chaquo.com/chaquopy/) to run CPython 3.13 on Android. Existing CHIRP drivers run unmodified; a thin `serial_shim.py` bridges the CHIRP `serial.Serial` interface to Android's USB Host API (via `usbserial4a`) and BLE (via a `LocalSocket` relay).
