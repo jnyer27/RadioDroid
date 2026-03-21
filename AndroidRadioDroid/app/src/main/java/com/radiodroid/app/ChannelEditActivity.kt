@@ -513,7 +513,7 @@ class ChannelEditActivity : AppCompatActivity() {
 
         // Clone mode: apply this channel edit to the raw EEPROM so upload_mmap and Save EEPROM dump stay in sync
         val radio = EepromHolder.selectedRadio
-        if (eep != null && eep.isNotEmpty() && radio != null) {
+        if (eep.isNotEmpty() && radio != null) {
             lifecycleScope.launch {
                 try {
                     val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
@@ -541,7 +541,11 @@ class ChannelEditActivity : AppCompatActivity() {
         private const val EXTRA_CHANNEL_NUMBER = "channel_number"
 
         fun intent(context: Context, channelNumber: Int, eeprom: ByteArray): Intent {
-            EepromHolder.eeprom = eeprom
+            // Only replace holder when non-empty — MainActivity passes ByteArray(0) as a sentinel
+            // meaning "use existing EepromHolder.eeprom" (clone import / download must not be wiped).
+            if (eeprom.isNotEmpty()) {
+                EepromHolder.eeprom = eeprom
+            }
             return Intent(context, ChannelEditActivity::class.java).putExtra(EXTRA_CHANNEL_NUMBER, channelNumber)
         }
     }

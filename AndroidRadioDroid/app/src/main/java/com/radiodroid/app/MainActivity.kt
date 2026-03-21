@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.hardware.usb.UsbManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -216,6 +217,14 @@ class MainActivity : AppCompatActivity() {
             }
             processChirpCsv(csvText)
         }
+    }
+
+    /** Clone-mode EEPROM image import (⋮ menu) — no radio connection required. */
+    private val eepromImportPicker = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        importEepromFromUri(uri)
     }
 
     /**
@@ -541,6 +550,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Reads an EEPROM image from [uri], parses via [ChirpBridge.importEeprom], and
+     * fills [EepromHolder] like a successful clone download (so Save EEPROM dump works).
+     */
+    private fun importEepromFromUri(uri: Uri) {
+        val radio = selectedRadio ?: run {
+            Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
+            return
+        }
+        binding.progressBar.visibility = View.VISIBLE
+        binding.progressText.visibility = View.VISIBLE
+        binding.progressBar.isIndeterminate = true
+        binding.progressText.text = getString(R.string.importing_eeprom)
+        lifecycleScope.launch {
+            try {
+                val eepromBase64 = withContext(Dispatchers.IO) {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Could not open EEPROM file")
+                    Base64.encodeToString(bytes, Base64.NO_WRAP)
+                }
+                val result = ChirpBridge.importEeprom(radio, eepromBase64)
+                val b64 = result.eepromBase64 ?: eepromBase64
+                val schema = ChirpBridge.getChannelExtraSchema(radio, b64)
+                EepromHolder.selectedRadio = radio
+                EepromHolder.eeprom = Base64.decode(b64, Base64.NO_WRAP)
+                EepromHolder.channels = result.channels.toMutableList()
+                EepromHolder.extraParamNames = result.channels
+                    .firstOrNull { it.extra.isNotEmpty() }
+                    ?.extra?.keys?.toList() ?: emptyList()
+                EepromHolder.channelExtraSchema = schema
+                eeprom = EepromHolder.eeprom
+                try {
+                    EepromHolder.radioFeatures = ChirpBridge.getRadioFeatures(radio)
+                } catch (_: Throwable) {
+                    EepromHolder.radioFeatures = com.radiodroid.app.model.RadioFeatures.DEFAULT
+                }
+                refreshChannelList()
+                updateConnectionUi()
+                invalidateOptionsMenu()
+                Toast.makeText(
+                    this@MainActivity,
+                    "Imported ${result.channels.size} channels from EEPROM file",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "EEPROM import failed: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+                binding.progressText.visibility = View.GONE
+                binding.progressBar.isIndeterminate = false
+            }
+        }
+    }
+
+    /**
      * Saves the in-memory EEPROM dump (clone mode) to a file and opens the share sheet.
      */
     private fun saveEepromDump() {
@@ -593,6 +660,7 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.action_radio_settings)?.isEnabled          =
             EepromHolder.radioFeatures.hasSettings && selectedRadio != null &&
             (activePort != null || hasCloneEeprom)
+        menu.findItem(R.id.action_import_eeprom_dump)?.isEnabled      = selectedRadio != null
         menu.findItem(R.id.action_save_eeprom_dump)?.isEnabled        = hasCloneEeprom
         menu.findItem(R.id.action_export_csv)?.isEnabled             = hasChannels
         return super.onPrepareOptionsMenu(menu)
@@ -632,6 +700,14 @@ class MainActivity : AppCompatActivity() {
                 val p = activePort ?: ""
                 if (r != null && (p.isNotBlank() || (EepromHolder.eeprom != null && EepromHolder.eeprom!!.isNotEmpty())))
                     startActivity(RadioSettingsActivity.intent(this, r, p))
+                true
+            }
+            R.id.action_import_eeprom_dump -> {
+                if (selectedRadio == null) {
+                    Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
+                } else {
+                    eepromImportPicker.launch(arrayOf("*/*"))
+                }
                 true
             }
             R.id.action_save_eeprom_dump -> {

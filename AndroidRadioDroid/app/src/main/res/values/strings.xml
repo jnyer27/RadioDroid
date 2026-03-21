@@ -18,6 +18,7 @@
     <string name="radio_transfer_upload_1">Uploading to radio…</string>
     <string name="radio_transfer_upload_2">Writing memory…</string>
     <string name="radio_transfer_upload_3">Almost done — please wait…</string>
+    <string name="importing_eeprom">Importing EEPROM…</string>
     <string name="save_confirm_title">Save to radio?</string>
     <string name="save_confirm_message">This will overwrite the radio memory. Continue?</string>
     <string name="cancel">Cancel</string>
