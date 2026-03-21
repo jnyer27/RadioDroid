@@ -104,3 +104,7 @@ When **`userguide.md`** / **`docs/UserGuide.md`** include the new **Current rele
 ## Coordination with Android releases
 
 For version bumps, APK, and GitHub Release titles, follow **`.cursor/skills/radiodroid-release/SKILL.md`**. After doc edits for that release, apply **this** skill to refresh **Pages + PDF**.
+
+## Optional: squash `gh-pages` history
+
+If **`gh-pages`** has many deploy commits and you want a **single-commit** branch (smaller history), use **`.cursor/skills/radiodroid-gh-pages-cleanup/SKILL.md`** (Option A — orphan + force push). Not required for day-to-day docs.
