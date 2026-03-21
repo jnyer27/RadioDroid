@@ -358,9 +358,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Keeps only `path` and `value` for each entry under `settings` so backup JSON stays
+     * small (no per-setting `options` arrays from CHIRP list types). Matches the reduction
+     * already applied in [importRadioBackup]; the driver supplies schema on load.
+     */
+    private fun minimizeSettingsForBackup(settingsRoot: org.json.JSONObject): org.json.JSONObject {
+        val arr = settingsRoot.optJSONArray("settings") ?: return settingsRoot
+        val minimal = org.json.JSONArray()
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            minimal.put(org.json.JSONObject().apply {
+                put("path", item.optString("path"))
+                put("value", item.opt("value"))
+            })
+        }
+        return org.json.JSONObject().apply { put("settings", minimal) }
+    }
+
+    /**
      * Exports a RadioDroid backup JSON containing channels, settings, and (for clone-mode
      * radios) the raw EEPROM bytes. The file can be re-imported on any device running
      * RadioDroid with the same radio model selected.
+     *
+     * Settings are written in **minimal** form (`path` + `value` only) so files are not
+     * bloated by CHIRP UI metadata such as long `options` lists.
      */
     private fun exportRadioBackup() {
         val radio = selectedRadio ?: return
@@ -385,10 +406,18 @@ class MainActivity : AppCompatActivity() {
                     val settingsJson = withContext(Dispatchers.IO) {
                         ChirpBridge.getRadioSettingsFromMmap(radio, b64)
                     }
-                    obj.put("settings", org.json.JSONObject(settingsJson))
+                    obj.put(
+                        "settings",
+                        minimizeSettingsForBackup(org.json.JSONObject(settingsJson))
+                    )
                 } else {
                     val pending = EepromHolder.pendingSettingsJson
-                    if (pending != null) obj.put("settings", org.json.JSONObject(pending))
+                    if (pending != null) {
+                        obj.put(
+                            "settings",
+                            minimizeSettingsForBackup(org.json.JSONObject(pending))
+                        )
+                    }
                 }
 
                 val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())

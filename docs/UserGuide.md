@@ -100,6 +100,9 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
   - **Customize main screen** — choose which two values appear below Power on each channel row.
   - **Radio settings…** — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.
   - **Save EEPROM dump…** — save the current in-memory image to a file (for backup or inspection).
+  - **Import Radio Backup…** — load a RadioDroid **JSON** backup (channels, optional EEPROM, settings).
+  - **Export Radio Backup…** — share/save that JSON backup (see [Radio backup (JSON)](#radio-backup-json)).
+  - **Export Raw EEPROM…** — binary image for clone radios (tools / low-level backup).
   - **Export CHIRP CSV (selected slots)…** — export selected channels as a CHIRP CSV to share or use in desktop CHIRP.
 
 ### Schematic: main list
@@ -237,6 +240,15 @@ Radio settings are available only when:
 
 ---
 
+## Radio backup (JSON)
+
+**⋮** → **Export Radio Backup…** saves a JSON file with vendor/model, all **channels**, optional **`eeprom_base64`** (clone radios), and **radio settings** as stored in the app.
+
+- **Settings entries** are written as **`path` + `value` only** (small files). The app does **not** embed long CHIRP UI lists (e.g. every power-level label) in the backup — when you import, RadioDroid rebuilds field types and options from the selected driver, same as after **Import Radio Backup…**.
+- **Import:** ⋮ → **Import Radio Backup…** — select the same **radio model**, then pick the `.json` file. Clone backups with EEPROM restore full fidelity; others load channels and queue settings for the next **Save to radio**.
+
+---
+
 ## Customize main screen
 
 **⋮** → **Customize main screen**
@@ -252,7 +264,8 @@ RadioDroid ships with the same set of drivers as CHIRP. **Any radio that works w
 Examples of supported families (this is not a full list):
 
 - **Baofeng** — UV-5R, BF-F8HP, UV-82, UV-K5, and others  
-- **TID Radio** — TD-H3 (including nicFW), and other TID models  
+- **TID Radio** — Pick the entry that matches your firmware: **TD-H3** is the stock CHIRP layout; **TD-H3 nicFW 2.5** is the separate driver for **nicFW V2.5** codeplugs (different EEPROM layout). Using the wrong one will misread channels or show blanks. Other TID models (e.g. TD-H6, TD-H8, TD-M11) have their own entries.  
+- **Duplicate driver (sideloaded `.py`)** — If you used **Load .py Driver** for a module that is **also bundled** (e.g. `tidradio_h3_nicfw25.py`), the app may try to load it again on startup and hit a **duplicate driver** warning—the built-in copy is the one you should use. Delete the extra copy from `files/custom_drivers/` (e.g. with adb) or clear app data to drop sideloaded drivers; the FAB is only needed for drivers **not** in the build.  
 - **Retevis** — RA25, RT85, and others  
 - **Yaesu** — FT-60, FT-65, and others  
 - **Kenwood** — TH-D74, and others  
@@ -267,7 +280,7 @@ Select **Select Radio Model…** from the menu to see the full list for your bui
 - **First time:** Connect the radio, select the exact model, then **Load from radio**. After the list is loaded, you can disconnect and still edit; reconnect when you want to **Save to radio** or open **Radio settings**.
 - **Clone radios:** For radios that use a full EEPROM clone, **Radio settings** and channel edits apply to the in-memory image. Use **Save to radio** to write everything back in one go.
 - **Search:** Use **Search Channels** to quickly find channels by name, group, or frequency.
-- **Backup:** Use **Save EEPROM dump…** to keep a copy of the current image before making big changes.
+- **Backup:** Use **Export Radio Backup…** for a portable JSON snapshot (channels + settings + EEPROM when available), or **Save EEPROM dump…** / **Export Raw EEPROM…** for a raw clone image before big changes.
 
 ---
 
