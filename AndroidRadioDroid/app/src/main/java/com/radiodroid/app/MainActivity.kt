@@ -218,6 +218,84 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ─── EEPROM import ────────────────────────────────────────────────────────
+    /**
+     * Launches the system file picker for a raw EEPROM dump file, reads the bytes on the
+     * IO dispatcher, then delegates to [importEepromFromFile] to parse and load channels.
+     */
+    private val eepromPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        lifecycleScope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            }
+            if (bytes == null || bytes.isEmpty()) {
+                Toast.makeText(this@MainActivity, "Could not read file", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            importEepromFromFile(bytes)
+        }
+    }
+
+    /**
+     * Parses channels from raw EEPROM [bytes] using the selected radio's CHIRP driver —
+     * exactly like a live radio download but without a USB/BLE connection. Populates
+     * [EepromHolder] and refreshes the channel list on success.
+     */
+    private fun importEepromFromFile(bytes: ByteArray) {
+        val radio = selectedRadio ?: run {
+            Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
+            return
+        }
+        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        binding.progressBar.visibility = View.VISIBLE
+        binding.progressBar.isIndeterminate = true
+        binding.progressText.visibility = View.VISIBLE
+        startTransferStatusHints(downloadStatusMessages)
+        binding.btnLoad.isEnabled = false
+        binding.btnSave.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                EepromHolder.selectedRadio = radio
+                val result = ChirpBridge.loadFromEeprom(radio, b64)
+                val eepromBytes = if (result.eepromBase64 != null) {
+                    Base64.decode(result.eepromBase64, Base64.NO_WRAP)
+                } else {
+                    ByteArray(0)
+                }
+                eeprom = eepromBytes
+                EepromHolder.eeprom = eepromBytes
+                EepromHolder.channels = result.channels.toMutableList()
+                EepromHolder.extraParamNames = result.channels
+                    .firstOrNull { it.extra.isNotEmpty() }
+                    ?.extra?.keys?.toList() ?: emptyList()
+                EepromHolder.channelExtraSchema = ChirpBridge.getChannelExtraSchema(radio, result.eepromBase64)
+                refreshChannelList()
+                runOnUiThread {
+                    hideRadioTransferProgress()
+                    updateConnectionUi()
+                    invalidateOptionsMenu()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Imported ${result.channels.size} channels from EEPROM file.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    hideRadioTransferProgress()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Import failed: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
     /**
      * Validates [csvText] with [ChirpCsvImporter] and, if valid, launches
      * [ChirpImportActivity] with the full preview and group-assignment UI.
@@ -593,6 +671,7 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.action_radio_settings)?.isEnabled          =
             EepromHolder.radioFeatures.hasSettings && selectedRadio != null &&
             (activePort != null || hasCloneEeprom)
+        menu.findItem(R.id.action_import_eeprom)?.isEnabled          = selectedRadio != null
         menu.findItem(R.id.action_save_eeprom_dump)?.isEnabled        = hasCloneEeprom
         menu.findItem(R.id.action_export_csv)?.isEnabled             = hasChannels
         return super.onPrepareOptionsMenu(menu)
@@ -632,6 +711,10 @@ class MainActivity : AppCompatActivity() {
                 val p = activePort ?: ""
                 if (r != null && (p.isNotBlank() || (EepromHolder.eeprom != null && EepromHolder.eeprom!!.isNotEmpty())))
                     startActivity(RadioSettingsActivity.intent(this, r, p))
+                true
+            }
+            R.id.action_import_eeprom -> {
+                eepromPickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
                 true
             }
             R.id.action_save_eeprom_dump -> {
