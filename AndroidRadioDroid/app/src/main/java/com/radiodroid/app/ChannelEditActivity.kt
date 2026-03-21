@@ -541,7 +541,12 @@ class ChannelEditActivity : AppCompatActivity() {
         private const val EXTRA_CHANNEL_NUMBER = "channel_number"
 
         fun intent(context: Context, channelNumber: Int, eeprom: ByteArray): Intent {
-            EepromHolder.eeprom = eeprom
+            // Only update EepromHolder.eeprom when actual bytes are provided.
+            // Passing ByteArray(0) (the call-site convention when EEPROM is already
+            // in EepromHolder) must NOT overwrite the live clone EEPROM, otherwise
+            // Export Raw EEPROM greyed out after every channel open and subsequent
+            // backups would omit eeprom_base64, breaking channel-extra spinners.
+            if (eeprom.isNotEmpty()) EepromHolder.eeprom = eeprom
             return Intent(context, ChannelEditActivity::class.java).putExtra(EXTRA_CHANNEL_NUMBER, channelNumber)
         }
     }

@@ -101,6 +101,15 @@ object EepromHolder {
     var radioSettings: RadioSettings = RadioSettings()
 
     /**
+     * Pending radio settings for non-clone radios.
+     * Set by RadioSettingsActivity when the user saves settings; cleared by
+     * MainActivity after a successful Save to Radio.
+     * Null means no pending settings change.
+     * Clone-mode radios do not use this — their settings are baked into [eeprom].
+     */
+    var pendingSettingsJson: String? = null
+
+    /**
      * CHIRP driver capabilities for the currently selected radio.
      * Populated by MainActivity when the user selects a radio model, so
      * ChannelEditActivity can show only the fields the driver supports.

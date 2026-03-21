@@ -788,6 +788,37 @@ def set_radio_settings(vendor: str, model: str, port: str, baudrate: int, settin
         radio.pipe.close()
 
 
+def set_settings_live(vendor: str, model: str, port: str, baudrate: int, settings_json: str) -> None:
+    """
+    Apply settings to a live non-clone radio.
+
+    Connects to the radio, calls get_settings() to obtain the settings tree,
+    applies the JSON values, then calls set_settings().  Does NOT call
+    sync_in() or sync_out() — those are only for clone-mode full EEPROM
+    transfers initiated by the user's explicit Save to Radio action.
+    """
+    import json as _json
+    _ensure_drivers()
+    from serial_shim import AndroidSerial
+
+    payload = _json.loads(str(settings_json))
+    settings_list = payload.get("settings") or payload.get("settings_list") or []
+
+    radio_cls = _find_radio_cls(vendor, model)
+    radio = radio_cls(None)
+    radio.pipe = AndroidSerial(port, baudrate=baudrate, timeout=5.0)
+    try:
+        tree = radio.get_settings()
+        if tree is not None:
+            _apply_settings_from_json(tree, settings_list)
+            radio.set_settings(tree)
+    except Exception:
+        LOG.exception("set_settings_live failed for %s %s", vendor, model)
+        raise
+    finally:
+        radio.pipe.close()
+
+
 def get_radio_settings_from_mmap(vendor: str, model: str, eeprom_base64: str) -> str:
     """
     Get settings from an in-memory EEPROM dump (clone-mode radios only).

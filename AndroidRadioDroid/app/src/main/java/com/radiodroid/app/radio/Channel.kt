@@ -116,7 +116,7 @@ data class Channel(
             }
         }
 
-        /** Build Channel from JSON (e.g. download result from chirp_bridge). */
+        /** Build Channel from JSON (e.g. download result from chirp_bridge or backup file). */
         fun fromJson(slotNumber: Int, obj: org.json.JSONObject): Channel {
             val isEmpty = obj.optString("empty") == "true" || obj.optBoolean("empty", false)
             val rawMode = obj.optString("mode", "FM")
@@ -142,7 +142,41 @@ data class Channel(
                 rxToneVal       = if (obj.has("rx_tone_val")) obj.optDouble("rx_tone_val", 0.0) else null,
                 rxTonePolarity  = obj.optString("rx_tone_polarity", "").ifEmpty { null },
                 extra           = extra,
+                group1          = obj.optString("group1", "None"),
+                group2          = obj.optString("group2", "None"),
+                group3          = obj.optString("group3", "None"),
+                group4          = obj.optString("group4", "None"),
+                flagsRaw        = obj.optInt("flags_raw", 0),
             )
+        }
+
+        /** Serialize Channel to JSON for a RadioDroid backup file (all fields). */
+        fun toBackupJson(ch: Channel): org.json.JSONObject = org.json.JSONObject().apply {
+            put("number",           ch.number)
+            put("empty",            ch.empty)
+            put("freq",             ch.freqRxHz)
+            put("tx_freq",          ch.freqTxHz)
+            put("duplex",           ch.duplex)
+            put("offset",           ch.offsetHz)
+            put("power",            ch.power)
+            put("name",             ch.name)
+            put("mode",             ch.driverMode ?: ch.mode)
+            put("tx_tone_mode",     ch.txToneMode     ?: "")
+            put("tx_tone_val",      ch.txToneVal      ?: 0.0)
+            put("tx_tone_polarity", ch.txTonePolarity ?: "N")
+            put("rx_tone_mode",     ch.rxToneMode     ?: "")
+            put("rx_tone_val",      ch.rxToneVal      ?: 0.0)
+            put("rx_tone_polarity", ch.rxTonePolarity ?: "N")
+            put("group1",           ch.group1)
+            put("group2",           ch.group2)
+            put("group3",           ch.group3)
+            put("group4",           ch.group4)
+            put("flags_raw",        ch.flagsRaw)
+            if (ch.extra.isNotEmpty()) {
+                put("extra", org.json.JSONObject().apply {
+                    ch.extra.forEach { (k, v) -> put(k, v) }
+                })
+            }
         }
 
         private fun parseExtraFromJson(extraObj: org.json.JSONObject?): Map<String, String> {

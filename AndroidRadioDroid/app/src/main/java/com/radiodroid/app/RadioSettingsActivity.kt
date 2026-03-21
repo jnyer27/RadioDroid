@@ -83,7 +83,9 @@ class RadioSettingsActivity : AppCompatActivity() {
             finish()
             return
         }
-        // Port required only for non-clone or when no in-memory EEPROM
+        // Need either an in-memory EEPROM (clone mode) or a live connection (non-clone).
+        // pendingSettingsJson holds saved values but not the schema, so a driver source
+        // is always required.
         if (port.isNullOrBlank()) {
             val eep = EepromHolder.eeprom
             if (eep == null || eep.isEmpty()) {
@@ -118,20 +120,20 @@ class RadioSettingsActivity : AppCompatActivity() {
                 val r = radio!!
                 val eep = EepromHolder.eeprom
                 useMmap = eep != null && eep.isNotEmpty() && ChirpBridge.isCloneModeRadio(r)
-                Log.w(TAG, "loadSettings: useMmap=$useMmap eepromSize=${eep?.size ?: 0}")
-                val json = withContext(Dispatchers.IO) {
-                    if (useMmap && eep != null && eep.isNotEmpty()) {
-                        val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
-                        ChirpBridge.getRadioSettingsFromMmap(r, b64)
-                    } else {
-                        val p = port
-                        if (!p.isNullOrBlank())
-                            ChirpBridge.getRadioSettings(r, p)
-                        else
-                            throw IllegalStateException("No in-memory EEPROM and no connection")
+                // Schema always comes from the driver — never from pendingSettingsJson.
+                val schemaJson = withContext(Dispatchers.IO) {
+                    when {
+                        useMmap && eep != null && eep.isNotEmpty() -> {
+                            val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                            ChirpBridge.getRadioSettingsFromMmap(r, b64)
+                        }
+                        !port.isNullOrBlank() -> ChirpBridge.getRadioSettings(r, port!!)
+                        else -> throw IllegalStateException("No in-memory EEPROM and no connection")
                     }
                 }
-                val root = JSONObject(json)
+                // Overlay any pending user edits (path+value only) on top of the driver schema.
+                val mergedJson = mergePendingValues(schemaJson, EepromHolder.pendingSettingsJson)
+                val root = JSONObject(mergedJson)
                 val arr = root.optJSONArray("settings") ?: JSONArray()
                 settingsList = (0 until arr.length()).map { arr.getJSONObject(it) }
                 runOnUiThread {
@@ -343,8 +345,7 @@ class RadioSettingsActivity : AppCompatActivity() {
 
     private fun saveAndFinish() {
         val r = radio ?: return
-        // Port required only for non-clone (live) save; clone mode uses in-memory EEPROM
-        if (!useMmap && port.isNullOrBlank()) return
+        // Store only path+value — schema is always fetched fresh from the driver on next load.
         val arr = JSONArray()
         for (i in settingsList.indices) {
             val obj = settingsList[i]
@@ -416,10 +417,8 @@ class RadioSettingsActivity : AppCompatActivity() {
                         finish()
                     }
                 } else {
-                    val p = port!!  // guarded by saveAndFinish(): port non-blank when !useMmap
-                    withContext(Dispatchers.IO) {
-                        ChirpBridge.setRadioSettings(r, p, json)
-                    }
+                    // Non-clone: hold settings in memory; written to radio only on Save to Radio
+                    EepromHolder.pendingSettingsJson = json
                     runOnUiThread {
                         Toast.makeText(this@RadioSettingsActivity, R.string.radio_settings_saved, Toast.LENGTH_SHORT).show()
                         setResult(RESULT_OK)
@@ -432,6 +431,33 @@ class RadioSettingsActivity : AppCompatActivity() {
                     Toast.makeText(this@RadioSettingsActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    /**
+     * Overlays path+value pairs from [pendingJson] onto the driver schema in [schemaJson].
+     * The driver schema is authoritative for types, options, and valid values; only the
+     * "value" field of matching paths is replaced with the pending user choice.
+     */
+    private fun mergePendingValues(schemaJson: String, pendingJson: String?): String {
+        if (pendingJson == null) return schemaJson
+        return try {
+            val schemaRoot = JSONObject(schemaJson)
+            val schemaArr = schemaRoot.optJSONArray("settings") ?: return schemaJson
+            val pendingArr = JSONObject(pendingJson).optJSONArray("settings") ?: return schemaJson
+            val overrides = mutableMapOf<String, Any?>()
+            for (i in 0 until pendingArr.length()) {
+                val item = pendingArr.getJSONObject(i)
+                overrides[item.optString("path")] = item.opt("value")
+            }
+            for (i in 0 until schemaArr.length()) {
+                val item = schemaArr.getJSONObject(i)
+                val path = item.optString("path")
+                if (path in overrides) item.put("value", overrides[path])
+            }
+            schemaRoot.toString()
+        } catch (_: Exception) {
+            schemaJson // fall back to unmodified schema on any parse error
         }
     }
 
