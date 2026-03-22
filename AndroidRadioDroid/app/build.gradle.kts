@@ -31,8 +31,8 @@ android {
         applicationId = "com.radiodroid.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 11
-        versionName = "3.3.0"
+        versionCode = 13
+        versionName = "3.3.1"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -42,11 +42,15 @@ android {
     buildTypes {
         release {
             if (hasReleaseSigning) signingConfig = releaseSigning
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
     compileOptions {
