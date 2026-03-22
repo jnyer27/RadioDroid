@@ -154,7 +154,7 @@
 
 <h1 id="radiodroid-user-guide">RadioDroid User Guide<a class="headerlink" href="#radiodroid-user-guide" title="Permanent link">¶</a></h1>
 <p>RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
-<p><strong>Current release: v3.2.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
+<p><strong>Current release: v3.3.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
 <hr/>
 <h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">¶</a></h2>
 <ol>
@@ -360,6 +360,7 @@
 - The app has a connection to the radio <strong>or</strong> a clone image already loaded (for clone radios, settings are applied to the in-memory image).</p>
 <hr/>
 <h2 id="chirp-csv-import-and-export">CHIRP CSV import and export<a class="headerlink" href="#chirp-csv-import-and-export" title="Permanent link">¶</a></h2>
+<p><strong>v3.3+:</strong> Export uses the same column set as CHIRP’s <strong><code>Memory.CSV_FORMAT</code></strong> (including <strong>RxDtcsCode</strong> and <strong>CrossMode</strong>). <strong>Mode</strong> values follow desktop CHIRP <strong><code>MODES</code></strong> (e.g. <strong>NFM</strong> / <strong>NAM</strong> for narrow FM/AM on supported drivers such as <strong>TD-H3 nicFW 2.5</strong>).</p>
 <ul>
 <li><strong>Import</strong></li>
 <li><strong>From file:</strong> ⋮ → <strong>Import CHIRP CSV from File…</strong> → choose a <code>.csv</code> exported from desktop CHIRP. Channels are merged into the current list by slot.</li>
