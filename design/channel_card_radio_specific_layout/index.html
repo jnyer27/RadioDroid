@@ -22,7 +22,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#channel-card-radio-specific-block-main-list">
+<a class="md-skip" href="#channel-card-main-list-compact">
           Skip to content
         </a>
 </div>
@@ -164,21 +164,26 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 
-<h1 id="channel-card-radio-specific-block-main-list">Channel card: radio-specific block (main list)<a class="headerlink" href="#channel-card-radio-specific-block-main-list" title="Permanent link">¶</a></h1>
+<h1 id="channel-card-main-list-compact">Channel card: main list (compact)<a class="headerlink" href="#channel-card-main-list-compact" title="Permanent link">¶</a></h1>
 <p>Design reference for the main channel list row (<code>item_channel.xml</code> / <code>ChannelAdapter</code>).<br/>
-<strong>Illustrative only</strong> — real keys and values come from <code>channel.extra</code> at runtime.</p>
+Real keys and values come from <code>channel.extra</code> at runtime.</p>
 <h2 id="layout-goal">Layout goal<a class="headerlink" href="#layout-goal" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>Row 1 (universal):</strong> Channel number, frequency, name, tones, duplex, power, optional slots, drag handle — unchanged.</li>
-<li><strong>Row 2 (radio-specific):</strong> Caption + a <strong>vertical list</strong> of <code>key: value</code> lines (one <code>TextView</code> per extra). This avoids width-dependent multi-column math during <code>RecyclerView</code> bind, which often saw <code>width == 0</code> until a later layout pass and produced missing or wrong columns until configuration change (e.g. rotation).</li>
+<li><strong>Row 1:</strong> Channel number, <strong>name</strong> (prominent), <strong>inline badges</strong> (power, mode, duplex, then user main-display slots that are not redundant), drag handle.</li>
+<li><strong>Row 2:</strong> Frequency (primary readout).</li>
+<li><strong>Row 3 (optional):</strong> Single-line tone summary (<code>T: … · R: …</code>).</li>
+<li><strong>Row 4 (optional):</strong> One dense <strong>radio-specific</strong> summary <code>TextView</code> (max 2 lines, ellipsize end) — no per-key vertical stack.</li>
 </ul>
-<h2 id="display-rules">Display rules<a class="headerlink" href="#display-rules" title="Permanent link">¶</a></h2>
+<h2 id="radio-specific-summary-rules">Radio-specific summary rules<a class="headerlink" href="#radio-specific-summary-rules" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>Ordering:</strong> Keys appear in <code>channelExtraSchema</code> order first, then any remaining keys alphabetically (same as before).</li>
-<li><strong>Styling:</strong> Secondary text color, 11sp, up to 2 lines with end ellipsize per line.</li>
+<li><strong>Groups:</strong> <code>Group 1</code>–<code>Group 4</code> / <code>group1</code>–<code>group4</code> values are merged into one segment, e.g. <code>Groups: A, G</code>. Empty or <code>None</code> group slots are omitted.</li>
+<li><strong>Ordering:</strong> <code>Groups: …</code> first when present; remaining extras follow <code>channelExtraSchema</code> order, then any other keys alphabetically.</li>
+<li><strong>Booleans:</strong> <code>True</code>/<code>False</code> (and busy-lock–style keys) display as <code>On</code>/<code>Off</code> (e.g. <code>BusyLock: Off</code>).</li>
+<li><strong>Noise:</strong> Blank values and <code>None</code> are omitted from the summary line.</li>
+<li><strong>Separator:</strong> Middle dot <code>·</code> between segments (with spacing).</li>
 </ul>
-<h2 id="earlier-multi-column-design">Earlier multi-column design<a class="headerlink" href="#earlier-multi-column-design" title="Permanent link">¶</a></h2>
-<p>Older builds used 1–N horizontal columns based on <code>floor(usableWidth / minCellWidth)</code>. That is <strong>removed</strong> from the main list for reliability; the <strong>channel editor</strong> still uses full schema-driven controls.</p>
+<h2 id="earlier-designs">Earlier designs<a class="headerlink" href="#earlier-designs" title="Permanent link">¶</a></h2>
+<p>Vertical one-line-per-extra and multi-column layouts were replaced by this compact summary to improve information density while avoiding fragile width-dependent column math during <code>RecyclerView</code> bind.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>

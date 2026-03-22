@@ -166,10 +166,10 @@
 
 <h1 id="radiodroid-user-guide">RadioDroid User Guide<a class="headerlink" href="#radiodroid-user-guide" title="Permanent link">¶</a></h1>
 <p align="center">
-<img alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" src="assets/radiodroid-logo.png" width="320"/>
+<img alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" src="docs/assets/radiodroid-logo.png" width="320"/>
 </p>
 <p>RadioDroid <strong>Chirp Programmer</strong> is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
-<p><strong>Current release: v3.4.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
+<p><strong>Current release: v3.5.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
 <hr/>
 <h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">¶</a></h2>
 <ol>
@@ -246,14 +246,16 @@
 <li><strong>Load from radio</strong> — download channel memory from the radio (clone/sync in).</li>
 <li><strong>Save to radio</strong> — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.</li>
 <li><strong>Channel list</strong> — scrollable list of channels (e.g. 1–198). Each row shows:</li>
-<li>Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in <strong>Customize main screen</strong>.</li>
-<li>For radios that support them: <strong>Radio-specific</strong> lines (<strong>Memory.extra</strong> — e.g. bandwidth, group keys, busy lock) under the main row, one <code>key: value</code> per line.</li>
+<li><strong>Channel number</strong> and <strong>name</strong> on the first line, with <strong>badges</strong> for transmit <strong>power</strong>, <strong>mode</strong>, <strong>duplex</strong>, and (when they do not duplicate those) the two fields you pick in <strong>Customize main screen</strong>.</li>
+<li><strong>RX frequency</strong> on the next line (main readout).</li>
+<li>Optional <strong>tone</strong> summary (<code>T: … · R: …</code>) when tones are set.</li>
+<li>For radios that support them: a <strong>single compact radio-specific</strong> line (<strong>Memory.extra</strong> — e.g. merged <strong>Groups:</strong>, bandwidth, busy lock). Empty or <strong>None</strong> values are omitted so the list stays scannable.</li>
 <li><strong>⋮ Menu</strong></li>
 <li><strong>Search Channels</strong> — show a search bar to filter by name, group, or frequency.</li>
 <li><strong>Import CHIRP CSV from File…</strong> — load a <code>.csv</code> exported from desktop CHIRP.</li>
 <li><strong>Import CHIRP CSV from Clipboard…</strong> — paste and import CSV text.</li>
 <li><strong>Select Radio Model…</strong> — pick vendor and model for the connected radio.</li>
-<li><strong>Customize main screen</strong> — choose which two values appear below Power on each channel row.</li>
+<li><strong>Customize main screen</strong> — choose two extra values shown as <strong>badges</strong> on each channel row (when not redundant with power/mode/duplex/tones).</li>
 <li><strong>Radio settings…</strong> — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.</li>
 <li><strong>Save EEPROM dump…</strong> — save the current in-memory image to a file (for backup or inspection).</li>
 <li><strong>Import Radio Backup…</strong> — load a RadioDroid <strong>JSON</strong> backup (channels, optional EEPROM, settings).</li>
@@ -270,16 +272,18 @@
 <a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>│ [Disconnect]  [Load from radio]         │
 <a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>│               [Save to radio]           │
 <a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>├────┬────────────────────────────────────┤
-<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>│  1 │ 462.5625 MHz · FM · High           │
-<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a>│    │ GMRS 1 · Simplex                   │
-<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>├────┼────────────────────────────────────┤
-<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>│  2 │ 462.5875 MHz · NFM · Low           │
-<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>│    │ GMRS 2 · + 5 MHz                   │
-<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>│    │ Bandwidth: Wide                     │
-<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>│    │ b_lock: OFF                         │
-<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>└────┴────────────────────────────────────┘
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a>│  1 │ GMRS 1           [130] [FM]       │
+<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a>│    │ 462.5625                          │
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>│    │ T: 100.0 Hz · R: 67.0 Hz          │
+<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>│    │ Groups: A, G · BW: Wide          │
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>│    │ BusyLock: Off                    │
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>├────┼────────────────────────────────────┤
+<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>│  2 │ GMRS 2    [Low] [NFM] [+5000kHz]  │
+<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>│    │ 462.5875                          │
+<a href="#__codelineno-1-17" id="__codelineno-1-17" name="__codelineno-1-17"></a>│    │ Groups: B · BW: Narrow · BusyLock: On │
+<a href="#__codelineno-1-18" id="__codelineno-1-18" name="__codelineno-1-18"></a>└────┴────────────────────────────────────┘
 </code></pre></div>
-<p><em>Schematic. App bar, connection actions, and sample channel rows (radio-specific extras stacked vertically when the driver exposes them).</em></p>
+<p><em>Schematic. App bar, connection actions, and sample channel rows: badges for power/mode/duplex (and Customize slots when set), frequency on its own line, optional tone summary, and one dense </em><em>Memory.extra</em><em> line (groups merged; empty/</em><em>None</em><em> omitted).</em></p>
 <h3 id="multi-select-and-bulk-actions">Multi-select and bulk actions<a class="headerlink" href="#multi-select-and-bulk-actions" title="Permanent link">¶</a></h3>
 <ul>
 <li><strong>Enter selection mode</strong> — <strong>Long-press</strong> a channel. A <strong>selection bar</strong> appears at the bottom with the count of selected channels.</li>
@@ -404,7 +408,7 @@
 <hr/>
 <h2 id="customize-main-screen">Customize main screen<a class="headerlink" href="#customize-main-screen" title="Permanent link">¶</a></h2>
 <p><strong>⋮</strong> → <strong>Customize main screen</strong></p>
-<p>Choose <strong>Slot 1</strong> and <strong>Slot 2</strong> — the two values that appear below the power level on each channel row on the main list (e.g. Duplex, Mode, or other driver-defined fields). This only changes the display; it does not alter channel data.</p>
+<p>Choose <strong>Slot 1</strong> and <strong>Slot 2</strong> — two values shown as <strong>badges</strong> on each channel row (e.g. bandwidth, duplex, or other driver-defined <strong>Memory.extra</strong> fields). The list already shows <strong>power</strong>, <strong>mode</strong>, and <strong>duplex</strong> as badges; slots are skipped when they would duplicate those or the tone line. This only changes the display; it does not alter channel data.</p>
 <hr/>
 <h2 id="supported-radios">Supported radios<a class="headerlink" href="#supported-radios" title="Permanent link">¶</a></h2>
 <p>RadioDroid ships with the same set of drivers as CHIRP. <strong>Any radio that works with CHIRP on a PC should work with RadioDroid</strong> over USB OTG or (with a BLE adapter) over Bluetooth LE.</p>
