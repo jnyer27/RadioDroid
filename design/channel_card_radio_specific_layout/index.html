@@ -22,7 +22,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#channel-card-radio-specific-responsive-multi-column-block">
+<a class="md-skip" href="#channel-card-radio-specific-block-main-list">
           Skip to content
         </a>
 </div>
@@ -152,69 +152,21 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 
-<h1 id="channel-card-radio-specific-responsive-multi-column-block">Channel card: radio-specific responsive multi-column block<a class="headerlink" href="#channel-card-radio-specific-responsive-multi-column-block" title="Permanent link">¶</a></h1>
+<h1 id="channel-card-radio-specific-block-main-list">Channel card: radio-specific block (main list)<a class="headerlink" href="#channel-card-radio-specific-block-main-list" title="Permanent link">¶</a></h1>
 <p>Design reference for the main channel list row (<code>item_channel.xml</code> / <code>ChannelAdapter</code>).<br/>
-<strong>Illustrative only</strong> — real keys and values come from <code>channel.extra</code> and the groups summary at runtime.</p>
+<strong>Illustrative only</strong> — real keys and values come from <code>channel.extra</code> at runtime.</p>
 <h2 id="layout-goal">Layout goal<a class="headerlink" href="#layout-goal" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>Row 1 (universal):</strong> Channel number, frequency, name, tones, duplex, power, optional slots, drag handle — unchanged priority.</li>
-<li><strong>Row 2 (radio-specific):</strong> Caption + a <strong>multi-column</strong> region that reflows with available width instead of a single horizontal line of text.</li>
+<li><strong>Row 1 (universal):</strong> Channel number, frequency, name, tones, duplex, power, optional slots, drag handle — unchanged.</li>
+<li><strong>Row 2 (radio-specific):</strong> Caption + a <strong>vertical list</strong> of <code>key: value</code> lines (one <code>TextView</code> per extra). This avoids width-dependent multi-column math during <code>RecyclerView</code> bind, which often saw <code>width == 0</code> until a later layout pass and produced missing or wrong columns until configuration change (e.g. rotation).</li>
 </ul>
-<h2 id="ascii-wireframes">ASCII wireframes<a class="headerlink" href="#ascii-wireframes" title="Permanent link">¶</a></h2>
-<p>Conceptual logical widths; fold devices vary by OEM.</p>
-<h3 id="a-narrow-fold-closed-360380dp">A — Narrow / fold closed (~360–380dp)<a class="headerlink" href="#a-narrow-fold-closed-360380dp" title="Permanent link">¶</a></h3>
-<p>One column (stacked lines):</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>+------------------------------------------------------------------+
-<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>| #12  462.5625 MHz        T67.0 / R67.0   DUP PWR S1 S2      [::]|
-<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>|      My Channel Name                                            |
-<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>|              [ Radio-specific ]                                 |
-<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a>|              Groups: (summary)                                  |
-<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a>|              extra_key_1: value                                 |
-<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a>|              extra_key_2: value                                 |
-<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a>|              extra_key_3: value                                 |
-<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a>+------------------------------------------------------------------+
-</code></pre></div>
-<h3 id="b-standard-phone-portrait-390430dp">B — Standard phone portrait (~390–430dp)<a class="headerlink" href="#b-standard-phone-portrait-390430dp" title="Permanent link">¶</a></h3>
-<p>Two columns (illustrative reflow):</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>+------------------------------------------------------------------------+
-<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a>| #12  462.5625 MHz           T67.0 / R67.0    DUP PWR S1 S2        [::]|
-<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a>|      My Channel Name                                                   |
-<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a>|         [ Radio-specific ]    Groups: …     |    extra_key_4: …        |
-<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a>|                               extra_key_1   |    extra_key_5: …        |
-<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a>|                               extra_key_2   |                          |
-<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a>|                               extra_key_3   |                          |
-<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a>+------------------------------------------------------------------------+
-</code></pre></div>
-<h3 id="c-large-phone-small-tablet-wide-front-480600dp">C — Large phone / small tablet / wide front (~480–600dp)<a class="headerlink" href="#c-large-phone-small-tablet-wide-front-480600dp" title="Permanent link">¶</a></h3>
-<p>Three columns (illustrative):</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>+----------------------------------------------------------------------------------+
-<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>| #12  462.5625 MHz              T67.0 / R67.0       DUP PWR S1 S2            [::]|
-<a href="#__codelineno-2-3" id="__codelineno-2-3" name="__codelineno-2-3"></a>|      My Channel Name                                                             |
-<a href="#__codelineno-2-4" id="__codelineno-2-4" name="__codelineno-2-4"></a>|    [ Radio-specific ]   Groups: …  |  extra_2: …  |  extra_4: …                  |
-<a href="#__codelineno-2-5" id="__codelineno-2-5" name="__codelineno-2-5"></a>|                         extra_1    |  extra_3: …  |  extra_5: …                  |
-<a href="#__codelineno-2-6" id="__codelineno-2-6" name="__codelineno-2-6"></a>+----------------------------------------------------------------------------------+
-</code></pre></div>
-<h3 id="d-tablet-fold-inner-open-700900dp">D — Tablet / fold inner open (~700–900+dp)<a class="headerlink" href="#d-tablet-fold-inner-open-700900dp" title="Permanent link">¶</a></h3>
-<p>More columns or one compact row:</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a>+----------------------------------------------------------------------------------------------------------+
-<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>| #12  462.5625 MHz                         T67.0 / R67.0              DUP PWR S1 S2                  [::]|
-<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>|      My Channel Name                                                                                     |
-<a href="#__codelineno-3-4" id="__codelineno-3-4" name="__codelineno-3-4"></a>| [ Radio-specific ]  Groups …  |  k1:v1  |  k2:v2  |  k3:v3  |  k4:v4  |  k5:v5                         |
-<a href="#__codelineno-3-5" id="__codelineno-3-5" name="__codelineno-3-5"></a>+----------------------------------------------------------------------------------------------------------+
-</code></pre></div>
-<p>If cells do not fit at the configured minimum width, additional <strong>wrap lines</strong> stay inside the radio-specific region only.</p>
-<h2 id="width-rules-implementation">Width rules (implementation)<a class="headerlink" href="#width-rules-implementation" title="Permanent link">¶</a></h2>
+<h2 id="display-rules">Display rules<a class="headerlink" href="#display-rules" title="Permanent link">¶</a></h2>
 <ul>
-<li>Measure <strong>usable width</strong> for the column container (caption uses fixed space; remainder gets <code>layout_weight</code>).</li>
-<li><code>columnCount = clamp(1, maxColumns, floor(usableWidth / minCellWidthDp))</code> (convert <code>dp</code> to px with display density).</li>
-<li>Recompute on <strong>configuration change</strong> (rotation, fold, window resize).</li>
-<li><strong>Ordering:</strong> Lines come from <code>Channel.extra</code> only: keys appear in <code>channelExtraSchema</code> order first, then any remaining keys alphabetically.</li>
+<li><strong>Ordering:</strong> Keys appear in <code>channelExtraSchema</code> order first, then any remaining keys alphabetically (same as before).</li>
+<li><strong>Styling:</strong> Secondary text color, 11sp, up to 2 lines with end ellipsize per line.</li>
 </ul>
-<h2 id="risks">Risks<a class="headerlink" href="#risks" title="Permanent link">¶</a></h2>
-<ul>
-<li>Long values: use <code>maxLines</code> + <code>ellipsize</code> on cells.</li>
-<li>Very many extras: grid grows vertically; acceptable for v1.</li>
-</ul>
+<h2 id="earlier-multi-column-design">Earlier multi-column design<a class="headerlink" href="#earlier-multi-column-design" title="Permanent link">¶</a></h2>
+<p>Older builds used 1–N horizontal columns based on <code>floor(usableWidth / minCellWidth)</code>. That is <strong>removed</strong> from the main list for reliability; the <strong>channel editor</strong> still uses full schema-driven controls.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
