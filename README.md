@@ -16,7 +16,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v3.0.0**
+### What’s new in **v3.1.0**
+
+- **Channel list radio-specific row** — extras render as a **stable vertical list** (no width-dependent columns), fixing missing or wrong layouts until rotation. See [release notes](release_notes_v3.1.0.md).
+
+### Earlier: **v3.0.0**
 
 - **Extras-only channel model** — no universal **Group 1–4**; radio-specific fields use **Memory.extra** (schema UI + bulk edit). **Clone backup** merges JSON **`channels[].extra`** into the EEPROM image; mmap sync works without editing vendor CHIRP drivers; **Export Raw EEPROM** shows the same progress UI as backup export. See [release notes](release_notes_v3.0.0.md).
 
@@ -27,7 +31,7 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 
 ### Earlier: **v2.4.0**
 
-- **Radio-specific channel row** — extras and groups display in a responsive **multi-column** layout on the main channel list (column-major reflow). See [release notes](release_notes_v2.4.0.md).
+- **Radio-specific channel row** — extras on the main list (v2.4–v3.0 used multi-column reflow; **v3.1+** uses a vertical list for reliable `RecyclerView` layout). See [release notes](release_notes_v2.4.0.md).
 - **Channel editor** — **Busy Lock** is no longer duplicated when the driver already shows it under Radio-specific settings (e.g. nicFW H3).
 
 ### Earlier: **v2.3.0**
@@ -66,7 +70,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.0.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.1.0).
 
 ## Related
 
