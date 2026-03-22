@@ -149,24 +149,6 @@ class ChannelAdapter(
         private val channelDriverRow:  LinearLayout = card.findViewById(R.id.channelDriverRow)
         private val channelRadioSpecColumns: LinearLayout = card.findViewById(R.id.channelRadioSpecColumns)
 
-        private var pendingRadioSpecItems: List<String>? = null
-        private var lastSpecCols: Int = -1
-        private var lastSpecItems: List<String>? = null
-
-        init {
-            channelRadioSpecColumns.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
-                val w = right - left
-                val ow = oldRight - oldLeft
-                if (w > 0 && w != ow) {
-                    val pending = pendingRadioSpecItems
-                    if (pending != null && pending.isNotEmpty()) {
-                        lastSpecCols = -1
-                        applyRadioSpecColumns(pending)
-                    }
-                }
-            }
-        }
-
         @Suppress("ClickableViewAccessibility")
         fun bind(channel: Channel) {
             channelNumber.text = card.context.getString(R.string.channel_number, channel.number)
@@ -184,9 +166,6 @@ class ChannelAdapter(
                 channelToneGroup.visibility = View.GONE
                 channelDriverRow.visibility = View.GONE
                 channelRadioSpecColumns.removeAllViews()
-                pendingRadioSpecItems = null
-                lastSpecCols = -1
-                lastSpecItems = null
             } else {
                 channelFreq.text   = channel.displayFreq()
                 channelName.text   = channel.name.ifEmpty { "-" }
@@ -206,15 +185,12 @@ class ChannelAdapter(
                 channelSlot2.visibility = if (v2.isEmpty()) View.GONE else View.VISIBLE
 
                 val specItems = buildRadioSpecItems(channel)
-                pendingRadioSpecItems = specItems
                 channelDriverRow.visibility =
                     if (specItems.isEmpty()) View.GONE else View.VISIBLE
                 if (specItems.isNotEmpty()) {
-                    channelRadioSpecColumns.post { applyRadioSpecColumns(specItems) }
+                    applyRadioSpecList(specItems)
                 } else {
                     channelRadioSpecColumns.removeAllViews()
-                    lastSpecCols = -1
-                    lastSpecItems = null
                 }
 
                 val tx = channel.displayTxTone()
@@ -258,7 +234,7 @@ class ChannelAdapter(
         }
 
         /**
-         * Lines for the radio-specific grid: [Channel.extra] only, ordered by
+         * Lines for the radio-specific row: [Channel.extra] only, ordered by
          * [EepromHolder.channelExtraSchema] then remaining keys alphabetically.
          */
         private fun buildRadioSpecItems(channel: Channel): List<String> {
@@ -274,43 +250,16 @@ class ChannelAdapter(
         }
 
         /**
-         * Distributes [items] across weighted vertical columns **column-major**:
-         * fill column 0 top→bottom, then column 1 top→bottom, etc.
+         * One [TextView] per radio-specific line, stacked vertically. Avoids measuring
+         * [channelRadioSpecColumns] width during bind (often 0 in RecyclerView until
+         * later layout), which caused missing or single-column layouts until rotation.
          */
-        private fun applyRadioSpecColumns(items: List<String>) {
-            if (items.isEmpty()) return
+        private fun applyRadioSpecList(items: List<String>) {
             val container = channelRadioSpecColumns
-            val w = container.width
-            if (w <= 0) {
-                container.post { applyRadioSpecColumns(items) }
-                return
-            }
-            val res = card.context.resources
-            val minCellPx = res.getDimensionPixelSize(R.dimen.channel_radio_spec_min_cell_width)
-            val maxCols = res.getInteger(R.integer.channel_radio_spec_max_columns)
-            val cols = maxOf(1, minOf(maxCols, w / minCellPx))
-            if (cols == lastSpecCols && items == lastSpecItems) return
-            lastSpecCols = cols
-            lastSpecItems = items.toList()
-
-            val rowCount = (items.size + cols - 1) / cols
-
             container.removeAllViews()
-            val density = res.displayMetrics.density
-            val gapEnd = (6 * density).toInt()
-            for (c in 0 until cols) {
-                val col = LinearLayout(card.context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    val padEnd = if (c < cols - 1) gapEnd else 0
-                    setPadding(0, 0, padEnd, 0)
-                }
-                for (r in 0 until rowCount) {
-                    val idx = c * rowCount + r
-                    if (idx < items.size) {
-                        col.addView(newSpecCell(items[idx]))
-                    }
-                }
-                container.addView(col, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, WRAP_CONTENT)
+            for (line in items) {
+                container.addView(newSpecCell(line), lp)
             }
         }
 

@@ -123,7 +123,7 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Row 2: Driver-specific — caption + multi-column region (reflows with width) -->
+        <!-- Row 2: Driver-specific — caption + vertical list of extra key: value lines -->
         <LinearLayout
             android:id="@+id/channelDriverRow"
             android:layout_width="match_parent"
@@ -140,13 +140,13 @@
                 android:textSize="10sp"
                 android:textColor="?android:attr/textColorTertiary"
                 android:text="@string/channel_driver_specific_label" />
-            <!-- Filled in code with weighted vertical columns (column-major: top→down, then next column) -->
+            <!-- Filled in code: one line per extra (vertical stack — stable in RecyclerView; no width-dependent columns) -->
             <LinearLayout
                 android:id="@+id/channelRadioSpecColumns"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:gravity="start|top" />
         </LinearLayout>
     </LinearLayout>

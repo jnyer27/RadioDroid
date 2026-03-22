@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Minimum width (dp) per radio-specific cell for column count on channel cards -->
-    <dimen name="channel_radio_spec_min_cell_width">104dp</dimen>
-</resources>

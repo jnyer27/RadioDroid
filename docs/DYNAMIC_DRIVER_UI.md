@@ -39,7 +39,7 @@ No separate "full EEPROM" path is required; the same flow works. If Radio Settin
   - `Channel` gets `extra: Map<String, String>` (or `extraParams: Map<String, String>`). `Channel.fromPyObject` reads `obj.get("extra")` and fills the map. Upload JSON includes an `"extra"` object per channel.
   - **Schema**: No driver API for “list of extra param names”. We derive it from the first channel that has non-empty `extra` (all channels share the same structure per driver). Store `EepromHolder.extraParamNames: List<String>` after download.
 - **UI**:
-  - **Channel list**: “Radio-specific” row shows `extra` as `key: value` lines (multi-column reflow). Ordering follows `channelExtraSchema`, then any other keys alphabetically.
+  - **Channel list**: “Radio-specific” row shows `extra` as `key: value` lines in a **vertical stack** (one line per extra; avoids RecyclerView width=0 glitches from multi-column reflow). Ordering follows `channelExtraSchema`, then any other keys alphabetically.
   - **Channel editor**: “Radio-specific settings” section is driven by `channelExtraSchema` from the bridge (list/bool/int/string controls).
   - **Main screen (selection mode)**: bulk-edit one `Memory.extra` field across selected channels using the same schema (replaces legacy fixed “four group slots”).
 
