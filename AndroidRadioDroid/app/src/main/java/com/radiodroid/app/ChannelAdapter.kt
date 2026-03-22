@@ -1,6 +1,5 @@
 package com.radiodroid.app
 
-import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -135,69 +134,69 @@ class ChannelAdapter(
 
     inner class ViewHolder(private val card: MaterialCardView) : RecyclerView.ViewHolder(card) {
 
-        private val channelNumber:     TextView     = card.findViewById(R.id.channelNumber)
-        private val channelFreq:       TextView     = card.findViewById(R.id.channelFreq)
-        private val channelName:       TextView     = card.findViewById(R.id.channelName)
-        private val channelToneGroup:   LinearLayout = card.findViewById(R.id.channelToneGroup)
-        private val channelTxTone:     TextView     = card.findViewById(R.id.channelTxTone)
-        private val channelRxTone:     TextView     = card.findViewById(R.id.channelRxTone)
-        private val channelDuplex:     TextView     = card.findViewById(R.id.channelDuplex)
-        private val channelPower:      TextView     = card.findViewById(R.id.channelPower)
-        private val channelSlot1:      TextView     = card.findViewById(R.id.channelSlot1)
-        private val channelSlot2:      TextView     = card.findViewById(R.id.channelSlot2)
-        private val channelDragHandle: ImageView    = card.findViewById(R.id.channelDragHandle)
-        private val channelDriverRow:  LinearLayout = card.findViewById(R.id.channelDriverRow)
-        private val channelRadioSpecColumns: LinearLayout = card.findViewById(R.id.channelRadioSpecColumns)
+        private val channelNumber: TextView = card.findViewById(R.id.channelNumber)
+        private val channelFreq: TextView = card.findViewById(R.id.channelFreq)
+        private val channelName: TextView = card.findViewById(R.id.channelName)
+        private val channelBadgeRow: LinearLayout = card.findViewById(R.id.channelBadgeRow)
+        private val channelToneSummary: TextView = card.findViewById(R.id.channelToneSummary)
+        private val channelDragHandle: ImageView = card.findViewById(R.id.channelDragHandle)
+        private val channelRadioSpecCompact: TextView = card.findViewById(R.id.channelRadioSpecCompact)
 
         @Suppress("ClickableViewAccessibility")
         fun bind(channel: Channel) {
             channelNumber.text = card.context.getString(R.string.channel_number, channel.number)
 
             if (channel.empty) {
-                channelFreq.text   = card.context.getString(R.string.empty_channel)
-                channelName.text   = ""
-                channelDuplex.text = ""
-                channelPower.text  = ""
-                channelSlot1.text = ""
-                channelSlot1.visibility = View.GONE
-                channelSlot2.text = ""
-                channelSlot2.visibility = View.GONE
-                channelTxTone.text = ""; channelRxTone.text = ""
-                channelToneGroup.visibility = View.GONE
-                channelDriverRow.visibility = View.GONE
-                channelRadioSpecColumns.removeAllViews()
+                channelFreq.text = card.context.getString(R.string.empty_channel)
+                channelName.text = ""
+                channelBadgeRow.removeAllViews()
+                channelToneSummary.text = ""
+                channelToneSummary.visibility = View.GONE
+                channelRadioSpecCompact.text = ""
+                channelRadioSpecCompact.visibility = View.GONE
             } else {
-                channelFreq.text   = channel.displayFreq()
-                channelName.text   = channel.name.ifEmpty { "-" }
-                channelDuplex.text = channel.displayDuplex()
+                channelFreq.text = channel.displayFreq()
+                channelName.text = channel.name.ifEmpty { "-" }
+
+                channelBadgeRow.removeAllViews()
                 val wattsText = EepromConstants.powerToWatts(channel.power)
                 val txRestricted = EepromConstants.isTxRestricted(channel.freqRxHz)
-                channelPower.text = if (wattsText != "N/T" && txRestricted)
+                val powerLabel = if (wattsText != "N/T" && txRestricted)
                     "$wattsText (RX)" else wattsText
+                if (powerLabel.isNotBlank()) addBadge(channelBadgeRow, powerLabel)
+                if (channel.mode.isNotBlank()) addBadge(channelBadgeRow, channel.mode)
+                val duplexShown = channel.displayDuplex()
+                if (duplexShown.isNotBlank()) addBadge(channelBadgeRow, duplexShown)
 
                 val slot1Key = MainDisplayPref.getSlot1(card.context)
                 val slot2Key = MainDisplayPref.getSlot2(card.context)
-                val v1 = MainDisplayPref.getChannelDisplayValue(channel, slot1Key)
-                val v2 = MainDisplayPref.getChannelDisplayValue(channel, slot2Key)
-                channelSlot1.text = v1
-                channelSlot1.visibility = if (v1.isEmpty()) View.GONE else View.VISIBLE
-                channelSlot2.text = v2
-                channelSlot2.visibility = if (v2.isEmpty()) View.GONE else View.VISIBLE
-
-                val specItems = buildRadioSpecItems(channel)
-                channelDriverRow.visibility =
-                    if (specItems.isEmpty()) View.GONE else View.VISIBLE
-                if (specItems.isNotEmpty()) {
-                    applyRadioSpecList(specItems)
-                } else {
-                    channelRadioSpecColumns.removeAllViews()
-                }
+                maybeAddSlotBadge(channelBadgeRow, channel, slot1Key,
+                    MainDisplayPref.getChannelDisplayValue(channel, slot1Key), duplexShown)
+                maybeAddSlotBadge(channelBadgeRow, channel, slot2Key,
+                    MainDisplayPref.getChannelDisplayValue(channel, slot2Key), duplexShown)
 
                 val tx = channel.displayTxTone()
                 val rx = channel.displayRxTone()
-                channelTxTone.text    = if (tx.isNotEmpty()) "T: $tx" else ""
-                channelRxTone.text    = if (rx.isNotEmpty()) "R: $rx" else ""
-                channelToneGroup.visibility = if (tx.isEmpty() && rx.isEmpty()) View.GONE else View.VISIBLE
+                val toneLine = when {
+                    tx.isNotEmpty() && rx.isNotEmpty() -> "T: $tx · R: $rx"
+                    tx.isNotEmpty() -> "T: $tx"
+                    rx.isNotEmpty() -> "R: $rx"
+                    else -> ""
+                }
+                if (toneLine.isEmpty()) {
+                    channelToneSummary.visibility = View.GONE
+                } else {
+                    channelToneSummary.text = toneLine
+                    channelToneSummary.visibility = View.VISIBLE
+                }
+
+                val specCompact = buildCompactRadioSpecSummary(channel)
+                if (specCompact.isNullOrBlank()) {
+                    channelRadioSpecCompact.visibility = View.GONE
+                } else {
+                    channelRadioSpecCompact.text = specCompact
+                    channelRadioSpecCompact.visibility = View.VISIBLE
+                }
             }
 
             // Selection check state (drives the MaterialCardView checked-icon overlay)
@@ -233,11 +232,55 @@ class ChannelAdapter(
             }
         }
 
+        private fun addBadge(row: LinearLayout, text: String) {
+            if (text.isBlank()) return
+            val ctx = row.context
+            val dm = ctx.resources.displayMetrics.density
+            val tv = TextView(ctx).apply {
+                this.text = text
+                textSize = 10f
+                setBackgroundResource(R.drawable.bg_channel_badge)
+                val h = (6 * dm).toInt()
+                val v = (3 * dm).toInt()
+                setPadding(h, v, h, v)
+                val a = ctx.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+                setTextColor(a.getColor(0, 0))
+                a.recycle()
+            }
+            val lp = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
+            lp.marginEnd = (4 * dm).toInt()
+            row.addView(tv, lp)
+        }
+
         /**
-         * Lines for the radio-specific row: [Channel.extra] only, ordered by
-         * [EepromHolder.channelExtraSchema] then remaining keys alphabetically.
+         * Adds a user-configured main-display slot as a badge when it does not duplicate
+         * badges already shown (power/mode/duplex/tones).
          */
-        private fun buildRadioSpecItems(channel: Channel): List<String> {
+        private fun maybeAddSlotBadge(
+            row: LinearLayout,
+            channel: Channel,
+            slotKey: String,
+            value: String,
+            duplexChipText: String,
+        ) {
+            if (slotKey == MainDisplayPref.KEY_NONE || value.isBlank()) return
+            when (slotKey) {
+                "mode" -> return
+                "duplex" -> if (duplexChipText.isNotBlank()) return
+                "tx_tone", "rx_tone" -> return
+            }
+            val label = when (slotKey) {
+                "bandwidth" -> "BW $value"
+                else -> value
+            }
+            addBadge(row, label)
+        }
+
+        /**
+         * Ordered keys for [channel.extra]: [EepromHolder.channelExtraSchema] first, then any
+         * remaining keys alphabetically (same ordering as the channel editor / legacy list).
+         */
+        private fun orderedExtraKeys(channel: Channel): List<String> {
             if (channel.extra.isEmpty()) return emptyList()
             val ordered = linkedSetOf<String>()
             for (s in EepromHolder.channelExtraSchema) {
@@ -246,36 +289,69 @@ class ChannelAdapter(
             for (k in channel.extra.keys.sorted()) {
                 ordered.add(k)
             }
-            return ordered.map { key -> "$key: ${channel.extra[key]}" }
+            return ordered.toList()
+        }
+
+        private fun groupSlotIndex(key: String): Int? {
+            val t = key.trim()
+            Regex("(?i)^group\\s*([1-4])$").matchEntire(t)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+            Regex("(?i)^group([1-4])$").matchEntire(t)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+            return null
+        }
+
+        private fun matchesBusyLockKey(name: String): Boolean {
+            val n = name.trim().lowercase().replace(" ", "_")
+            return n == "busylock" || n == "busy_lock" ||
+                n == "bcl" || n == "bclo" || n == "bclb" ||
+                n == "busychannellockout" || n == "busy_lockout"
+        }
+
+        private fun prettyExtraLabel(key: String): String = when {
+            matchesBusyLockKey(key) -> "BusyLock"
+            key.trim().equals("Bandwidth", ignoreCase = true) -> "BW"
+            key.trim().lowercase().contains("bandwidth") -> "BW"
+            else -> key.trim()
+        }
+
+        /** @return null to omit this key from the summary line */
+        private fun formatExtraSummaryValue(key: String, raw: String): String? {
+            val v = raw.trim()
+            if (v.isEmpty()) return null
+            if (v.equals("none", ignoreCase = true)) return null
+            return when {
+                v.equals("true", ignoreCase = true) -> "On"
+                v.equals("false", ignoreCase = true) -> "Off"
+                else -> v
+            }
         }
 
         /**
-         * One [TextView] per radio-specific line, stacked vertically. Avoids measuring
-         * [channelRadioSpecColumns] width during bind (often 0 in RecyclerView until
-         * later layout), which caused missing or single-column layouts until rotation.
+         * Single dense line for driver extras: merged groups, hidden None/empty,
+         * bullet-separated (matches high-density main list design).
          */
-        private fun applyRadioSpecList(items: List<String>) {
-            val container = channelRadioSpecColumns
-            container.removeAllViews()
-            val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, WRAP_CONTENT)
-            for (line in items) {
-                container.addView(newSpecCell(line), lp)
+        private fun buildCompactRadioSpecSummary(channel: Channel): String? {
+            if (channel.extra.isEmpty()) return null
+            val ordered = orderedExtraKeys(channel)
+            val groupSlots = arrayOfNulls<String>(4)
+            for (key in ordered) {
+                val idx = groupSlotIndex(key) ?: continue
+                val raw = channel.extra[key]?.trim() ?: continue
+                if (raw.isEmpty() || raw.equals("none", ignoreCase = true)) continue
+                groupSlots[idx - 1] = raw
             }
-        }
-
-        private fun newSpecCell(text: CharSequence): TextView {
-            val ctx = card.context
-            return TextView(ctx).apply {
-                this.text = text
-                textSize = 11f
-                maxLines = 2
-                ellipsize = TextUtils.TruncateAt.END
-                val a = ctx.obtainStyledAttributes(intArrayOf(android.R.attr.textColorSecondary))
-                setTextColor(a.getColor(0, 0xFF888888.toInt()))
-                a.recycle()
-                val padB = (4 * ctx.resources.displayMetrics.density).toInt()
-                setPadding(0, 0, 0, padB)
+            val groupParts = (0..3).mapNotNull { groupSlots[it] }
+            val segments = mutableListOf<String>()
+            if (groupParts.isNotEmpty()) {
+                segments.add("Groups: ${groupParts.joinToString(", ")}")
             }
+            for (key in ordered) {
+                if (groupSlotIndex(key) != null) continue
+                val raw = channel.extra[key] ?: continue
+                val formatted = formatExtraSummaryValue(key, raw) ?: continue
+                segments.add("${prettyExtraLabel(key)}: $formatted")
+            }
+            if (segments.isEmpty()) return null
+            return segments.joinToString("  ·  ")
         }
     }
 

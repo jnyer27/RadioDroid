@@ -13,10 +13,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp"
-        android:minHeight="56dp">
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="8dp"
+        android:minHeight="48dp">
 
-        <!-- Row 1: Global parameters (frequency, name, mode, bandwidth, duplex, power, tones) -->
+        <!-- Row 1: Channel #, name, inline badges, drag handle -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -25,129 +26,84 @@
 
             <TextView
                 android:id="@+id/channelNumber"
-                android:layout_width="48dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:minWidth="40dp"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:text="Ch 1" />
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/channelName"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="8dp">
-                <TextView
-                    android:id="@+id/channelFreq"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="16sp"
-                    android:text="146.5200" />
-                <TextView
-                    android:id="@+id/channelName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:text="" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/channelToneGroup"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
                 android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp">
-                <TextView
-                    android:id="@+id/channelTxTone"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="11sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:text="" />
-                <TextView
-                    android:id="@+id/channelRxTone"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="11sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:text="" />
-            </LinearLayout>
+                android:layout_marginEnd="6dp"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="" />
 
-            <LinearLayout
+            <HorizontalScrollView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="end"
-                android:layout_marginStart="8dp">
-                <TextView
-                    android:id="@+id/channelDuplex"
+                android:scrollbars="none"
+                android:fillViewport="false">
+
+                <LinearLayout
+                    android:id="@+id/channelBadgeRow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:text="" />
-                <TextView
-                    android:id="@+id/channelPower"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="11sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:text="" />
-                <TextView
-                    android:id="@+id/channelSlot1"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="11sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:text="" />
-                <TextView
-                    android:id="@+id/channelSlot2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="11sp"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:text="" />
-            </LinearLayout>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical" />
+            </HorizontalScrollView>
 
             <ImageView
                 android:id="@+id/channelDragHandle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="4dp"
                 android:padding="8dp"
                 android:src="@drawable/ic_drag_handle"
                 android:contentDescription="Drag to reorder"
                 android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Row 2: Driver-specific — caption + vertical list of extra key: value lines -->
-        <LinearLayout
-            android:id="@+id/channelDriverRow"
+        <!-- Row 2: Frequency -->
+        <TextView
+            android:id="@+id/channelFreq"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="top"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
-            <TextView
-                android:id="@+id/channelDriverLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:textSize="10sp"
-                android:textColor="?android:attr/textColorTertiary"
-                android:text="@string/channel_driver_specific_label" />
-            <!-- Filled in code: one line per extra (vertical stack — stable in RecyclerView; no width-dependent columns) -->
-            <LinearLayout
-                android:id="@+id/channelRadioSpecColumns"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="start|top" />
-        </LinearLayout>
+            android:layout_marginTop="2dp"
+            android:textSize="16sp"
+            android:text="146.5200" />
+
+        <!-- Row 3: Tones (single line when present) -->
+        <TextView
+            android:id="@+id/channelToneSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="" />
+
+        <!-- Row 4: Radio-specific summary (dense, bullet-separated) -->
+        <TextView
+            android:id="@+id/channelRadioSpecCompact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="11sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:visibility="gone"
+            android:text="" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

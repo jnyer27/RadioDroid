@@ -1,18 +1,23 @@
-# Channel card: radio-specific block (main list)
+# Channel card: main list (compact)
 
 Design reference for the main channel list row (`item_channel.xml` / `ChannelAdapter`).  
-**Illustrative only** — real keys and values come from `channel.extra` at runtime.
+Real keys and values come from `channel.extra` at runtime.
 
 ## Layout goal
 
-- **Row 1 (universal):** Channel number, frequency, name, tones, duplex, power, optional slots, drag handle — unchanged.
-- **Row 2 (radio-specific):** Caption + a **vertical list** of `key: value` lines (one `TextView` per extra). This avoids width-dependent multi-column math during `RecyclerView` bind, which often saw `width == 0` until a later layout pass and produced missing or wrong columns until configuration change (e.g. rotation).
+- **Row 1:** Channel number, **name** (prominent), **inline badges** (power, mode, duplex, then user main-display slots that are not redundant), drag handle.
+- **Row 2:** Frequency (primary readout).
+- **Row 3 (optional):** Single-line tone summary (`T: … · R: …`).
+- **Row 4 (optional):** One dense **radio-specific** summary `TextView` (max 2 lines, ellipsize end) — no per-key vertical stack.
 
-## Display rules
+## Radio-specific summary rules
 
-- **Ordering:** Keys appear in `channelExtraSchema` order first, then any remaining keys alphabetically (same as before).
-- **Styling:** Secondary text color, 11sp, up to 2 lines with end ellipsize per line.
+- **Groups:** `Group 1`–`Group 4` / `group1`–`group4` values are merged into one segment, e.g. `Groups: A, G`. Empty or `None` group slots are omitted.
+- **Ordering:** `Groups: …` first when present; remaining extras follow `channelExtraSchema` order, then any other keys alphabetically.
+- **Booleans:** `True`/`False` (and busy-lock–style keys) display as `On`/`Off` (e.g. `BusyLock: Off`).
+- **Noise:** Blank values and `None` are omitted from the summary line.
+- **Separator:** Middle dot `·` between segments (with spacing).
 
-## Earlier multi-column design
+## Earlier designs
 
-Older builds used 1–N horizontal columns based on `floor(usableWidth / minCellWidth)`. That is **removed** from the main list for reliability; the **channel editor** still uses full schema-driven controls.
+Vertical one-line-per-extra and multi-column layouts were replaced by this compact summary to improve information density while avoiding fragile width-dependent column math during `RecyclerView` bind.

@@ -1,12 +1,12 @@
 # RadioDroid User Guide
 
 <p align="center">
-  <img src="assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="320" />
+  <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="320" />
 </p>
 
 RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
 
-**Current release: v3.4.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
+**Current release: v3.5.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
 
 ---
 
@@ -96,14 +96,16 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
   - **Load from radio** — download channel memory from the radio (clone/sync in).
   - **Save to radio** — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.
 - **Channel list** — scrollable list of channels (e.g. 1–198). Each row shows:
-  - Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in **Customize main screen**.
-  - For radios that support them: **Radio-specific** lines (**Memory.extra** — e.g. bandwidth, group keys, busy lock) under the main row, one `key: value` per line.
+  - **Channel number** and **name** on the first line, with **badges** for transmit **power**, **mode**, **duplex**, and (when they do not duplicate those) the two fields you pick in **Customize main screen**.
+  - **RX frequency** on the next line (main readout).
+  - Optional **tone** summary (`T: … · R: …`) when tones are set.
+  - For radios that support them: a **single compact radio-specific** line (**Memory.extra** — e.g. merged **Groups:**, bandwidth, busy lock). Empty or **None** values are omitted so the list stays scannable.
 - **⋮ Menu**
   - **Search Channels** — show a search bar to filter by name, group, or frequency.
   - **Import CHIRP CSV from File…** — load a `.csv` exported from desktop CHIRP.
   - **Import CHIRP CSV from Clipboard…** — paste and import CSV text.
   - **Select Radio Model…** — pick vendor and model for the connected radio.
-  - **Customize main screen** — choose which two values appear below Power on each channel row.
+  - **Customize main screen** — choose two extra values shown as **badges** on each channel row (when not redundant with power/mode/duplex/tones).
   - **Radio settings…** — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.
   - **Save EEPROM dump…** — save the current in-memory image to a file (for backup or inspection).
   - **Import Radio Backup…** — load a RadioDroid **JSON** backup (channels, optional EEPROM, settings).
@@ -122,17 +124,19 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
 │ [Disconnect]  [Load from radio]         │
 │               [Save to radio]           │
 ├────┬────────────────────────────────────┤
-│  1 │ 462.5625 MHz · FM · High           │
-│    │ GMRS 1 · Simplex                   │
+│  1 │ GMRS 1           [130] [FM]       │
+│    │ 462.5625                          │
+│    │ T: 100.0 Hz · R: 67.0 Hz          │
+│    │ Groups: A, G · BW: Wide          │
+│    │ BusyLock: Off                    │
 ├────┼────────────────────────────────────┤
-│  2 │ 462.5875 MHz · NFM · Low           │
-│    │ GMRS 2 · + 5 MHz                   │
-│    │ Bandwidth: Wide                     │
-│    │ b_lock: OFF                         │
+│  2 │ GMRS 2    [Low] [NFM] [+5000kHz]  │
+│    │ 462.5875                          │
+│    │ Groups: B · BW: Narrow · BusyLock: On │
 └────┴────────────────────────────────────┘
 ```
 
-*Schematic. App bar, connection actions, and sample channel rows (radio-specific extras stacked vertically when the driver exposes them).*
+*Schematic. App bar, connection actions, and sample channel rows: badges for power/mode/duplex (and Customize slots when set), frequency on its own line, optional tone summary, and one dense **Memory.extra** line (groups merged; empty/**None** omitted).*
 
 ### Multi-select and bulk actions
 
@@ -277,7 +281,7 @@ Radio settings are available only when:
 
 **⋮** → **Customize main screen**
 
-Choose **Slot 1** and **Slot 2** — the two values that appear below the power level on each channel row on the main list (e.g. Duplex, Mode, or other driver-defined fields). This only changes the display; it does not alter channel data.
+Choose **Slot 1** and **Slot 2** — two values shown as **badges** on each channel row (e.g. bandwidth, duplex, or other driver-defined **Memory.extra** fields). The list already shows **power**, **mode**, and **duplex** as badges; slots are skipped when they would duplicate those or the tone line. This only changes the display; it does not alter channel data.
 
 ---
 

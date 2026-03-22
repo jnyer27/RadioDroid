@@ -20,7 +20,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v3.4.0**
+### What’s new in **v3.5.0**
+
+- **Dense channel cards** — Main list rows use **inline badges**, a dedicated **frequency** line, an optional **tone** summary, and a **single radio-specific summary** (merged groups, hidden empty/None, readable labels). See [release notes](release_notes_v3.5.0.md).
+
+### Earlier: **v3.4.0**
 
 - **Play-ready release builds** — **R8** + resource shrinking, **NDK debug symbol** settings for native crash reports, and ProGuard rules for **Chaquopy** / USB serial. See [release notes](release_notes_v3.4.0.md) (includes the full **Security review** from the codebase review, not a penetration test).
 - **Custom driver warning** — **Select Radio Model** shows a trust reminder before you choose a custom **`.py`** CHIRP driver file.
@@ -87,7 +91,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.4.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.5.0).
 
 ## Related
 
