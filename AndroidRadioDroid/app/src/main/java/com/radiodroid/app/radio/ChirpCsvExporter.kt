@@ -1,31 +1,42 @@
 package com.radiodroid.app.radio
 
+import java.util.Locale
+
 /**
  * Exports a list of [Channel] objects to a CHIRP-compatible CSV string.
  *
- * The CSV header and column ordering matches what [ChirpCsvImporter] expects so that
- * an exported file can be re-imported without loss of data.
+ * Column names and order follow [chirp_common.Memory.CSV_FORMAT] in the bundled CHIRP tree
+ * (`chirp/chirp_common.py`). Row formatting aligns with [chirp_common.Memory.to_csv] for
+ * standard (non–D-STAR) memories: frequencies use CHIRP `format_freq` (MHz + 6-digit fraction),
+ * [Mode] values are drawn from [chirp_common.MODES].
  *
- * Tone mapping (inverse of ChirpCsvImporter):
+ * Tone mapping (inverse of [ChirpCsvImporter]):
  *   txToneMode=Tone, rxToneMode=Tone  → "TSQL", cToneFreq = rxToneVal, rToneFreq = 88.5
  *   txToneMode=Tone, rxToneMode=null  → "Tone",  rToneFreq = txToneVal, cToneFreq = 88.5
- *   txToneMode=DTCS                   → "DTCS",  DtcsCode = txToneVal formatted as 3-digit,
- *                                                DtcsPolarity = txPol + rxPol
- *   no tone                           → blank Tone, rToneFreq = 88.5, cToneFreq = 88.5
+ *   txToneMode=DTCS (same RX/TX code) → "DTCS", DtcsCode, RxDtcsCode same, CrossMode Tone->Tone
+ *   txToneMode=DTCS, rxToneMode=DTCS, different codes → "Cross", CrossMode DTCS->DTCS
+ *   no tone                           → blank Tone, CHIRP sentinels for tone columns
  *
- * Power: stored raw byte string (e.g. "130") passed through as-is; CHIRP accepts numeric power.
- * Location: sequential 0-based index within the export (not the original EEPROM slot number).
+ * Power: "N/T" is exported as "0" (CHIRP low / no-TX style). Location: sequential 0-based
+ * index within the export (not the original EEPROM slot number).
  */
 object ChirpCsvExporter {
 
+    /**
+     * Mirrors `chirp_common.MODES` — authoritative set for the CSV Mode column.
+     */
+    private val CHIRP_MODES: Set<String> = setOf(
+        "WFM", "FM", "NFM", "AM", "NAM", "DV", "USB", "LSB", "CW", "RTTY",
+        "DIG", "PKT", "NCW", "NCWR", "CWR", "P25", "Auto", "RTTYR",
+        "FSK", "FSKR", "DMR", "DN"
+    )
+
+    /** Same order as `Memory.CSV_FORMAT` in chirp_common.py (non-DV). */
     private const val HEADER =
         "Location,Name,Frequency,Duplex,Offset,Tone,rToneFreq,cToneFreq," +
-        "DtcsCode,DtcsPolarity,Mode,TStep,Skip,Comment,URCALL,RPT1CALL,RPT2CALL,DVCODE"
+            "DtcsCode,DtcsPolarity,RxDtcsCode,CrossMode," +
+            "Mode,TStep,Skip,Power,Comment,URCALL,RPT1CALL,RPT2CALL,DVCODE"
 
-    /**
-     * Converts [channels] to a CHIRP CSV string.
-     * Empty channels are silently skipped; non-empty channels are numbered from 0.
-     */
     fun export(channels: List<Channel>): String {
         val sb = StringBuilder()
         sb.appendLine(HEADER)
@@ -37,73 +48,105 @@ object ChirpCsvExporter {
         return sb.toString()
     }
 
-    // ── Row builder ───────────────────────────────────────────────────────────
-
-    private fun channelToCsvRow(location: Int, ch: Channel): String {
-        val freqMHz = "%.5f".format(ch.freqRxHz / 1_000_000.0)
-
-        val (duplexCol, offsetCol) = when (ch.duplex) {
-            "+"     -> Pair("+",     "%.6f".format(ch.offsetHz  / 1_000_000.0))
-            "-"     -> Pair("-",     "%.6f".format(ch.offsetHz  / 1_000_000.0))
-            "split" -> Pair("split", "%.6f".format(ch.freqTxHz  / 1_000_000.0))
-            else    -> Pair("",      "0.000000")
-        }
-
-        val (toneMode, rToneFreq, cToneFreq, dtcsCode, dtcsPol) = resolveTone(ch)
-
-        val mode = when (ch.mode.uppercase()) {
-            "AM"  -> "AM"
-            "USB" -> "USB"
-            else  -> "FM"
-        }
-
-        // Power: pass raw value; "N/T" becomes 0 which CHIRP treats as Low
-        val power = if (ch.power == "N/T") "0" else ch.power
-
-        return "$location,${csvQuote(ch.name)},$freqMHz,$duplexCol,$offsetCol," +
-               "$toneMode,$rToneFreq,$cToneFreq,$dtcsCode,$dtcsPol," +
-               "$mode,5.00,,$power,,,,,"
+    /** CHIRP `format_freq(freq_hz)` — `"%d.%06d" % (mhz, frac)`. */
+    private fun formatChirpFreqHz(hz: Long): String {
+        val f = kotlin.math.abs(hz)
+        val mhz = f / 1_000_000L
+        val frac = (f % 1_000_000L).toInt()
+        val sign = if (hz < 0) "-" else ""
+        return String.format(Locale.US, "%s%d.%06d", sign, mhz, frac)
     }
 
-    // ── Tone resolution ───────────────────────────────────────────────────────
+    private fun channelToCsvRow(location: Int, ch: Channel): String {
+        val freqStr = formatChirpFreqHz(ch.freqRxHz)
 
-    private data class ToneFields(
-        val toneMode: String,
+        val (duplexCol, offsetStr) = when (ch.duplex) {
+            "+"     -> Pair("+",     formatChirpFreqHz(ch.offsetHz))
+            "-"     -> Pair("-",     formatChirpFreqHz(ch.offsetHz))
+            "split" -> Pair("split", formatChirpFreqHz(ch.freqTxHz))
+            else    -> Pair("",      formatChirpFreqHz(0L))
+        }
+
+        val t = resolveChirpToneCsv(ch)
+
+        val modeRaw = (ch.driverMode ?: ch.mode).trim().ifEmpty { "FM" }
+        val modeUpper = modeRaw.uppercase(Locale.US)
+        val modeOut = if (modeUpper in CHIRP_MODES) modeUpper else "FM"
+
+        val power = if (ch.power == "N/T") "0" else ch.power
+
+        val parts = listOf(
+            location.toString(),
+            csvQuote(ch.name),
+            freqStr,
+            duplexCol,
+            offsetStr,
+            t.tone,
+            t.rToneFreq,
+            t.cToneFreq,
+            t.dtcsCode,
+            t.dtcsPolarity,
+            t.rxDtcsCode,
+            t.crossMode,
+            modeOut,
+            "5.00",
+            "",
+            power,
+            "",
+            "", "", "", ""
+        )
+        return parts.joinToString(",")
+    }
+
+    private data class ChirpToneCsv(
+        val tone: String,
         val rToneFreq: String,
         val cToneFreq: String,
-        val dtcsCode:  String,
-        val dtcsPol:   String
+        val dtcsCode: String,
+        val dtcsPolarity: String,
+        val rxDtcsCode: String,
+        val crossMode: String,
     )
 
-    private fun resolveTone(ch: Channel): ToneFields {
-        val noTone = ToneFields("", "88.5", "88.5", "023", "NN")
+    private fun resolveChirpToneCsv(ch: Channel): ChirpToneCsv {
+        val none = ChirpToneCsv("", "88.5", "88.5", "023", "NN", "023", "Tone->Tone")
 
         return when {
+            ch.txToneMode == "DTCS" && ch.rxToneMode == "DTCS" -> {
+                val txC = (ch.txToneVal ?: 23.0).toInt().coerceIn(0, 999)
+                val rxC = (ch.rxToneVal ?: ch.txToneVal ?: 23.0).toInt().coerceIn(0, 999)
+                val txPol = (ch.txTonePolarity ?: "N").take(1)
+                val rxPol = (ch.rxTonePolarity ?: ch.txTonePolarity ?: "N").take(1)
+                val pol = "$txPol$rxPol"
+                val txS = "%03d".format(txC)
+                val rxS = "%03d".format(rxC)
+                if (txC == rxC) {
+                    ChirpToneCsv("DTCS", "88.5", "88.5", txS, pol, rxS, "Tone->Tone")
+                } else {
+                    ChirpToneCsv("Cross", "88.5", "88.5", txS, pol, rxS, "DTCS->DTCS")
+                }
+            }
+
             ch.txToneMode == "DTCS" -> {
-                // DCS on TX (and optionally RX)
-                val code   = "%03d".format((ch.txToneVal ?: 0.0).toInt())
-                val txPol  = ch.txTonePolarity ?: "N"
-                val rxPol  = ch.rxTonePolarity ?: ch.txTonePolarity ?: "N"
-                ToneFields("DTCS", "88.5", "88.5", code, "$txPol$rxPol")
+                val code = "%03d".format((ch.txToneVal ?: 0.0).toInt().coerceIn(0, 999))
+                val txPol = ch.txTonePolarity ?: "N"
+                val rxPol = ch.rxTonePolarity ?: ch.txTonePolarity ?: "N"
+                ChirpToneCsv("DTCS", "88.5", "88.5", code, "$txPol$rxPol", code, "DTCS->")
             }
 
             ch.txToneMode == "Tone" && ch.rxToneMode == "Tone" -> {
-                // Both TX and RX CTCSS → TSQL; cToneFreq = the receive (squelch) tone
                 val freq = "%.1f".format(ch.rxToneVal ?: ch.txToneVal ?: 88.5)
-                ToneFields("TSQL", "88.5", freq, "023", "NN")
+                ChirpToneCsv("TSQL", "88.5", freq, "023", "NN", "023", "Tone->Tone")
             }
 
             ch.txToneMode == "Tone" -> {
-                // TX CTCSS only → Tone; rToneFreq carries the frequency
                 val freq = "%.1f".format(ch.txToneVal ?: 88.5)
-                ToneFields("Tone", freq, "88.5", "023", "NN")
+                ChirpToneCsv("Tone", freq, "88.5", "023", "NN", "023", "Tone->Tone")
             }
 
-            else -> noTone
+            else -> none
         }
     }
-
-    // ── CSV helpers ───────────────────────────────────────────────────────────
 
     private fun csvQuote(s: String): String =
         if (s.contains(',') || s.contains('"') || s.contains('\n'))
