@@ -138,9 +138,6 @@ class ChannelEditActivity : AppCompatActivity() {
             EepromHolder.groupLabels.any { it.isNotBlank() }
         binding.sectionDriverSpecific.visibility = if (hasDriverSpecific) View.VISIBLE else View.GONE
 
-        // Busy lock / BCL is never a universal CHIRP Memory field — only Memory.extra (radio-specific).
-        binding.sectionBusyLock.visibility = View.GONE
-
         // Enforce driver name-length limit (0 = driver didn't declare one → cap at 16)
         val maxNameLen = if (features.validNameLength > 0) features.validNameLength else 16
         binding.editName.filters = arrayOf(InputFilter.LengthFilter(maxNameLen))

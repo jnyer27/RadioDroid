@@ -325,34 +325,6 @@
 
         </LinearLayout>
 
-        <!-- ── Busy Lock ──────────────────────────────────────────────────── -->
-        <LinearLayout
-            android:id="@+id/sectionBusyLock"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="12dp">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Busy Lock"
-                android:textSize="14sp" />
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchBusyLock"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-            <ImageButton
-                android:id="@+id/helpBusyLock"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/ic_help_hint"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Help" />
-        </LinearLayout>
-
         <!-- ── Buttons ────────────────────────────────────────────────────── -->
 
         <LinearLayout
