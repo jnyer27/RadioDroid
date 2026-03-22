@@ -55,4 +55,7 @@
     <string name="bulk_extra_pick_param">Radio-specific field — %1$d selected</string>
     <string name="bulk_extra_applied">%1$s → %2$s on %3$d channel(s)</string>
     <string name="bulk_extra_invalid_number">Enter a valid number</string>
+    <string name="custom_driver_warning_title">Before you add a custom driver</string>
+    <string name="custom_driver_warning_message">A custom CHIRP driver file runs as part of RadioDroid — the same as the built-in code. It can use everything this app can reach, including your saved data and connections to your radio over USB or Bluetooth.\n\nOnly add driver files from people or sites you trust. Custom drivers are not run in a separate, locked-down area.</string>
+    <string name="custom_driver_warning_choose_file">Choose file</string>
 </resources>

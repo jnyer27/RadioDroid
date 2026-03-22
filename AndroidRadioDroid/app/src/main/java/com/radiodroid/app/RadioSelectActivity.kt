@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import androidx.lifecycle.lifecycleScope
@@ -31,7 +32,7 @@ import kotlinx.coroutines.withContext
  * [EXTRA_VENDOR] / [EXTRA_MODEL] / [EXTRA_BAUD_RATE] Intent extras.
  *
  * Custom driver sideloading:
- *   The FAB ("Load .py Driver") launches the system file picker for *.py files.
+ *   The FAB ("Load .py Driver") shows a trust warning, then launches the file picker for *.py files.
  *   The selected file is copied to app-private internal storage by [CustomDriverManager],
  *   then loaded into the CHIRP driver registry via [ChirpBridge.loadCustomDriver].
  *   Newly registered radios are appended to [allRadios] and the list refreshes
@@ -122,21 +123,32 @@ class RadioSelectActivity : AppCompatActivity() {
     }
 
     /**
-     * FAB opens the system file picker, filtered to Python source files.
+     * FAB shows a trust warning, then opens the system file picker for Python driver files.
      * Multiple MIME types are listed because Android file providers vary in how
      * they describe .py files (text/plain, text/x-python, application/octet-stream).
      */
     private fun setupFab() {
         binding.fabLoadDriver.setOnClickListener {
-            pickDriverFile.launch(
-                arrayOf(
-                    "text/x-python",
-                    "text/plain",
-                    "application/octet-stream",
-                    "*/*"           // last resort so the user can still navigate to .py
-                )
-            )
+            AlertDialog.Builder(this)
+                .setTitle(R.string.custom_driver_warning_title)
+                .setMessage(R.string.custom_driver_warning_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.custom_driver_warning_choose_file) { _, _ ->
+                    launchCustomDriverPicker()
+                }
+                .show()
         }
+    }
+
+    private fun launchCustomDriverPicker() {
+        pickDriverFile.launch(
+            arrayOf(
+                "text/x-python",
+                "text/plain",
+                "application/octet-stream",
+                "*/*" // last resort so the user can still navigate to .py
+            )
+        )
     }
 
     // ─────────────────────────────────────────────────────────────────────────
