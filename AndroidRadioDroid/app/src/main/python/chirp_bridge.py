@@ -980,6 +980,76 @@ def load_from_eeprom(vendor: str, model: str, eeprom_base64: str) -> str:
     return _json.dumps({"channels": channels, "eeprom_base64": eeprom_base64})
 
 
+def _memory_extra_len(mem):
+    """Return number of RadioSetting entries under Memory.extra (0 if missing)."""
+    ex = getattr(mem, "extra", None)
+    if ex is None:
+        return 0
+    try:
+        return len(ex)
+    except Exception:
+        return 0
+
+
+def _maybe_attach_memory_extra_template(radio, number, mem):
+    """
+    CHIRP often returns early for empty EEPROM slots without assigning mem.extra,
+    leaving the class-level Memory.extra (a shared []) — then JSON 'extra' cannot
+    be applied.  Rebuild templates by calling the driver's _get_memory(mem, …) if
+    it exists.  RadioDroid bridge only; does not modify upstream driver .py files.
+    """
+    if _memory_extra_len(mem) > 0:
+        return
+    fn = getattr(radio, "_get_memory", None)
+    if not callable(fn):
+        return
+    memobj = getattr(radio, "_memobj", None)
+    if memobj is None:
+        return
+    import inspect
+    from chirp import chirp_common
+
+    try:
+        sig = inspect.signature(fn)
+        params = list(sig.parameters.keys())
+        if params and params[0] == "self":
+            params = params[1:]
+        nargs = len(params)
+    except (ValueError, TypeError):
+        return
+
+    shell = chirp_common.Memory()
+    shell.number = number
+
+    try:
+        if nargs == 3:
+            chan_mem = getattr(memobj, "chan_mem", None)
+            chan_name = getattr(memobj, "chan_name", None)
+            if chan_mem is None or chan_name is None:
+                return
+            _mem = chan_mem[number - 1]
+            _name = chan_name[number - 1]
+            filled = fn(shell, _mem, _name)
+        elif nargs == 2:
+            chan_mem = getattr(memobj, "chan_mem", None)
+            if chan_mem is not None:
+                _mem = chan_mem[number - 1]
+            else:
+                chm = getattr(memobj, "memory", None)
+                if chm is None:
+                    return
+                _mem = chm[number - 1]
+            filled = fn(shell, _mem)
+        else:
+            return
+    except Exception as e:
+        LOG.debug("_maybe_attach_memory_extra_template: %s", e)
+        return
+
+    if filled is not None and _memory_extra_len(filled) > 0:
+        mem.extra = filled.extra
+
+
 def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_json: str) -> str:
     """
     Apply a single channel edit to the in-memory EEPROM (clone-mode only).
@@ -1012,6 +1082,9 @@ def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_j
         mem.number = number
         radio.set_memory(mem)
     else:
+        extra_d = ch.get("extra") or {}
+        if isinstance(extra_d, dict) and extra_d:
+            _maybe_attach_memory_extra_template(radio, number, mem)
         _channel_dict_into_memory(mem, ch, features)
         mem.number = number
         radio.set_memory(mem)
@@ -1120,16 +1193,23 @@ def _channel_dict_into_memory(mem, ch, features):
         for item in getattr(mem, "extra", []) or []:
             try:
                 name = item.get_name()
-                if name in extra_dict:
-                    val = extra_dict[name]
-                    if hasattr(item, "set_value"):
-                        item.set_value(val)
-                    elif hasattr(item, "value") and hasattr(item.value, "set_value"):
-                        item.value.set_value(val)
-                    else:
-                        item.value = val
-            except Exception:
-                pass
+                if name not in extra_dict:
+                    continue
+                val = extra_dict[name]
+                if isinstance(val, str):
+                    val = val.strip()
+                if hasattr(item, "set_value"):
+                    item.set_value(val)
+                elif hasattr(item, "value") and hasattr(item.value, "set_value"):
+                    item.value.set_value(val)
+                else:
+                    item.value = val
+            except Exception as e:
+                try:
+                    ename = item.get_name()
+                except Exception:
+                    ename = "?"
+                LOG.warning("Failed to apply Memory.extra %r: %s", ename, e)
 
 
 def _drain_pipe(pipe, drain_timeout: float = 0.15):
@@ -1263,20 +1343,33 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
 
             # ── Driver-specific extra (Memory.extra) ─────────────────────────────
             extra_dict = ch.get("extra") or {}
+            if isinstance(extra_dict, dict) and extra_dict:
+                _maybe_attach_memory_extra_template(radio, number, mem)
             if isinstance(extra_dict, dict):
                 for item in getattr(mem, "extra", []) or []:
                     try:
                         name = item.get_name()
-                        if name in extra_dict:
-                            val = extra_dict[name]
-                            if hasattr(item, "set_value"):
-                                item.set_value(val)
-                            elif hasattr(item, "value") and hasattr(item.value, "set_value"):
-                                item.value.set_value(val)
-                            else:
-                                item.value = val
-                    except Exception:
-                        pass
+                        if name not in extra_dict:
+                            continue
+                        val = extra_dict[name]
+                        if isinstance(val, str):
+                            val = val.strip()
+                        if hasattr(item, "set_value"):
+                            item.set_value(val)
+                        elif hasattr(item, "value") and hasattr(item.value, "set_value"):
+                            item.value.set_value(val)
+                        else:
+                            item.value = val
+                    except Exception as e:
+                        try:
+                            ename = item.get_name()
+                        except Exception:
+                            ename = "?"
+                        LOG.warning(
+                            "Failed to apply Memory.extra %r (upload): %s",
+                            ename,
+                            e,
+                        )
 
             radio.set_memory(mem)
 

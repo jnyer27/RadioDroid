@@ -270,6 +270,26 @@ class MainActivity : AppCompatActivity() {
      *   directly from the "channels" array; settings JSON is stored in
      *   [EepromHolder.pendingSettingsJson] and applied on next Save to Radio.
      */
+    /**
+     * Overlays per-slot `extra` objects from a backup JSON `channels` array onto
+     * [EepromHolder.channels] (used after [ChirpBridge.loadFromEeprom] for clone backups).
+     */
+    private fun mergeBackupChannelExtrasFromJson(json: org.json.JSONObject) {
+        val arr = json.optJSONArray("channels") ?: return
+        val list = EepromHolder.channels
+        for (i in 0 until minOf(arr.length(), list.size)) {
+            val o = arr.optJSONObject(i) ?: continue
+            val extraObj = o.optJSONObject("extra") ?: continue
+            val merged = list[i].extra.toMutableMap()
+            val keys = extraObj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                merged[key] = extraObj.optString(key, "")
+            }
+            list[i].extra = merged
+        }
+    }
+
     private fun importRadioBackup(bytes: ByteArray) {
         val radio = selectedRadio ?: run {
             Toast.makeText(this, "Select a radio model first (⋮ → Select Radio Model)", Toast.LENGTH_LONG).show()
@@ -324,14 +344,27 @@ class MainActivity : AppCompatActivity() {
                         }
                         val eepBytes = Base64.decode(workingB64, Base64.NO_WRAP)
                         val result = ChirpBridge.loadFromEeprom(radio, workingB64)
-                        eeprom = eepBytes
-                        EepromHolder.eeprom = eepBytes
                         EepromHolder.channels = result.channels.toMutableList()
-                        EepromHolder.extraParamNames = result.channels
+                        // Backup JSON may carry Memory.extra (e.g. b_lock) that is missing or
+                        // stale in eeprom_base64; merge so import matches the file and mmap sync
+                        // can encode those values into the clone image.
+                        mergeBackupChannelExtrasFromJson(json)
+                        val syncedEep = withContext(Dispatchers.IO) {
+                            ChirpBridge.syncCloneMmapToChannelList(
+                                radio,
+                                eepBytes,
+                                EepromHolder.channels.toList()
+                            )
+                        }
+                        val finalB64 =
+                            Base64.encodeToString(syncedEep, Base64.NO_WRAP)
+                        eeprom = syncedEep
+                        EepromHolder.eeprom = syncedEep
+                        EepromHolder.extraParamNames = EepromHolder.channels
                             .firstOrNull { it.extra.isNotEmpty() }
                             ?.extra?.keys?.toList() ?: emptyList()
                         EepromHolder.channelExtraSchema =
-                            ChirpBridge.getChannelExtraSchema(radio, workingB64)
+                            ChirpBridge.getChannelExtraSchema(radio, finalB64)
                         EepromHolder.pendingSettingsJson = null
                     } else {
                         // Non-clone or clone backup without EEPROM: load channels + settings.
@@ -554,6 +587,14 @@ class MainActivity : AppCompatActivity() {
      * [exportRadioBackup] instead.
      */
     private fun exportRawEeprom() {
+        if (EepromHolder.eeprom == null || EepromHolder.eeprom!!.isEmpty()) {
+            Toast.makeText(this, "No EEPROM to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+        binding.progressBar.visibility = View.VISIBLE
+        binding.progressText.visibility = View.VISIBLE
+        binding.progressBar.isIndeterminate = true
+        startTransferStatusHints(exportBackupStatusMessages)
         lifecycleScope.launch {
             try {
                 selectedRadio?.let { syncCloneEepromIfNeeded(it) }
@@ -579,6 +620,8 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "Raw EEPROM exported as $fileName", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Toast.makeText(this@MainActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                hideRadioTransferProgress()
             }
         }
     }
@@ -908,9 +951,6 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(shareIntent, "Share CHIRP CSV"))
     }
 
-    /**
-     * Saves the in-memory EEPROM dump (clone mode) to a file and opens the share sheet.
-     */
     /**
      * Shows/hides the selection bar and keeps the count label up to date.
      * Called from [ChannelAdapter.onSelectionChanged] on every selection change.
