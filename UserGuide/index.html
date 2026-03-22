@@ -231,7 +231,7 @@
 <li><strong>Save to radio</strong> — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.</li>
 <li><strong>Channel list</strong> — scrollable list of channels (e.g. 1–198). Each row shows:</li>
 <li>Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in <strong>Customize main screen</strong>.</li>
-<li>For radios that support them: <strong>Radio-specific</strong> fields (e.g. groups, bandwidth) under the main row.</li>
+<li>For radios that support them: <strong>Radio-specific</strong> lines (<strong>Memory.extra</strong> — e.g. bandwidth, group keys, busy lock) under the main row, one <code>key: value</code> per line.</li>
 <li><strong>⋮ Menu</strong></li>
 <li><strong>Search Channels</strong> — show a search bar to filter by name, group, or frequency.</li>
 <li><strong>Import CHIRP CSV from File…</strong> — load a <code>.csv</code> exported from desktop CHIRP.</li>
@@ -259,10 +259,24 @@
 <a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a>├────┼────────────────────────────────────┤
 <a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a>│  2 │ 462.5875 MHz · NFM · Low           │
 <a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a>│    │ GMRS 2 · + 5 MHz                   │
-<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>│    │ Bandwidth · Wide · Group A         │
-<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>└────┴────────────────────────────────────┘
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a>│    │ Bandwidth: Wide                     │
+<a href="#__codelineno-1-15" id="__codelineno-1-15" name="__codelineno-1-15"></a>│    │ b_lock: OFF                         │
+<a href="#__codelineno-1-16" id="__codelineno-1-16" name="__codelineno-1-16"></a>└────┴────────────────────────────────────┘
 </code></pre></div>
-<p><em>Schematic. App bar, connection actions, and sample channel rows (extra line when the driver exposes radio-specific fields).</em></p>
+<p><em>Schematic. App bar, connection actions, and sample channel rows (radio-specific extras stacked vertically when the driver exposes them).</em></p>
+<h3 id="multi-select-and-bulk-actions">Multi-select and bulk actions<a class="headerlink" href="#multi-select-and-bulk-actions" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Enter selection mode</strong> — <strong>Long-press</strong> a channel. A <strong>selection bar</strong> appears at the bottom with the count of selected channels.</li>
+<li><strong>Add or remove channels</strong> — Tap rows to toggle selection. Tap <strong>Done</strong> to exit selection mode.</li>
+<li><strong>Search → Select All</strong> — Enable <strong>Search Channels</strong> (⋮), filter the list by name, <strong>group label</strong> (from driver extras), or frequency, then tap <strong>Select All</strong> to select every <strong>non-empty</strong> channel that matches the filter; bulk actions then apply only to those slots.</li>
+<li><strong>Selection bar actions</strong> (left to right after the count):</li>
+<li><strong>Move up / Move down</strong> — Nudge selected channels in the list.</li>
+<li><strong>Move to slot</strong> — Move the selection to another slot range.</li>
+<li><strong>TX power</strong> — Set the same transmit power on all selected non-empty channels (uses the driver’s power level names).</li>
+<li><strong>Radio-specific field</strong> — Button with the <strong>tag / group</strong> icon. Opens a list of <strong>writable</strong> parameters from the driver’s channel-extra schema (the same <strong>Memory.extra</strong> fields as <strong>Radio-specific</strong> in the channel editor). Choose a field, then enter or pick a value; RadioDroid applies it to <strong>each selected non-empty channel</strong>. Read-only fields are omitted. If no schema is available yet, load from the radio or open a channel once so the app can read the driver layout. <strong>This replaces the old “bulk set channel groups (A–O)” control:</strong> group and other radio-specific values now live only in <strong>Memory.extra</strong> when the driver defines them, and you change them per channel in the editor or for many channels at once with this action.</li>
+<li><strong>Export CSV</strong> — Share the selected channels as CHIRP CSV.</li>
+<li><strong>Clear</strong> — Empty the selected slots.</li>
+</ul>
 <p>Import, export, and radio settings are enabled only when channels are loaded (and, for radio settings, when the radio has settings support and is connected or has a clone image).</p>
 <hr/>
 <h2 id="downloading-and-uploading">Downloading and uploading<a class="headerlink" href="#downloading-and-uploading" title="Permanent link">¶</a></h2>
@@ -315,8 +329,7 @@
 <li><strong>Power</strong> — transmit power (e.g. High, Low, or driver-specific levels).</li>
 <li><strong>Mode</strong> — e.g. FM, NFM, AM, USB (driver-dependent).</li>
 <li><strong>TX tone / RX tone</strong> — CTCSS or DCS encode/decode; choose from the tone list or “Off”.</li>
-<li><strong>Busy lock</strong> — optional; may be disabled when duplex is not Simplex (driver-dependent).</li>
-<li><strong>Radio-specific settings</strong> — extra parameters from the CHIRP driver (e.g. bandwidth, group slots). Shown as spinners or switches when the driver defines options; otherwise as text fields.</li>
+<li><strong>Radio-specific settings</strong> — <strong>Memory.extra</strong> parameters from the CHIRP driver (e.g. bandwidth, group membership, busy lock / BCL when exposed as extras). Shown as spinners, switches, or text fields depending on type. Some bool extras are forced off when duplex uses an offset, if the driver requires it.</li>
 </ul>
 <p>Tap <strong>Done</strong> to save the channel and return to the list, or <strong>Cancel</strong> to discard changes.</p>
 <hr/>
