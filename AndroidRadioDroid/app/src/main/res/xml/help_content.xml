@@ -230,10 +230,6 @@
     <entry key="groups" screen="channel_edit" title="Channel Groups (1–4)" range="None, A–O" default="None">
         <description>Assigns this channel to up to 4 channel groups (A through O). Groups let you organise and scan subsets of your channels. Group labels can be edited in Radio Settings (dynamic parameters). The radio can be switched to Group mode to show and scan only channels in the selected group.</description>
     </entry>
-    <entry key="busy_lock" screen="channel_edit" title="Busy Lock" range="Off, On" default="Off">
-        <description>When On, prevents the radio from transmitting on this channel if a signal is currently being received (carrier detected). Helps avoid stepping on an ongoing conversation on a simplex frequency.</description>
-        <notes>Only works with simplex (Duplex = Off). Automatically disabled when a separate TX frequency is configured.</notes>
-    </entry>
     <entry key="vhf_power_cap" screen="tune_settings" title="VHF Power Cap" range="0 (N/T), 1–255" default="130">
         <description>Caps the maximum transmit power allowed on VHF frequencies (approximately 136–280 MHz). Setting to 0 disables VHF transmission entirely. Values 1–255 set the maximum power ceiling — channel TX Power settings above this cap are limited to the cap value.</description>
         <notes>Use this to enforce a power limit across all VHF channels without editing them individually.</notes>
