@@ -1,8 +1,12 @@
 # RadioDroid User Guide
 
-RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
+<p align="center">
+  <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="320" />
+</p>
 
-**Current release: v3.3.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
+RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
+
+**Current release: v3.4.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
 
 ---
 
@@ -285,6 +289,7 @@ Examples of supported families (this is not a full list):
 
 - **Baofeng** — UV-5R, BF-F8HP, UV-82, UV-K5, and others  
 - **TID Radio** — Pick the entry that matches your firmware: **TD-H3** is the stock CHIRP layout; **TD-H3 nicFW 2.5** is the separate driver for **nicFW V2.5** codeplugs (different EEPROM layout). Using the wrong one will misread channels or show blanks. Other TID models (e.g. TD-H6, TD-H8, TD-M11) have their own entries.  
+- **Custom `.py` driver (trust)** — **v3.4.0+:** Tapping **Load .py Driver** shows a reminder that the file runs **inside RadioDroid** with the same kind of access as the rest of the app (including USB/Bluetooth programming). Only use driver files from **sources you trust**; they are not run in a separate locked-down sandbox.  
 - **Duplicate driver (sideloaded `.py`)** — If you used **Load .py Driver** for a module that is **also bundled** (e.g. `tidradio_h3_nicfw25.py`), the app may try to load it again on startup and hit a **duplicate driver** warning—the built-in copy is the one you should use. Delete the extra copy from `files/custom_drivers/` (e.g. with adb) or clear app data to drop sideloaded drivers; the FAB is only needed for drivers **not** in the build.  
 - **Retevis** — RA25, RT85, and others  
 - **Yaesu** — FT-60, FT-65, and others  
