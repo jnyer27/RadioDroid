@@ -6,7 +6,7 @@ This document describes how RadioDroid builds **radio-wide settings** and **per-
 
 - **Global parameters**: Standard CHIRP memory fields (frequency, name, mode, duplex, power, tones, etc.) — shown first in the channel list and editor; may be mapped (e.g. mode/bandwidth display).
 - **Radio settings**: Driver-defined global settings (e.g. backlight, timeouts, beep) from CHIRP’s `get_settings()` / `set_settings()`. Only shown when `RadioFeatures.has_settings` is true.
-- **Channel extras**: Driver-defined per-channel fields in `Memory.extra` (e.g. “Groups Slot 1–4” for nicFW). Shown in the “Radio-specific” section (below/right of global params) in the channel list and editor.
+- **Channel extras**: Driver-defined per-channel fields in `Memory.extra` (e.g. “Groups Slot 1–4”, bandwidth, busy lock for nicFW). Shown in the “Radio-specific” section (below/right of global params) in the channel list and editor. Busy channel lock is **not** a `chirp_common.Memory` attribute in [upstream CHIRP](https://github.com/kk7ds/chirp/blob/master/chirp/chirp_common.py); drivers expose it only via `mem.extra`.
 
 ## 1. Radio settings screen (dynamic)
 

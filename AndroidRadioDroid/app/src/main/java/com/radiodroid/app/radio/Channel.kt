@@ -30,7 +30,6 @@ data class Channel(
     var rxTonePolarity: String? = null,
     /** Driver-specific params from Memory.extra (name -> value). Populated from download. */
     var extra: Map<String, String> = emptyMap(),
-    var busyLock: Boolean = false,
     /** Raw flags byte (byte 15 of channel struct). Preserves bits 3-6 (position, pttID, reversed)
      *  so a round-trip write doesn't clobber per-channel flags set by the radio firmware. */
     var flagsRaw: Int = 0,
