@@ -16,7 +16,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v3.1.0**
+### What’s new in **v3.2.0**
+
+- **Display cutout / foldables** — Toolbars clear **punch-holes and notches**; **Radio select**, CSV import, and **Customize main screen** match edge-to-edge insets. **User guide** updated for bulk **radio-specific** action and multi-select. See [release notes](release_notes_v3.2.0.md).
+
+### Earlier: **v3.1.0**
 
 - **Channel list radio-specific row** — extras render as a **stable vertical list** (no width-dependent columns), fixing missing or wrong layouts until rotation. See [release notes](release_notes_v3.1.0.md).
 
@@ -70,7 +74,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.1.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.2.0).
 
 ## Related
 
