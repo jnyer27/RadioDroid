@@ -158,7 +158,7 @@
 <ul>
 <li><strong>Global parameters</strong>: Standard CHIRP memory fields (frequency, name, mode, duplex, power, tones, etc.) — shown first in the channel list and editor; may be mapped (e.g. mode/bandwidth display).</li>
 <li><strong>Radio settings</strong>: Driver-defined global settings (e.g. backlight, timeouts, beep) from CHIRP’s <code>get_settings()</code> / <code>set_settings()</code>. Only shown when <code>RadioFeatures.has_settings</code> is true.</li>
-<li><strong>Channel extras</strong>: Driver-defined per-channel fields in <code>Memory.extra</code> (e.g. “Groups Slot 1–4” for nicFW). Shown in the “Radio-specific” section (below/right of global params) in the channel list and editor.</li>
+<li><strong>Channel extras</strong>: Driver-defined per-channel fields in <code>Memory.extra</code> (e.g. “Groups Slot 1–4”, bandwidth, busy lock for nicFW). Shown in the “Radio-specific” section (below/right of global params) in the channel list and editor. Busy channel lock is <strong>not</strong> a <code>chirp_common.Memory</code> attribute in <a href="https://github.com/kk7ds/chirp/blob/master/chirp/chirp_common.py">upstream CHIRP</a>; drivers expose it only via <code>mem.extra</code>.</li>
 </ul>
 <h2 id="1-radio-settings-screen-dynamic">1. Radio settings screen (dynamic)<a class="headerlink" href="#1-radio-settings-screen-dynamic" title="Permanent link">¶</a></h2>
 <ul>
@@ -189,21 +189,21 @@
 <li><code>Channel</code> gets <code>extra: Map&lt;String, String&gt;</code> (or <code>extraParams: Map&lt;String, String&gt;</code>). <code>Channel.fromPyObject</code> reads <code>obj.get("extra")</code> and fills the map. Upload JSON includes an <code>"extra"</code> object per channel.</li>
 <li><strong>Schema</strong>: No driver API for “list of extra param names”. We derive it from the first channel that has non-empty <code>extra</code> (all channels share the same structure per driver). Store <code>EepromHolder.extraParamNames: List&lt;String&gt;</code> after download.</li>
 <li><strong>UI</strong>:</li>
-<li><strong>Channel list</strong>: “Radio-specific” row already exists; show <code>extra</code> values there (e.g. “group1: A, group2: G” or a short summary). Prefer same “down and to the right” layout.</li>
-<li><strong>Channel editor</strong>: “Radio-specific settings” section shows one control per key in <code>extraParamNames</code> — for now a simple text field per param; later we can support list types if the bridge sends options.</li>
+<li><strong>Channel list</strong>: “Radio-specific” row shows <code>extra</code> as <code>key: value</code> lines (multi-column reflow). Ordering follows <code>channelExtraSchema</code>, then any other keys alphabetically.</li>
+<li><strong>Channel editor</strong>: “Radio-specific settings” section is driven by <code>channelExtraSchema</code> from the bridge (list/bool/int/string controls).</li>
+<li><strong>Main screen (selection mode)</strong>: bulk-edit one <code>Memory.extra</code> field across selected channels using the same schema (replaces legacy fixed “four group slots”).</li>
 </ul>
-<p>Existing hardcoded “Groups (Slot 1–4)” remains for backwards compatibility with nicFW/custom flows that populate <code>group1</code>–<code>group4</code> on <code>Channel</code> via a different path (e.g. EepromParser). When <code>extra</code> is present, the dynamic section can show both: known keys like <code>group1</code> can still use the group spinners; any other keys from <code>extra</code> use the generic dynamic row.</p>
 <h2 id="3-backward-compatibility">3. Backward compatibility<a class="headerlink" href="#3-backward-compatibility" title="Permanent link">¶</a></h2>
 <ul>
 <li>Radios without <code>has_settings</code>: no “Radio settings” menu; no change.</li>
-<li>Channels without <code>extra</code>: <code>extra</code> is empty map; “Radio-specific” section visibility unchanged (e.g. still driven by group labels or first-channel extra keys).</li>
-<li>nicFW / custom drivers that set <code>group1</code>–<code>group4</code> on <code>Channel</code> directly (not via <code>extra</code>) continue to work; we can optionally also fill <code>group1</code>–<code>group4</code> from <code>extra</code> when keys match so one code path suffices.</li>
+<li>Channels without <code>extra</code>: <code>extra</code> is empty map; “Radio-specific” section visibility is driven by schema/extra keys from the driver when available.</li>
+<li>Per-channel group membership and other driver fields live only in <code>Channel.extra</code> (no separate <code>group1</code>–<code>group4</code> on <code>Channel</code>).</li>
 </ul>
 <h2 id="implementation-order">Implementation order<a class="headerlink" href="#implementation-order" title="Permanent link">¶</a></h2>
 <ol>
 <li>Bridge: add <code>extra</code> to <code>_memory_to_dict</code> and handle <code>extra</code> in <code>upload</code>.</li>
 <li>Kotlin: <code>Channel.extra</code>, fromPyObject, upload JSON; derive <code>extraParamNames</code> after download.</li>
-<li>Channel list + editor: show dynamic extra in Radio-specific section (and keep existing Groups when used).</li>
+<li>Channel list + editor: show dynamic extra in Radio-specific section; bulk extra edit on main screen from schema.</li>
 <li>Bridge: <code>get_radio_settings</code> / <code>set_radio_settings</code> with tree serialization.</li>
 <li>Android: Radio Settings activity (dynamic form from JSON).</li>
 </ol>

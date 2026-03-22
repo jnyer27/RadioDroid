@@ -208,7 +208,7 @@
 <li>Measure <strong>usable width</strong> for the column container (caption uses fixed space; remainder gets <code>layout_weight</code>).</li>
 <li><code>columnCount = clamp(1, maxColumns, floor(usableWidth / minCellWidthDp))</code> (convert <code>dp</code> to px with display density).</li>
 <li>Recompute on <strong>configuration change</strong> (rotation, fold, window resize).</li>
-<li><strong>Dedupe:</strong> When the groups summary (from <code>Channel.group1</code>–<code>group4</code>) is non-empty, omit <code>extra</code> entries with keys <code>group1</code>–<code>group4</code> so group membership is not shown twice.</li>
+<li><strong>Ordering:</strong> Lines come from <code>Channel.extra</code> only: keys appear in <code>channelExtraSchema</code> order first, then any remaining keys alphabetically.</li>
 </ul>
 <h2 id="risks">Risks<a class="headerlink" href="#risks" title="Permanent link">¶</a></h2>
 <ul>
