@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/radiodroid-logo.svg" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="360" />
+  <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer logo — Android mascot with radio icons; supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="360" />
 </p>
 
 # RadioDroid

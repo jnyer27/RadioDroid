@@ -1,7 +1,7 @@
 # RadioDroid Privacy Policy
 
 <p align="center">
-  <img src="docs/assets/radiodroid-logo.svg" alt="RadioDroid Chirp Programmer" width="220" />
+  <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer logo" width="220" />
 </p>
 
 **Effective date:** March 22, 2026  
