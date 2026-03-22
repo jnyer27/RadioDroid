@@ -14,6 +14,7 @@ hooks:
 
 theme:
   name: material
+  logo: assets/radiodroid-logo.svg
   palette:
     - scheme: default
       primary: indigo

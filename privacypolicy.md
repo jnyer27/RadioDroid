@@ -1,5 +1,9 @@
 # RadioDroid Privacy Policy
 
+<p align="center">
+  <img src="docs/assets/radiodroid-logo.svg" alt="RadioDroid Chirp Programmer" width="220" />
+</p>
+
 **Effective date:** March 22, 2026  
 
 **App:** RadioDroid — Android CHIRP-compatible radio programmer (`com.radiodroid.app`)  

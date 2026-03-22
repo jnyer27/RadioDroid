@@ -1,7 +1,7 @@
 # RadioDroid User Guide
 
 <p align="center">
-  <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="320" />
+  <img src="docs/assets/radiodroid-logo.svg" alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="320" />
 </p>
 
 RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
