@@ -19,12 +19,21 @@ def on_pre_build(config, **kwargs):
     ug_dst = docs_dir / "index.md"
     if not ug_src.exists():
         raise FileNotFoundError(f"userguide.md not found at {ug_src}")
-    shutil.copy2(ug_src, ug_dst)
-    print(f"  [hook] Copied userguide.md -> docs/index.md")
+    text = ug_src.read_text(encoding="utf-8")
+    # GitHub renders userguide.md from repo root (docs/assets/...); MkDocs serves from docs/ (assets/...).
+    text = text.replace("](docs/assets/", "](assets/")
+    text = text.replace('src="docs/assets/', 'src="assets/')
+    text = text.replace("src='docs/assets/", "src='assets/")
+    ug_dst.write_text(text, encoding="utf-8")
+    print(f"  [hook] Copied userguide.md -> docs/index.md (adjusted asset paths)")
 
     pp_src = repo_root / "privacypolicy.md"
     pp_dst = docs_dir / "privacy-policy.md"
     if not pp_src.exists():
         raise FileNotFoundError(f"privacypolicy.md not found at {pp_src}")
-    shutil.copy2(pp_src, pp_dst)
-    print(f"  [hook] Copied privacypolicy.md -> docs/privacy-policy.md")
+    pptext = pp_src.read_text(encoding="utf-8")
+    pptext = pptext.replace("](docs/assets/", "](assets/")
+    pptext = pptext.replace('src="docs/assets/', 'src="assets/')
+    pptext = pptext.replace("src='docs/assets/", "src='assets/")
+    pp_dst.write_text(pptext, encoding="utf-8")
+    print(f"  [hook] Copied privacypolicy.md -> docs/privacy-policy.md (adjusted asset paths)")
