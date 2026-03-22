@@ -63,9 +63,17 @@ android {
     }
 }
 
+// Host Python for Chaquopy (must match version below). Do not hardcode machine paths in git —
+// set chaquopy.buildPython in AndroidRadioDroid/local.properties (gitignored), or rely on PATH.
+val chaquopyBuildPython: String? = rootProject.file("local.properties").takeIf { it.exists() }
+    ?.inputStream()
+    ?.use { stream ->
+        Properties().apply { load(stream) }.getProperty("chaquopy.buildPython")?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
 chaquopy {
     defaultConfig {
-        buildPython("C:/Users/jason/AppData/Local/Programs/Python/Python312/python.exe")
+        chaquopyBuildPython?.let { buildPython(it) }
         version = "3.12"
     }
 }

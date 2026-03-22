@@ -1,0 +1,7 @@
+# Copy to local.properties (never commit local.properties).
+# Android Studio normally creates local.properties with sdk.dir only.
+
+# Optional: Chaquopy needs Python on the build host matching app Python (e.g. 3.12).
+# If unset, Chaquopy searches PATH (py -3.12, python3.12, python, etc.).
+# Use forward slashes, even on Windows.
+# chaquopy.buildPython=C:/Users/you/AppData/Local/Programs/Python/Python312/python.exe
