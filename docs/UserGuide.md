@@ -92,7 +92,7 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
   - **Save to radio** — upload the current channel list back to the radio (clone/sync out). You’ll get a confirmation before overwriting the radio memory.
 - **Channel list** — scrollable list of channels (e.g. 1–198). Each row shows:
   - Channel number, RX frequency, name, power, mode, duplex, and (if enabled) two extra slots you choose in **Customize main screen**.
-  - For radios that support them: **Radio-specific** fields (e.g. groups, bandwidth) under the main row.
+  - For radios that support them: **Radio-specific** lines (**Memory.extra** — e.g. bandwidth, group keys, busy lock) under the main row, one `key: value` per line.
 - **⋮ Menu**
   - **Search Channels** — show a search bar to filter by name, group, or frequency.
   - **Import CHIRP CSV from File…** — load a `.csv` exported from desktop CHIRP.
@@ -122,11 +122,25 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
 ├────┼────────────────────────────────────┤
 │  2 │ 462.5875 MHz · NFM · Low           │
 │    │ GMRS 2 · + 5 MHz                   │
-│    │ Bandwidth · Wide · Group A         │
+│    │ Bandwidth: Wide                     │
+│    │ b_lock: OFF                         │
 └────┴────────────────────────────────────┘
 ```
 
-*Schematic. App bar, connection actions, and sample channel rows (extra line when the driver exposes radio-specific fields).*
+*Schematic. App bar, connection actions, and sample channel rows (radio-specific extras stacked vertically when the driver exposes them).*
+
+### Multi-select and bulk actions
+
+- **Enter selection mode** — **Long-press** a channel. A **selection bar** appears at the bottom with the count of selected channels.
+- **Add or remove channels** — Tap rows to toggle selection. Tap **Done** to exit selection mode.
+- **Search → Select All** — Enable **Search Channels** (⋮), filter the list by name, **group label** (from driver extras), or frequency, then tap **Select All** to select every **non-empty** channel that matches the filter; bulk actions then apply only to those slots.
+- **Selection bar actions** (left to right after the count):
+  - **Move up / Move down** — Nudge selected channels in the list.
+  - **Move to slot** — Move the selection to another slot range.
+  - **TX power** — Set the same transmit power on all selected non-empty channels (uses the driver’s power level names).
+  - **Radio-specific field** — Button with the **tag / group** icon. Opens a list of **writable** parameters from the driver’s channel-extra schema (the same **Memory.extra** fields as **Radio-specific** in the channel editor). Choose a field, then enter or pick a value; RadioDroid applies it to **each selected non-empty channel**. Read-only fields are omitted. If no schema is available yet, load from the radio or open a channel once so the app can read the driver layout. **This replaces the old “bulk set channel groups (A–O)” control:** group and other radio-specific values now live only in **Memory.extra** when the driver defines them, and you change them per channel in the editor or for many channels at once with this action.
+  - **Export CSV** — Share the selected channels as CHIRP CSV.
+  - **Clear** — Empty the selected slots.
 
 Import, export, and radio settings are enabled only when channels are loaded (and, for radio settings, when the radio has settings support and is connected or has a clone image).
 
@@ -190,8 +204,7 @@ Tap a channel in the list to open the **channel editor**.
 - **Power** — transmit power (e.g. High, Low, or driver-specific levels).
 - **Mode** — e.g. FM, NFM, AM, USB (driver-dependent).
 - **TX tone / RX tone** — CTCSS or DCS encode/decode; choose from the tone list or “Off”.
-- **Busy lock** — optional; may be disabled when duplex is not Simplex (driver-dependent).
-- **Radio-specific settings** — extra parameters from the CHIRP driver (e.g. bandwidth, group slots). Shown as spinners or switches when the driver defines options; otherwise as text fields.
+- **Radio-specific settings** — **Memory.extra** parameters from the CHIRP driver (e.g. bandwidth, group membership, busy lock / BCL when exposed as extras). Shown as spinners, switches, or text fields depending on type. Some bool extras are forced off when duplex uses an offset, if the driver requires it.
 
 Tap **Done** to save the channel and return to the list, or **Cancel** to discard changes.
 
