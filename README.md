@@ -82,5 +82,6 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 
 ## Related
 
+- [Privacy policy](privacypolicy.md) — data handling for the official app; [online copy](https://jnyer27.github.io/RadioDroid/privacy-policy/) on the user guide site
 - [NICFW TD-H3 Channel Editor](https://github.com/jnyer27/NICFW-H3-25-CHIRP-ADAPTER) — TID H3-specific editor with nicFW 2.5 advanced features
 - [CHIRP](https://github.com/kk7ds/chirp) — the open-source radio programming project this app builds upon

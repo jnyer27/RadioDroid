@@ -66,6 +66,7 @@ markdown_extensions:
 
 nav:
   - User Guide: index.md
+  - Privacy policy: privacy-policy.md
 
 plugins:
   - search

@@ -19,6 +19,7 @@ RadioDroid is an Android app that programs amateur and GMRS radios using the sam
 9. [Radio backup (JSON)](#radio-backup-json)
 10. [Customize main screen](#customize-main-screen)
 11. [Supported radios](#supported-radios)
+12. [Privacy policy](#privacy-policy)
 
 ---
 
@@ -291,6 +292,17 @@ Examples of supported families (this is not a full list):
 - **BTECH** — UV-50X3, and others  
 
 Select **Select Radio Model…** from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see the [Dynamic driver-based UI](https://github.com/jnyer27/RadioDroid/blob/main/docs/DYNAMIC_DRIVER_UI.md) doc in the repository for technical details.
+
+---
+
+## Privacy policy
+
+RadioDroid is **local-first**: channel memories, EEPROM images, and backups stay on your device unless **you** export or share them. The official app does **not** include analytics SDKs or a general **INTERNET** permission for programming; Bluetooth and USB are used to talk to **your radio** (or adapter), not to RadioDroid servers.
+
+**Full policy (kept in sync with the app architecture):**
+
+- **Online (MkDocs):** [jnyer27.github.io/RadioDroid/privacy-policy/](https://jnyer27.github.io/RadioDroid/privacy-policy/)
+- **Source in the repo:** [privacypolicy.md](https://github.com/jnyer27/RadioDroid/blob/main/privacypolicy.md)
 
 ---
 
