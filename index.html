@@ -404,8 +404,11 @@
 <article class="md-content__inner md-typeset">
 
 <h1 id="radiodroid-user-guide">RadioDroid User Guide<a class="headerlink" href="#radiodroid-user-guide" title="Permanent link">¶</a></h1>
-<p>RadioDroid is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
-<p><strong>Current release: v3.3.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
+<p align="center">
+<img alt="RadioDroid Chirp Programmer — supports 170+ radio drivers (USB OTG and Bluetooth LE)" src="docs/assets/radiodroid-logo.png" width="320"/>
+</p>
+<p>RadioDroid <strong>Chirp Programmer</strong> is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
+<p><strong>Current release: v3.4.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
 <hr/>
 <h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">¶</a></h2>
 <ol>
@@ -648,6 +651,7 @@
 <ul>
 <li><strong>Baofeng</strong> — UV-5R, BF-F8HP, UV-82, UV-K5, and others  </li>
 <li><strong>TID Radio</strong> — Pick the entry that matches your firmware: <strong>TD-H3</strong> is the stock CHIRP layout; <strong>TD-H3 nicFW 2.5</strong> is the separate driver for <strong>nicFW V2.5</strong> codeplugs (different EEPROM layout). Using the wrong one will misread channels or show blanks. Other TID models (e.g. TD-H6, TD-H8, TD-M11) have their own entries.  </li>
+<li><strong>Custom <code>.py</code> driver (trust)</strong> — <strong>v3.4.0+:</strong> Tapping <strong>Load .py Driver</strong> shows a reminder that the file runs <strong>inside RadioDroid</strong> with the same kind of access as the rest of the app (including USB/Bluetooth programming). Only use driver files from <strong>sources you trust</strong>; they are not run in a separate locked-down sandbox.  </li>
 <li><strong>Duplicate driver (sideloaded <code>.py</code>)</strong> — If you used <strong>Load .py Driver</strong> for a module that is <strong>also bundled</strong> (e.g. <code>tidradio_h3_nicfw25.py</code>), the app may try to load it again on startup and hit a <strong>duplicate driver</strong> warning—the built-in copy is the one you should use. Delete the extra copy from <code>files/custom_drivers/</code> (e.g. with adb) or clear app data to drop sideloaded drivers; the FAB is only needed for drivers <strong>not</strong> in the build.  </li>
 <li><strong>Retevis</strong> — RA25, RT85, and others  </li>
 <li><strong>Yaesu</strong> — FT-60, FT-65, and others  </li>
