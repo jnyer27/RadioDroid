@@ -10,7 +10,9 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityRadioSelectBinding
@@ -60,9 +62,11 @@ class RadioSelectActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         binding = ActivityRadioSelectBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyEdgeToEdgeInsets()
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

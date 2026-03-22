@@ -8,10 +8,9 @@ import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
+import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
 import com.radiodroid.app.databinding.ActivityChirpImportBinding
@@ -54,15 +53,11 @@ class ChirpImportActivity : AppCompatActivity() {
     private lateinit var validStartIndices: List<Int>
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         binding = ActivityChirpImportBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
-            insets
-        }
+        binding.root.applyEdgeToEdgeInsets()
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

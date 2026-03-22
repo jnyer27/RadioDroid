@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import com.radiodroid.app.databinding.ActivityMainDisplayCustomizeBinding
 import com.radiodroid.app.radio.MainDisplayPref
 
@@ -18,9 +20,11 @@ class MainDisplayCustomizeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainDisplayCustomizeBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         binding = ActivityMainDisplayCustomizeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applyEdgeToEdgeInsets()
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
