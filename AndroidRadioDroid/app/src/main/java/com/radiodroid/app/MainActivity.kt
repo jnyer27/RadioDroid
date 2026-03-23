@@ -709,6 +709,17 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         btManager  = BtSerialManager(this)
         bleManager = BleManager(this)
+        bleManager.onLinkLost = linkLost@{
+            // Runs on main thread (posted from GATT callback). Clear BLE bridge so the next
+            // connect gets a fresh LocalServerSocket; avoids stale Python↔BLE relay after reboot.
+            if (isFinishing) return@linkLost
+            bleBridge?.close()
+            bleBridge = null
+            activePort = null
+            activeStream = null
+            updateConnectionUi()
+            Toast.makeText(this, R.string.ble_connection_lost, Toast.LENGTH_LONG).show()
+        }
         usbBridge  = UsbSerialBridge(this)
 
         // Restore last selected radio so the user doesn't have to re-pick on every launch

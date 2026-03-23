@@ -28,6 +28,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -56,6 +57,17 @@ class BleManager(private val context: Context) {
     private var connectedDevice: BluetoothDevice? = null
     private val seenAddresses = mutableSetOf<String>()
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Incremented on every [connect] attempt so a delayed [STATE_DISCONNECTED] from a
+     * previous GATT (e.g. radio reboot or switching devices) cannot run link-lost logic
+     * after a newer connection is already up — that race cleared the new session and
+     * caused crashes on reconnect.
+     */
+    private val connectGeneration = AtomicInteger(0)
+
+    /** Invoked on the main thread when an established link drops unexpectedly (not replaced by a newer [connect]). */
+    var onLinkLost: (() -> Unit)? = null
 
     // ─────────────────────────────────────────────────────────────────────────
     // Scanning
@@ -120,6 +132,8 @@ class BleManager(private val context: Context) {
      */
     fun connect(device: BluetoothDevice, onResult: (Result<RadioStream>) -> Unit) {
         disconnect()
+        // disconnect() already bumped [connectGeneration]; this value identifies this attempt.
+        val generation = connectGeneration.get()
         val stream = BleRadioStream()
         var resultDelivered = false
 
@@ -286,6 +300,9 @@ class BleManager(private val context: Context) {
     }
 
     fun disconnect() {
+        // Invalidate any pending STATE_DISCONNECTED from the session being torn down so it
+        // cannot fire [onLinkLost] or clear state after a new [connect] (or idle disconnect).
+        connectGeneration.incrementAndGet()
         currentStream?.close()
         currentStream = null
         connectedDevice = null
@@ -383,6 +400,7 @@ class BleRadioStream : RadioStream {
 
     /** Updated by BleManager after MTU negotiation (MTU − 3 bytes). */
     var chunkSize: Int = 20
+    @Volatile
     var wasReady: Boolean = false
         private set
 
@@ -397,7 +415,9 @@ class BleRadioStream : RadioStream {
         openFlag.set(true)
     }
 
-    fun markReady() { wasReady = true }
+    fun markReady() {
+        wasReady = true
+    }
 
     val isOpen: Boolean get() = openFlag.get()
 

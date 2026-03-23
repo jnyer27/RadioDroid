@@ -7,6 +7,7 @@
     <string name="status_connected">Connected: %1$s</string>
     <string name="load_from_radio">Load from radio</string>
     <string name="save_to_radio">Save to radio</string>
+    <string name="ble_connection_lost">Bluetooth connection lost (radio may have rebooted). Tap Connect to pair again.</string>
     <string name="channels">Channels (1–198)</string>
     <string name="channel_number">Ch %1$d</string>
     <string name="empty_channel">Empty</string>
