@@ -1,0 +1,71 @@
+name: chirp-snap
+summary: A free, open-source tool for programming your amateur radio
+description: |
+    CHIRP is a free, open-source tool for programming your amateur radio.
+    It supports a large number of manufacturers and models, as well as
+    provides a way to interface with multiple data sources and formats.
+
+adopt-info: chirp
+base: core22
+confinement: strict
+grade: stable
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+  - build-on: armhf
+
+environment:
+  # WORKAROUND: Add python modules in Snap to search path
+  PYTHONPATH: ${SNAP}/usr/local/lib/python3.10/dist-packages:${SNAP}/lib/python3.10/site-packages:${SNAP}/usr/lib/python3/dist-packages
+
+apps:
+  chirp:
+    command: usr/local/bin/chirp
+    desktop: usr/local/lib/python3.10/dist-packages/chirp/share/chirp.desktop
+    extensions:
+      # WARNING: gnome extension is incompatible with python apps.
+      - gnome
+    plugs:
+      - home
+      - network
+      - removable-media
+      - raw-usb
+      - serial-port
+
+parts:
+  chirp:
+    plugin: python
+    source: NOT_USED.zip
+    build-environment:
+      # WORKAROUND: The python plugin is broken with gnome extension
+      - PATH: ${CRAFT_PART_INSTALL}/bin:${PATH}
+      - PYTHONPATH: ""
+    override-pull: |
+      apt install -y curl
+      ver_with_next=$(basename $(curl -H "User-Agent: goldstar611" -Ls -o/dev/null -w '%{url_effective}' https://archive.chirpmyradio.com/download?stream=next))
+      ver_without_next=${ver_with_next//next-/}
+      curl -H "User-Agent: goldstar611" -o ${SNAPCRAFT_PART_SRC}/chirp-${ver_without_next}-py3-none-any.whl https://archive.chirpmyradio.com/chirp_next/${ver_with_next}/chirp-${ver_without_next}-py3-none-any.whl
+      pip install --no-input --verbose --force-reinstall --prefix=${SNAPCRAFT_PART_INSTALL}/usr ${SNAPCRAFT_PART_SRC}/chirp-${ver_without_next}-py3-none-any.whl
+      # Fix icon
+      sed -i 's,Icon=chirp,Icon=${SNAP}/usr/local/lib/python3.10/dist-packages/chirp/share/chirp.svg,g' ${SNAPCRAFT_PART_INSTALL}/usr/local/lib/python3.10/dist-packages/chirp/share/chirp.desktop
+      # snap version cannot be longer than 32 characters
+      TARBALL_SHA_SHORT=$(sha1sum ${SNAPCRAFT_PART_SRC}/chirp-${ver_without_next}-py3-none-any.whl | head -c 8)
+      SNAP_VERSION="snap-${ver_with_next}+${TARBALL_SHA_SHORT}"
+      craftctl set version="$SNAP_VERSION"
+    stage-packages:
+      - python3
+      - python3-wxgtk4.0
+    stage:
+      # WORKAROUND: Skip venv from python plugin
+      - -bin/activate
+      - -bin/activate.csh
+      - -bin/activate.fish
+      - -bin/Activate.ps1
+      - -bin/python
+      - -bin/python3
+      - -bin/python3.10
+      - -bin/pip
+      - -bin/pip3
+      - -bin/pip3.10
+      - -pyvenv.cfg

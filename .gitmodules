@@ -1,4 +1,0 @@
-[submodule "AndroidRadioDroid/app/src/main/python/chirp"]
-	path = AndroidRadioDroid/app/src/main/python/chirp
-	url = https://github.com/jnyer27/chirp.git
-	branch = radiodroid

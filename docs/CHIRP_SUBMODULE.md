@@ -1,83 +1,33 @@
-# CHIRP submodule (RadioDroid fork)
+# Vendored CHIRP (RadioDroid)
 
-RadioDroid embeds CHIRP under `AndroidRadioDroid/app/src/main/python/chirp` as a **Git submodule**.
+RadioDroid ships CHIRP as **ordinary source** under `AndroidRadioDroid/app/src/main/python/chirp` inside this repository (not a Git submodule). One clone and one release tag cover the app and drivers together.
 
-Upstream is [kk7ds/chirp](https://github.com/kk7ds/chirp). RadioDroid may pin commits that include **Android- or RadioDroid-specific driver fixes** that are not (yet) on upstream. Those commits must live on a **fork you control** so fresh clones can run `git submodule update` successfully.
+## Lineage
 
-## Submodule remote
+- **Upstream:** [kk7ds/chirp](https://github.com/kk7ds/chirp) (GPLv2+).
+- **RadioDroid fork (optional sharing / merges):** [jnyer27/chirp](https://github.com/jnyer27/chirp) — use it to publish driver fixes or to merge upstream CHIRP, then copy or cherry-pick into the vendored tree here.
 
-- **URL (in `.gitmodules`):** `https://github.com/jnyer27/chirp.git`
-- **Suggested default branch on the fork:** `radiodroid` (or use `master` if you prefer—Git stores the **commit SHA** in the parent repo, not the branch name)
-
-Example commit carried on the fork: **`32d7711e`** — `tidradio_h3_nicfw25` fixes (mmap byte/int, DTCS mapping) and related RadioDroid testing.
-
-## One-time: GitHub fork + push your submodule history
-
-1. On GitHub, **fork** `kk7ds/chirp` to your account (same org/user as RadioDroid, e.g. `jnyer27/chirp`).
-2. In the submodule working tree:
-
-   ```bash
-   cd AndroidRadioDroid/app/src/main/python/chirp
-   git remote rename origin upstream
-   git remote add origin https://github.com/jnyer27/chirp.git
-   git push -u origin master:radiodroid
-   ```
-
-   Adjust branch names if your local default is not `master`. The goal is to push every commit the parent repo might reference (including `32d7711e` and its parents).
-
-3. On GitHub → fork **Settings → General → Default branch**, set **`radiodroid`** (optional but matches `.gitmodules` `branch`).
-
-## Cloning RadioDroid
+## Cloning
 
 ```bash
-git clone --recurse-submodules https://github.com/jnyer27/RadioDroid.git
+git clone https://github.com/jnyer27/RadioDroid.git
 ```
 
-Already cloned without submodules:
+No `submodule update` step.
 
-```bash
-git submodule sync
-git submodule update --init --recursive
-```
+## Changing drivers
 
-After changing `.gitmodules` URL, always run **`git submodule sync`** once so your local `.git/config` matches.
+1. Edit under `AndroidRadioDroid/app/src/main/python/chirp/chirp/drivers/…`.
+2. From `AndroidRadioDroid/app/src/main/python`, run targeted tests, e.g.  
+   `python chirp/tests/unit/test_tidradio_h3_nicfw25.py`.
+3. Commit on **RadioDroid** with the rest of the app change.
 
-To pull from **upstream** kk7ds after sync (recommended for maintainers):
+To **share** a driver patch with the fork: push the same change to `jnyer27/chirp` (or open a PR there) so others can reuse it; the **source of truth** for the app remains this repo.
 
-```bash
-cd AndroidRadioDroid/app/src/main/python/chirp
-git remote add upstream https://github.com/kk7ds/chirp.git   # skip if already present
-git fetch upstream
-```
+## Merging upstream CHIRP
 
-## Bumping the pinned CHIRP revision
-
-1. Commit inside the submodule, then push to **your fork**:
-
-   ```bash
-   cd AndroidRadioDroid/app/src/main/python/chirp
-   git push origin radiodroid
-   ```
-
-2. In the **RadioDroid** repo root:
-
-   ```bash
-   git add AndroidRadioDroid/app/src/main/python/chirp
-   git commit -m "Bump CHIRP submodule"
-   ```
-
-## Merging upstream CHIRP changes
-
-```bash
-cd AndroidRadioDroid/app/src/main/python/chirp
-git fetch upstream
-git checkout radiodroid
-git merge upstream/master   # or rebase; resolve conflicts; test RadioDroid
-git push origin radiodroid
-```
-
-Then bump the submodule pointer in RadioDroid as above.
+Use your normal Git workflow against [kk7ds/chirp](https://github.com/kk7ds/chirp) or your fork, then integrate into `app/src/main/python/chirp` (merge, cherry-pick, or manual copy). Resolve conflicts, run driver tests, and commit in RadioDroid.
 
 ## License
 
-CHIRP remains GPLv2+ as in the upstream project; your fork inherits the same license for CHIRP code.
+CHIRP remains GPLv2+ as in the upstream project; the vendored tree inherits the same license for CHIRP code.

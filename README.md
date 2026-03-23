@@ -22,7 +22,7 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 
 ### What’s new in **v4.1.0**
 
-- **Maintainers** — **Cursor skill** for **CHIRP submodule** hygiene (avoid checkout drift vs pinned commit). **Docs** — **`docs/index.md`** release line synced with the app. See [release notes](release_notes_v4.1.0.md).
+- **Maintainers** — **Cursor skill** for **vendored CHIRP** tree hygiene. **Docs** — **`docs/index.md`** release line synced with the app. See [release notes](release_notes_v4.1.0.md).
 
 ### Earlier: **v4.0.0**
 
@@ -79,12 +79,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - **BLE compatibility** — Multiple UART service UUIDs, filtered BLE scan, and conservative MTU handling so more cheap Chinese BLE-to-serial dongles work reliably (Baofeng-style, Nordic, Microchip/ISSC, NICFW).
 - **Docs** — README and [user guide](https://jnyer27.github.io/RadioDroid/) updated for this release.
 
-## CHIRP submodule (fork)
+## Vendored CHIRP
 
-The bundled CHIRP tree is a **Git submodule** pointing at **[github.com/jnyer27/chirp](https://github.com/jnyer27/chirp)** (RadioDroid-maintained fork), not kk7ds/chirp directly. That keeps Android-specific driver commits (e.g. nicFW H3 fixes) **cloneable** with the app repo.
+The Python CHIRP tree lives **inside this repo** at `AndroidRadioDroid/app/src/main/python/chirp` (not a submodule). Releases ship one revision of the app and drivers together. Optional sharing or upstream merges still use the **[jnyer27/chirp](https://github.com/jnyer27/chirp)** fork as documented in [docs/CHIRP_SUBMODULE.md](docs/CHIRP_SUBMODULE.md) (file name is legacy; content describes vendoring).
 
-- Maintainer workflow: [docs/CHIRP_SUBMODULE.md](docs/CHIRP_SUBMODULE.md)
-- Clone with submodules: `git clone --recurse-submodules https://github.com/jnyer27/RadioDroid.git`
+- Clone: `git clone https://github.com/jnyer27/RadioDroid.git`
 
 ## Architecture
 

@@ -1,0 +1,76 @@
+name: Tests
+on:
+  pull_request:
+jobs:
+  style:
+    name: Style checks
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tox
+        uses: ./.github/actions/py3-tox
+        with:
+          tox_target: style
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tox
+        uses: ./.github/actions/py3-tox
+        with:
+          tox_target: unit
+      - name: Archive results
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit_report
+          path: unit_report.html
+
+  driver:
+    name: Driver tests (Python 3.10)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tox
+        uses: ./.github/actions/py3-tox
+        with:
+          tox_target: fast-driver
+
+  driver-next:
+    name: Driver tests (Python 3.12)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install python 3.12
+        uses: actions/setup-python@v5
+        id: pyinst
+        with:
+          python-version: '3.12'
+      - run: "sudo ln -s ${{ steps.pyinst.outputs.python-path }} /usr/local/bin/python3.12"
+      - run: "echo $PATH; ls -l /usr/local/bin"
+      - name: Run tox
+        uses: ./.github/actions/py3-tox
+        with:
+          tox_target: fast-driver
+          py_version: '3.12'
+
+  matrix:
+    name: Create support matrix
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tox
+        uses: ./.github/actions/py3-tox
+        with:
+          tox_target: makesupported
+      - name: Archive support matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-matrix
+          path: model_support.html
