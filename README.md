@@ -20,7 +20,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v4.0.0**
+### What’s new in **v4.1.0**
+
+- **Maintainers** — **Cursor skill** for **CHIRP submodule** hygiene (avoid checkout drift vs pinned commit). **Docs** — **`docs/index.md`** release line synced with the app. See [release notes](release_notes_v4.1.0.md).
+
+### Earlier: **v4.0.0**
 
 - **NICFW TD-H3 2.5** — **Driver `validate_memory`** for **mode vs bandwidth**; **mmap apply** and **channel editor / bulk** use the same rules; **DCS** stored as **code-table index** (fixes **025** vs **021**); **50–600 MHz** **`valid_bands`** for RX-aligned validation. See [release notes](release_notes_v4.0.0.md).
 
@@ -95,7 +99,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v3.5.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v4.1.0).
 
 ## Related
 
