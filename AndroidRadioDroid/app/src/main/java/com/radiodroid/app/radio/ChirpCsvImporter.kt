@@ -136,16 +136,7 @@ object ChirpCsvImporter {
             val modeUpper = modeRaw.uppercase(Locale.US)
             val modeStr = if (modeUpper in CHIRP_MODES) modeUpper else "FM"
 
-            val bandwidth = when (modeStr) {
-                "NFM", "NAM" -> "Narrow"
-                else         -> "Wide"
-            }
-
-            val extra = buildMap {
-                if (modeStr == "NFM" || modeStr == "NAM") {
-                    put("bandwidth", "Narrow")
-                }
-            }
+            val bandwidth = Channel.displayBandwidthForChannel(modeStr, emptyMap())
 
             results.add(
                 ChirpEntry(
@@ -168,7 +159,7 @@ object ChirpCsvImporter {
                         rxToneMode     = rxToneMode,
                         rxToneVal      = rxToneVal,
                         rxTonePolarity = rxPol,
-                        extra          = extra,
+                        extra          = emptyMap(),
                     )
                 )
             )

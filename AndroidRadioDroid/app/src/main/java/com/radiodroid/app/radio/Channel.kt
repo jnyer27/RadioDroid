@@ -54,9 +54,18 @@ data class Channel(
 
     companion object {
         /**
+         * List-row bandwidth: prefer driver [Memory.extra] "bandwidth" when present (Auto/USB narrow),
+         * else infer from CHIRP mode (NFM/NAM → Narrow).
+         */
+        fun displayBandwidthForChannel(mode: String, extra: Map<String, String>): String {
+            val bw = extra["bandwidth"]?.trim()?.takeIf { it.isNotEmpty() }
+            if (bw != null) return bw
+            return if (mode == "NFM" || mode == "NAM") "Narrow" else "Wide"
+        }
+
+        /**
          * Construct a Channel from a Python dict returned by chirp_bridge.download().
          *
-         * [mode] and [bandwidth] are set from the raw driver mode (NFM/NAM→Narrow, else Wide).
          * [driverMode] is the raw value from the driver; used on upload.
          *
          * NOTE: obj["key"] in Kotlin compiles to PyObject.get(String) = Python getattr(),
@@ -65,9 +74,10 @@ data class Channel(
          */
         fun fromPyObject(slotNumber: Int, obj: PyObject): Channel {
             val isEmpty = obj.callAttr("get", "empty")?.toString() == "True"
+            val extra = parseExtraFromPyObject(obj)
             val rawMode = obj.callAttr("get", "mode")?.toString() ?: "FM"
             val displayMode = rawMode
-            val displayBandwidth = if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
+            val displayBandwidth = displayBandwidthForChannel(rawMode, extra)
             return Channel(
                 number          = obj.callAttr("get", "number")?.toInt() ?: slotNumber,
                 empty           = isEmpty,
@@ -109,10 +119,10 @@ data class Channel(
         /** Build Channel from JSON (e.g. download result from chirp_bridge or backup file). */
         fun fromJson(slotNumber: Int, obj: org.json.JSONObject): Channel {
             val isEmpty = obj.optString("empty") == "true" || obj.optBoolean("empty", false)
+            val extra = parseExtraFromJson(obj.optJSONObject("extra"))
             val rawMode = obj.optString("mode", "FM")
             val displayMode = rawMode
-            val displayBandwidth = if (rawMode == "NFM" || rawMode == "NAM") "Narrow" else "Wide"
-            val extra = parseExtraFromJson(obj.optJSONObject("extra"))
+            val displayBandwidth = displayBandwidthForChannel(rawMode, extra)
             return Channel(
                 number          = obj.optInt("number", slotNumber),
                 empty           = isEmpty,

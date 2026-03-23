@@ -445,7 +445,6 @@ class ChannelEditActivity : AppCompatActivity() {
             c.name       = ""
             c.power      = powerLevels.firstOrNull() ?: ""
             c.mode       = modeList.firstOrNull() ?: "FM"
-            c.bandwidth  = "Wide"
         } else {
             val freqRxMhz = freqRxStr.toDoubleOrNull() ?: 0.0
             val freqRxHz  = (freqRxMhz * 1_000_000).toLong()
@@ -481,9 +480,6 @@ class ChannelEditActivity : AppCompatActivity() {
             c.power    = powerStr
             c.mode     = modeStr
         }
-        // Driver mode for upload; bandwidth in sync with display mode
-        c.driverMode = c.mode
-        c.bandwidth  = if (c.mode == "NFM" || c.mode == "NAM") "Narrow" else "Wide"
 
         // Tone — always saved regardless of empty flag so tones survive frequency edits
         val (txMode, txVal, txPol) = EepromConstants.indexToTone(binding.spinnerTxTone.selectedItemPosition)
@@ -521,6 +517,14 @@ class ChannelEditActivity : AppCompatActivity() {
             val merged = c.extra.toMutableMap()
             busyLockExtraKeys().forEach { key -> merged[key] = "False" }
             c.extra = merged
+        }
+
+        c.driverMode = c.mode
+        c.bandwidth = if (c.empty) {
+            "Wide"
+        } else {
+            c.extra["bandwidth"]?.trim()?.takeIf { it.isNotEmpty() }
+                ?: if (c.mode == "NFM" || c.mode == "NAM") "Narrow" else "Wide"
         }
 
         EepromParser.writeChannel(eep, c)
