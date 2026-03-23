@@ -87,7 +87,8 @@
 
         <!--
             Search bar — hidden by default, shown when the toolbar search icon is tapped.
-            Filters the channel list by name or group label as the user types.
+            Filters the channel list as the user types. "Select all" selects every non-empty
+            row currently shown (full list when the query is empty, or search matches only).
         -->
         <LinearLayout
             android:id="@+id/searchBar"
@@ -103,7 +104,7 @@
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
-                android:hint="Search by name, group or frequency…"
+                android:hint="@string/main_channel_search_hint"
                 android:inputType="text"
                 android:singleLine="true"
                 android:imeOptions="actionSearch"
@@ -115,7 +116,7 @@
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Select All"
+                android:text="@string/main_channel_search_select_all"
                 android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton

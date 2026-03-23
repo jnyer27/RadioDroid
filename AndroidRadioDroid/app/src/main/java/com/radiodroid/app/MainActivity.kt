@@ -820,8 +820,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString() ?: ""
-                binding.btnSelectAllMatches.visibility =
-                    if (searchQuery.isNotEmpty()) View.VISIBLE else View.GONE
+                syncSearchSelectAllVisibility()
                 applyFilter()
             }
         })
@@ -829,12 +828,18 @@ class MainActivity : AppCompatActivity() {
             searchQuery = ""
             binding.searchEditText.setText("")
             binding.searchBar.visibility = View.GONE
-            binding.btnSelectAllMatches.visibility = View.GONE
+            syncSearchSelectAllVisibility()
             applyFilter()
         }
         binding.btnSelectAllMatches.setOnClickListener {
             if (channelList.isNotEmpty()) adapter.selectAllVisible()
         }
+    }
+
+    /** "Select all" is available whenever the channel search bar is open (full list or filtered). */
+    private fun syncSearchSelectAllVisibility() {
+        binding.btnSelectAllMatches.visibility =
+            if (binding.searchBar.visibility == View.VISIBLE) View.VISIBLE else View.GONE
     }
 
     /** Toggles the search bar open/closed and resets the query when closing. */
@@ -843,10 +848,11 @@ class MainActivity : AppCompatActivity() {
             searchQuery = ""
             binding.searchEditText.setText("")
             binding.searchBar.visibility = View.GONE
-            binding.btnSelectAllMatches.visibility = View.GONE
+            syncSearchSelectAllVisibility()
             applyFilter()
         } else {
             binding.searchBar.visibility = View.VISIBLE
+            syncSearchSelectAllVisibility()
             binding.searchEditText.requestFocus()
         }
     }
