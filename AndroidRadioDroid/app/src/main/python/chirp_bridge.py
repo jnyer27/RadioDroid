@@ -239,6 +239,29 @@ def _memory_to_dict(mem) -> dict:
     return out
 
 
+def _coerce_extra_value_for_chirp(vobj, val):
+    """
+    JSON from Kotlin often carries Memory.extra values as strings.  CHIRP's
+    RadioSettingValueBoolean.set_value() does bool(value); in Python
+    bool("False") is True (non-empty string), which inverts Busy Lock and any
+    other bool extra on save/upload.  Match desktop intent for common encodings.
+    """
+    from chirp import settings as chirp_settings
+    if isinstance(vobj, chirp_settings.RadioSettingValueBoolean):
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            s = val.strip().lower()
+            if s in ("true", "1", "yes", "on"):
+                return True
+            if s in ("false", "0", "no", "off", ""):
+                return False
+        if isinstance(val, (int, float)):
+            return bool(val)
+        return bool(val)
+    return val
+
+
 def is_clone_mode_radio(vendor: str, model: str) -> bool:
     """Return True if the driver is a full-EEPROM clone-mode radio (e.g. TD-H3 nicFW)."""
     _ensure_drivers()
@@ -1263,10 +1286,11 @@ def _channel_dict_into_memory(mem, ch, features):
                 # RadioSetting has no .set_value; __getattr__("set_value") raises KeyError,
                 # and hasattr() would trip that on some Python builds — use .value only.
                 vobj = item.value
+                coerced = _coerce_extra_value_for_chirp(vobj, val)
                 if hasattr(vobj, "set_value"):
-                    vobj.set_value(val)
+                    vobj.set_value(coerced)
                 else:
-                    item.value = val
+                    item.value = coerced
             except Exception as e:
                 try:
                     ename = item.get_name()
@@ -1417,12 +1441,12 @@ def upload(vendor: str, model: str, port: str, baudrate: int, channels_json: str
                         val = extra_dict[name]
                         if isinstance(val, str):
                             val = val.strip()
-                        if hasattr(item, "set_value"):
-                            item.set_value(val)
-                        elif hasattr(item, "value") and hasattr(item.value, "set_value"):
-                            item.value.set_value(val)
+                        vobj = item.value
+                        coerced = _coerce_extra_value_for_chirp(vobj, val)
+                        if hasattr(vobj, "set_value"):
+                            vobj.set_value(coerced)
                         else:
-                            item.value = val
+                            item.value = coerced
                     except Exception as e:
                         try:
                             ename = item.get_name()
