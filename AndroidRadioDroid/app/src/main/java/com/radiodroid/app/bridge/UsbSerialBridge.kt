@@ -12,16 +12,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * Opens a USB serial port (via usb-serial-for-android) and relays bytes
  * through a pair of LocalServerSockets so the Python serial_shim can read,
  * write, and dynamically reconfigure it as if it were a real serial.Serial.
  *
- * Two sockets are created per connection:
+ * Two sockets are created per connection (unique names each [openSocketBridge], same
+ * pattern as [BleBridge] — fixed abstract names caused `EADDRINUSE` on quick reconnect):
  *
- *  "android://radiodroid_usb"       — data channel (raw bytes to/from radio)
- *  "android://radiodroid_usb_ctrl"  — control channel (out-of-band commands)
+ *  `android://rdusb_<uuid>`       — data channel (raw bytes to/from radio)
+ *  `android://rdusb_<uuid>_ctrl`  — control channel (out-of-band commands)
  *
  * Control protocol (line-oriented, Python → Kotlin):
  *   BAUD:<baud>\n   — reconfigure USB port to <baud> bps, Kotlin replies "OK\n"
@@ -36,9 +38,6 @@ import kotlinx.coroutines.launch
  *   error "not the amount of data we want".
  */
 class UsbSerialBridge(private val context: Context) {
-
-    private val socketName     = "radiodroid_usb"
-    private val ctrlSocketName = "radiodroid_usb_ctrl"
 
     private var serverSocket:     LocalServerSocket? = null
     private var ctrlServerSocket: LocalServerSocket? = null
@@ -57,13 +56,17 @@ class UsbSerialBridge(private val context: Context) {
     /**
      * Opens [driver] at [baudRate], starts the LocalSocket relay.
      *
-     * @return "android://radiodroid_usb" — pass this to [ChirpBridge.download].
+     * @return e.g. `android://rdusb_<uuid>` — pass this to [ChirpBridge.download].
      *
      * Note: [baudRate] is the *initial* rate from [RadioInfo.baudRate].  The
      * CHIRP driver will typically override it via radio.pipe.baudrate inside
      * its own sync_in() — the control channel handles that reconfiguration.
      */
     fun openSocketBridge(driver: UsbSerialDriver, baudRate: Int): String {
+        // Stop prior accept loop and release USB/sockets (MainActivity usually calls
+        // [close] first; this covers races and guarantees old names are unbound).
+        close()
+
         val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
         val connection = manager.openDevice(driver.device)
             ?: error("USB permission not granted for ${driver.device.deviceName}")
@@ -73,10 +76,14 @@ class UsbSerialBridge(private val context: Context) {
         port.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
         usbPort = port
 
+        val base = "rdusb_" + UUID.randomUUID().toString().replace("-", "")
+        val dataSocketName = base
+        val ctrlName = "${base}_ctrl"
+
         // Create both server sockets before returning so Python can connect
         // to either in any order — connections queue in the backlog.
-        serverSocket     = LocalServerSocket(socketName)
-        ctrlServerSocket = LocalServerSocket(ctrlSocketName)
+        serverSocket     = LocalServerSocket(dataSocketName)
+        ctrlServerSocket = LocalServerSocket(ctrlName)
 
         CoroutineScope(Dispatchers.IO).launch {
             // Accept connections in a loop so Python can reconnect between operations
@@ -114,7 +121,7 @@ class UsbSerialBridge(private val context: Context) {
             }
         }
 
-        return "android://$socketName"
+        return "android://$dataSocketName"
     }
 
     // ── Relay ─────────────────────────────────────────────────────────────────

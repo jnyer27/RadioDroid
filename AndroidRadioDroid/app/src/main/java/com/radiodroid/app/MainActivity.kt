@@ -1222,7 +1222,8 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Opens [driver] at the selected radio's baud rate and starts the LocalSocket
-     * relay so Python's AndroidSerial can talk to it via "android://radiodroid_usb".
+     * relay. [UsbSerialBridge.openSocketBridge] returns e.g. `android://rdusb_<uuid>`
+     * (control socket: same base + `_ctrl`); that URL is stored in [activePort] for Python.
      */
     private fun openUsbBridge(driver: UsbSerialDriver) {
         val radio = selectedRadio ?: run {
