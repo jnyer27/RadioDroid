@@ -20,7 +20,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v4.1.0**
+### What’s new in **v4.2.0**
+
+- **Channel search** — **Select all** appears as soon as the search bar opens; **chirp_bridge** fixes **bool extras** (e.g. **Busy Lock**). **CHIRP** is **vendored** in-repo (no submodule). See [release notes](release_notes_v4.2.0.md).
+
+### Earlier: **v4.1.0**
 
 - **Maintainers** — **Cursor skill** for **vendored CHIRP** tree hygiene. **Docs** — **`docs/index.md`** release line synced with the app. See [release notes](release_notes_v4.1.0.md).
 
@@ -98,7 +102,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v4.1.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v4.2.0).
 
 ## Related
 

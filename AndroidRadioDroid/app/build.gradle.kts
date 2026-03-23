@@ -31,8 +31,8 @@ android {
         applicationId = "com.radiodroid.app"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 17
-        versionName = "4.1.0"
+        versionCode = 18
+        versionName = "4.2.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
