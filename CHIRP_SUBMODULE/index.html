@@ -22,7 +22,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#chirp-submodule-radiodroid-fork">
+<a class="md-skip" href="#vendored-chirp-radiodroid">
           Skip to content
         </a>
 </div>
@@ -164,65 +164,29 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 
-<h1 id="chirp-submodule-radiodroid-fork">CHIRP submodule (RadioDroid fork)<a class="headerlink" href="#chirp-submodule-radiodroid-fork" title="Permanent link">¶</a></h1>
-<p>RadioDroid embeds CHIRP under <code>AndroidRadioDroid/app/src/main/python/chirp</code> as a <strong>Git submodule</strong>.</p>
-<p>Upstream is <a href="https://github.com/kk7ds/chirp">kk7ds/chirp</a>. RadioDroid may pin commits that include <strong>Android- or RadioDroid-specific driver fixes</strong> that are not (yet) on upstream. Those commits must live on a <strong>fork you control</strong> so fresh clones can run <code>git submodule update</code> successfully.</p>
-<h2 id="submodule-remote">Submodule remote<a class="headerlink" href="#submodule-remote" title="Permanent link">¶</a></h2>
+<h1 id="vendored-chirp-radiodroid">Vendored CHIRP (RadioDroid)<a class="headerlink" href="#vendored-chirp-radiodroid" title="Permanent link">¶</a></h1>
+<p>RadioDroid ships CHIRP as <strong>ordinary source</strong> under <code>AndroidRadioDroid/app/src/main/python/chirp</code> inside this repository (not a Git submodule). One clone and one release tag cover the app and drivers together.</p>
+<h2 id="lineage">Lineage<a class="headerlink" href="#lineage" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>URL (in <code>.gitmodules</code>):</strong> <code>https://github.com/jnyer27/chirp.git</code></li>
-<li><strong>Suggested default branch on the fork:</strong> <code>radiodroid</code> (or use <code>master</code> if you prefer—Git stores the <strong>commit SHA</strong> in the parent repo, not the branch name)</li>
+<li><strong>Upstream:</strong> <a href="https://github.com/kk7ds/chirp">kk7ds/chirp</a> (GPLv2+).</li>
+<li><strong>RadioDroid fork (optional sharing / merges):</strong> <a href="https://github.com/jnyer27/chirp">jnyer27/chirp</a> — use it to publish driver fixes or to merge upstream CHIRP, then copy or cherry-pick into the vendored tree here.</li>
 </ul>
-<p>Example commit carried on the fork: <strong><code>32d7711e</code></strong> — <code>tidradio_h3_nicfw25</code> fixes (mmap byte/int, DTCS mapping) and related RadioDroid testing.</p>
-<h2 id="one-time-github-fork-push-your-submodule-history">One-time: GitHub fork + push your submodule history<a class="headerlink" href="#one-time-github-fork-push-your-submodule-history" title="Permanent link">¶</a></h2>
+<h2 id="cloning">Cloning<a class="headerlink" href="#cloning" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jnyer27/RadioDroid.git
+</code></pre></div>
+<p>No <code>submodule update</code> step.</p>
+<h2 id="changing-drivers">Changing drivers<a class="headerlink" href="#changing-drivers" title="Permanent link">¶</a></h2>
 <ol>
-<li>On GitHub, <strong>fork</strong> <code>kk7ds/chirp</code> to your account (same org/user as RadioDroid, e.g. <code>jnyer27/chirp</code>).</li>
-<li>In the submodule working tree:</li>
+<li>Edit under <code>AndroidRadioDroid/app/src/main/python/chirp/chirp/drivers/…</code>.</li>
+<li>From <code>AndroidRadioDroid/app/src/main/python</code>, run targeted tests, e.g.<br/>
+<code>python chirp/tests/unit/test_tidradio_h3_nicfw25.py</code>.</li>
+<li>Commit on <strong>RadioDroid</strong> with the rest of the app change.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>AndroidRadioDroid/app/src/main/python/chirp
-<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a>git<span class="w"> </span>remote<span class="w"> </span>rename<span class="w"> </span>origin<span class="w"> </span>upstream
-<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a>git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>origin<span class="w"> </span>https://github.com/jnyer27/chirp.git
-<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>master:radiodroid
-</code></pre></div>
-<p>Adjust branch names if your local default is not <code>master</code>. The goal is to push every commit the parent repo might reference (including <code>32d7711e</code> and its parents).</p>
-<ol>
-<li>On GitHub → fork <strong>Settings → General → Default branch</strong>, set <strong><code>radiodroid</code></strong> (optional but matches <code>.gitmodules</code> <code>branch</code>).</li>
-</ol>
-<h2 id="cloning-radiodroid">Cloning RadioDroid<a class="headerlink" href="#cloning-radiodroid" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>--recurse-submodules<span class="w"> </span>https://github.com/jnyer27/RadioDroid.git
-</code></pre></div>
-<p>Already cloned without submodules:</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-2-1" id="__codelineno-2-1" name="__codelineno-2-1"></a>git<span class="w"> </span>submodule<span class="w"> </span>sync
-<a href="#__codelineno-2-2" id="__codelineno-2-2" name="__codelineno-2-2"></a>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>--recursive
-</code></pre></div>
-<p>After changing <code>.gitmodules</code> URL, always run <strong><code>git submodule sync</code></strong> once so your local <code>.git/config</code> matches.</p>
-<p>To pull from <strong>upstream</strong> kk7ds after sync (recommended for maintainers):</p>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-3-1" id="__codelineno-3-1" name="__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>AndroidRadioDroid/app/src/main/python/chirp
-<a href="#__codelineno-3-2" id="__codelineno-3-2" name="__codelineno-3-2"></a>git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>upstream<span class="w"> </span>https://github.com/kk7ds/chirp.git<span class="w">   </span><span class="c1"># skip if already present</span>
-<a href="#__codelineno-3-3" id="__codelineno-3-3" name="__codelineno-3-3"></a>git<span class="w"> </span>fetch<span class="w"> </span>upstream
-</code></pre></div>
-<h2 id="bumping-the-pinned-chirp-revision">Bumping the pinned CHIRP revision<a class="headerlink" href="#bumping-the-pinned-chirp-revision" title="Permanent link">¶</a></h2>
-<ol>
-<li>Commit inside the submodule, then push to <strong>your fork</strong>:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-4-1" id="__codelineno-4-1" name="__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>AndroidRadioDroid/app/src/main/python/chirp
-<a href="#__codelineno-4-2" id="__codelineno-4-2" name="__codelineno-4-2"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>radiodroid
-</code></pre></div>
-<ol>
-<li>In the <strong>RadioDroid</strong> repo root:</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-5-1" id="__codelineno-5-1" name="__codelineno-5-1"></a>git<span class="w"> </span>add<span class="w"> </span>AndroidRadioDroid/app/src/main/python/chirp
-<a href="#__codelineno-5-2" id="__codelineno-5-2" name="__codelineno-5-2"></a>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Bump CHIRP submodule"</span>
-</code></pre></div>
-<h2 id="merging-upstream-chirp-changes">Merging upstream CHIRP changes<a class="headerlink" href="#merging-upstream-chirp-changes" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a href="#__codelineno-6-1" id="__codelineno-6-1" name="__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>AndroidRadioDroid/app/src/main/python/chirp
-<a href="#__codelineno-6-2" id="__codelineno-6-2" name="__codelineno-6-2"></a>git<span class="w"> </span>fetch<span class="w"> </span>upstream
-<a href="#__codelineno-6-3" id="__codelineno-6-3" name="__codelineno-6-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>radiodroid
-<a href="#__codelineno-6-4" id="__codelineno-6-4" name="__codelineno-6-4"></a>git<span class="w"> </span>merge<span class="w"> </span>upstream/master<span class="w">   </span><span class="c1"># or rebase; resolve conflicts; test RadioDroid</span>
-<a href="#__codelineno-6-5" id="__codelineno-6-5" name="__codelineno-6-5"></a>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>radiodroid
-</code></pre></div>
-<p>Then bump the submodule pointer in RadioDroid as above.</p>
+<p>To <strong>share</strong> a driver patch with the fork: push the same change to <code>jnyer27/chirp</code> (or open a PR there) so others can reuse it; the <strong>source of truth</strong> for the app remains this repo.</p>
+<h2 id="merging-upstream-chirp">Merging upstream CHIRP<a class="headerlink" href="#merging-upstream-chirp" title="Permanent link">¶</a></h2>
+<p>Use your normal Git workflow against <a href="https://github.com/kk7ds/chirp">kk7ds/chirp</a> or your fork, then integrate into <code>app/src/main/python/chirp</code> (merge, cherry-pick, or manual copy). Resolve conflicts, run driver tests, and commit in RadioDroid.</p>
 <h2 id="license">License<a class="headerlink" href="#license" title="Permanent link">¶</a></h2>
-<p>CHIRP remains GPLv2+ as in the upstream project; your fork inherits the same license for CHIRP code.</p>
+<p>CHIRP remains GPLv2+ as in the upstream project; the vendored tree inherits the same license for CHIRP code.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
