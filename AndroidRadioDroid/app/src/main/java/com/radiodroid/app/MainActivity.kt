@@ -1949,6 +1949,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyBulkExtraToSelection(eep: ByteArray, selected: Set<Int>, paramName: String, value: String) {
+        val radio = selectedRadio ?: EepromHolder.selectedRadio
+        if (paramName.equals("bandwidth", ignoreCase = true) && radio != null && eep.isNotEmpty()) {
+            lifecycleScope.launch {
+                val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
+                if (isClone) {
+                    val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                    val channels = EepromParser.parseAllChannels(eep)
+                    val lines = mutableListOf<String>()
+                    for (ch in channels) {
+                        if (ch.number !in selected || ch.empty) continue
+                        val merged = ch.copy(extra = ch.extra.toMutableMap().apply { put(paramName, value) })
+                        val msgs = withContext(Dispatchers.IO) {
+                            ChirpBridge.validateChannel(radio, b64, merged)
+                        }
+                        msgs.filter { it.kind == "error" }.forEach { m ->
+                            lines.add("Channel ${ch.number}: ${m.text}")
+                        }
+                    }
+                    if (lines.isNotEmpty()) {
+                        AlertDialog.Builder(this@MainActivity)
+                            .setTitle("Cannot apply bandwidth")
+                            .setMessage(lines.joinToString("\n\n"))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show()
+                        return@launch
+                    }
+                }
+                applyBulkExtraToSelectionCommit(eep, selected, paramName, value)
+            }
+            return
+        }
+        applyBulkExtraToSelectionCommit(eep, selected, paramName, value)
+    }
+
+    private fun applyBulkExtraToSelectionCommit(eep: ByteArray, selected: Set<Int>, paramName: String, value: String) {
         val channels = EepromParser.parseAllChannels(eep)
         var count = 0
         for (ch in channels) {

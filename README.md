@@ -20,7 +20,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v3.5.0**
+### What’s new in **v4.0.0**
+
+- **NICFW TD-H3 2.5** — **Driver `validate_memory`** for **mode vs bandwidth**; **mmap apply** and **channel editor / bulk** use the same rules; **DCS** stored as **code-table index** (fixes **025** vs **021**); **50–600 MHz** **`valid_bands`** for RX-aligned validation. See [release notes](release_notes_v4.0.0.md).
+
+### Earlier: **v3.5.0**
 
 - **Dense channel cards** — Main list rows use **inline badges**, a dedicated **frequency** line, an optional **tone** summary, and a **single radio-specific summary** (merged groups, hidden empty/None, readable labels). See [release notes](release_notes_v3.5.0.md).
 

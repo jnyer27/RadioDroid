@@ -1050,6 +1050,69 @@ def _maybe_attach_memory_extra_template(radio, number, mem):
         mem.extra = filled.extra
 
 
+def _validation_messages_to_json(msgs) -> str:
+    """Serialize CHIRP validate_memory results for Kotlin (errors and warnings only)."""
+    import json as _json
+    from chirp import chirp_common
+
+    out = []
+    for m in msgs:
+        if isinstance(m, chirp_common.ValidationError):
+            out.append({"kind": "error", "text": str(m)})
+        elif isinstance(m, chirp_common.ValidationWarning):
+            out.append({"kind": "warning", "text": str(m)})
+    return _json.dumps(out)
+
+
+def _prepare_and_validate_channel_memory(radio, number: int, ch: dict, features):
+    """
+    Build the same Memory as apply_channel_to_mmap (non-empty path), run validate_memory.
+    Returns (messages, mem). For empty logical channels, returns ([], None) — caller handles clear.
+    """
+    if ch.get("empty"):
+        return [], None
+    mem = radio.get_memory(number)
+    extra_d = ch.get("extra") or {}
+    if isinstance(extra_d, dict) and extra_d:
+        _maybe_attach_memory_extra_template(radio, number, mem)
+    _channel_dict_into_memory(mem, ch, features)
+    mem.number = number
+    return radio.validate_memory(mem), mem
+
+
+def validate_channel_dict(vendor: str, model: str, eeprom_base64: str, channel_json: str) -> str:
+    """
+    Clone-mode: load mmap, merge channel_json into that slot, run validate_memory.
+    Returns JSON list of {kind: "error"|"warning", text: "..."}.
+    Empty channels return [].
+    """
+    import base64
+    import json as _json
+    _ensure_drivers()
+    from chirp import chirp_common
+    from chirp import memmap
+
+    ch = _json.loads(str(channel_json))
+    if ch.get("empty"):
+        return "[]"
+
+    number = int(ch.get("number") or 0)
+    if number < 1:
+        return _validation_messages_to_json(
+            [chirp_common.ValidationError("Channel number must be >= 1")])
+
+    radio_cls = _find_radio_cls(vendor, model)
+    if not issubclass(radio_cls, chirp_common.CloneModeRadio):
+        return "[]"
+
+    data = base64.b64decode(eeprom_base64)
+    mmap = memmap.MemoryMapBytes(bytes(data))
+    radio = radio_cls(mmap)
+    features = radio.get_features()
+    msgs, _ = _prepare_and_validate_channel_memory(radio, number, ch, features)
+    return _validation_messages_to_json(msgs)
+
+
 def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_json: str) -> str:
     """
     Apply a single channel edit to the in-memory EEPROM (clone-mode only).
@@ -1082,11 +1145,10 @@ def apply_channel_to_mmap(vendor: str, model: str, eeprom_base64: str, channel_j
         mem.number = number
         radio.set_memory(mem)
     else:
-        extra_d = ch.get("extra") or {}
-        if isinstance(extra_d, dict) and extra_d:
-            _maybe_attach_memory_extra_template(radio, number, mem)
-        _channel_dict_into_memory(mem, ch, features)
-        mem.number = number
+        msgs, mem = _prepare_and_validate_channel_memory(radio, number, ch, features)
+        errs = [m for m in msgs if isinstance(m, chirp_common.ValidationError)]
+        if errs:
+            raise ValueError("; ".join(str(e) for e in errs))
         radio.set_memory(mem)
 
     new_raw = radio.get_mmap().get_byte_compatible().get_packed()
@@ -1198,10 +1260,11 @@ def _channel_dict_into_memory(mem, ch, features):
                 val = extra_dict[name]
                 if isinstance(val, str):
                     val = val.strip()
-                if hasattr(item, "set_value"):
-                    item.set_value(val)
-                elif hasattr(item, "value") and hasattr(item.value, "set_value"):
-                    item.value.set_value(val)
+                # RadioSetting has no .set_value; __getattr__("set_value") raises KeyError,
+                # and hasattr() would trip that on some Python builds — use .value only.
+                vobj = item.value
+                if hasattr(vobj, "set_value"):
+                    vobj.set_value(val)
                 else:
                     item.value = val
             except Exception as e:

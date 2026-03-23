@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.widget.SwitchCompat
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import androidx.lifecycle.lifecycleScope
@@ -527,14 +528,28 @@ class ChannelEditActivity : AppCompatActivity() {
                 ?: if (c.mode == "NFM" || c.mode == "NAM") "Narrow" else "Wide"
         }
 
-        EepromParser.writeChannel(eep, c)
-
-        // Clone mode: apply this channel edit to the raw EEPROM so upload_mmap and Save EEPROM dump stay in sync
         val radio = EepromHolder.selectedRadio
         if (eep.isNotEmpty() && radio != null) {
             lifecycleScope.launch {
+                var isClone = false
                 try {
-                    val isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
+                    isClone = withContext(Dispatchers.IO) { ChirpBridge.isCloneModeRadio(radio) }
+                    if (isClone && !c.empty) {
+                        val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
+                        val problems = withContext(Dispatchers.IO) {
+                            ChirpBridge.validateChannel(radio, b64, c)
+                        }
+                        val errors = problems.filter { it.kind == "error" }
+                        if (errors.isNotEmpty()) {
+                            AlertDialog.Builder(this@ChannelEditActivity)
+                                .setTitle("Cannot save channel")
+                                .setMessage(errors.joinToString("\n\n") { it.text })
+                                .setPositiveButton(android.R.string.ok, null)
+                                .show()
+                            return@launch
+                        }
+                    }
+                    EepromParser.writeChannel(eep, c)
                     if (isClone) {
                         val b64 = Base64.encodeToString(eep, Base64.NO_WRAP)
                         val newEep = ChirpBridge.applyChannelToMmap(radio, b64, c)
@@ -542,13 +557,19 @@ class ChannelEditActivity : AppCompatActivity() {
                     } else {
                         EepromHolder.eeprom = eep
                     }
-                } catch (_: Throwable) {
-                    EepromHolder.eeprom = eep
+                } catch (e: Throwable) {
+                    Toast.makeText(
+                        this@ChannelEditActivity,
+                        e.message ?: "Save failed",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    return@launch
                 }
                 setResult(RESULT_OK)
                 finish()
             }
         } else {
+            EepromParser.writeChannel(eep, c)
             EepromHolder.eeprom = eep
             setResult(RESULT_OK)
             finish()

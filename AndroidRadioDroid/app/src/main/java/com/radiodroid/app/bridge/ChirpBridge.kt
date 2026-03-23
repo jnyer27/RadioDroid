@@ -10,6 +10,12 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** One entry from [validateChannel] (CHIRP validate_memory). */
+data class ChannelValidationMessage(
+    val kind: String,
+    val text: String,
+)
+
 /**
  * Result of a clone or normal download: channels and optional EEPROM dump (clone-mode).
  */
@@ -245,35 +251,63 @@ object ChirpBridge {
             DownloadResult(channels = channels, eepromBase64 = eepromBase64Out)
         }
 
+    /** JSON payload for [applyChannelToMmap] / [validateChannel] (matches Python bridge). */
+    fun channelToMmapJson(channel: Channel): String {
+        val modeForUpload = channel.driverMode ?: channel.mode
+        return JSONObject().apply {
+            put("number",            channel.number)
+            put("name",              channel.name)
+            put("freq",              channel.freqRxHz)
+            put("tx_freq",           channel.freqTxHz)
+            put("duplex",            channel.duplex)
+            put("offset",            channel.offsetHz)
+            put("power",             channel.power)
+            put("mode",              modeForUpload)
+            put("tx_tone_mode",      channel.txToneMode      ?: "")
+            put("tx_tone_val",       channel.txToneVal       ?: 0.0)
+            put("tx_tone_polarity",  channel.txTonePolarity  ?: "N")
+            put("rx_tone_mode",      channel.rxToneMode     ?: "")
+            put("rx_tone_val",       channel.rxToneVal      ?: 0.0)
+            put("rx_tone_polarity",  channel.rxTonePolarity  ?: "N")
+            put("empty",             channel.empty)
+            if (channel.extra.isNotEmpty()) {
+                put("extra", JSONObject().apply {
+                    channel.extra.forEach { (k, v) -> put(k, v) }
+                })
+            }
+        }.toString()
+    }
+
+    /**
+     * Clone-mode: merge [channel] into the mmap slot and run the driver's validate_memory.
+     * Empty channels return an empty list.
+     */
+    suspend fun validateChannel(radio: RadioInfo, eepromBase64: String, channel: Channel): List<ChannelValidationMessage> =
+        withContext(Dispatchers.IO) {
+            val jsonStr = bridge.callAttr(
+                "validate_channel_dict",
+                radio.vendor,
+                radio.model,
+                eepromBase64,
+                channelToMmapJson(channel),
+            ).toString()
+            val arr = JSONArray(jsonStr)
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                ChannelValidationMessage(
+                    kind = o.optString("kind", "error"),
+                    text = o.optString("text", ""),
+                )
+            }
+        }
+
     /**
      * Applies a single channel edit to the in-memory clone EEPROM so the raw dump
      * stays in sync with the channel list. Returns new eeprom bytes (base64 decoded).
      */
     suspend fun applyChannelToMmap(radio: RadioInfo, eepromBase64: String, channel: Channel): ByteArray =
         withContext(Dispatchers.IO) {
-            val modeForUpload = channel.driverMode ?: channel.mode
-            val channelJson = org.json.JSONObject().apply {
-                put("number",            channel.number)
-                put("name",              channel.name)
-                put("freq",              channel.freqRxHz)
-                put("tx_freq",           channel.freqTxHz)
-                put("duplex",            channel.duplex)
-                put("offset",            channel.offsetHz)
-                put("power",             channel.power)
-                put("mode",              modeForUpload)
-                put("tx_tone_mode",      channel.txToneMode      ?: "")
-                put("tx_tone_val",       channel.txToneVal       ?: 0.0)
-                put("tx_tone_polarity",  channel.txTonePolarity  ?: "N")
-                put("rx_tone_mode",      channel.rxToneMode     ?: "")
-                put("rx_tone_val",       channel.rxToneVal      ?: 0.0)
-                put("rx_tone_polarity",  channel.rxTonePolarity  ?: "N")
-                put("empty",             channel.empty)
-                if (channel.extra.isNotEmpty()) {
-                    put("extra", org.json.JSONObject().apply {
-                        channel.extra.forEach { (k, v) -> put(k, v) }
-                    })
-                }
-            }.toString()
+            val channelJson = channelToMmapJson(channel)
             val newB64 = bridge.callAttr("apply_channel_to_mmap", radio.vendor, radio.model, eepromBase64, channelJson).toString()
             android.util.Base64.decode(newB64, android.util.Base64.NO_WRAP)
         }

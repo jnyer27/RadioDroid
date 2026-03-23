@@ -20,11 +20,12 @@ object MainDisplayPref {
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
+    /** Defaults: Mode first (CHIRP NFM/NAM), Duplex second — avoids redundant Bandwidth vs Mode on narrow FM. */
     fun getSlot1(context: Context): String =
-        prefs(context).getString(KEY_SLOT_1, "bandwidth") ?: "bandwidth"
+        prefs(context).getString(KEY_SLOT_1, "mode") ?: "mode"
 
     fun getSlot2(context: Context): String =
-        prefs(context).getString(KEY_SLOT_2, "mode") ?: "mode"
+        prefs(context).getString(KEY_SLOT_2, "duplex") ?: "duplex"
 
     fun setSlots(context: Context, slot1: String, slot2: String) {
         prefs(context).edit()
