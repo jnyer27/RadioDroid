@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.UUID
 
 /**
  * Bridges BLE I/O (from BleManager) to a LocalServerSocket so that
@@ -23,10 +24,15 @@ import java.io.OutputStream
  * Accept loop: each download/settings/upload opens a new AndroidSerial(), does its work,
  * then closes. We accept() in a loop so the next Python connection gets a fresh relay
  * without the user having to disconnect and reconnect BLE.
+ *
+ * Each [BleBridge] uses a **unique** abstract LocalSocket name. A fixed name caused
+ * `IOException: Address already in use` on BLE reconnect: the previous
+ * [LocalServerSocket] was not always released before the next bind.
  */
 class BleBridge(private val bleManager: BleManager) {
 
-    private val socketName = "radiodroid_ble"
+    /** Unique per bridge instance — `ble://` + this name is passed to Python [AndroidSerial]. */
+    private val socketName = "rdble_" + UUID.randomUUID().toString().replace("-", "")
     private var serverSocket: LocalServerSocket? = null
     private var client: LocalSocket? = null
 
@@ -34,7 +40,7 @@ class BleBridge(private val bleManager: BleManager) {
      * Opens a LocalServerSocket and starts the BLE↔socket relay.
      * Accepts connections in a loop so Python can reconnect between operations
      * (e.g. download then settings or upload) without disconnecting BLE.
-     * @return Path string to pass to Python: "ble://radiodroid_ble"
+     * @return Path string to pass to Python, e.g. `ble://rdble_<uuid>`
      */
     fun openSocketBridge(): String {
         serverSocket = LocalServerSocket(socketName)

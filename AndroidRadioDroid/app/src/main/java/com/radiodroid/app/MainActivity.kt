@@ -117,7 +117,7 @@ class MainActivity : AppCompatActivity() {
     /** Currently selected radio model (set by RadioSelectActivity or restored from prefs). */
     private var selectedRadio: RadioInfo? = null
 
-    /** Serial port string for the active connection ("android://radiodroid_ble" etc.). */
+    /** Serial port string for the active connection (`android://…` or `ble://rdble_<uuid>`). */
     private var activePort: String? = null
 
     /** Pending USB permission BroadcastReceiver — unregistered after one use. */
