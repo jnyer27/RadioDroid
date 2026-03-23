@@ -19,7 +19,7 @@ import logging
 LOG = logging.getLogger(__name__)
 
 # ── sys.path setup ──────────────────────────────────────────────────────────────
-# The CHIRP submodule is at python/chirp/ (repo root).
+# The vendored CHIRP tree is at python/chirp/ (next to this file).
 # The actual Python package is at python/chirp/chirp/__init__.py.
 # Adding the repo root makes "import chirp" resolve correctly.
 
@@ -27,7 +27,7 @@ _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
     sys.path.insert(0, _here)
 
-_chirp_src = os.path.join(_here, "chirp")      # submodule repo root
+_chirp_src = os.path.join(_here, "chirp")      # vendored CHIRP tree root
 if _chirp_src not in sys.path:
     sys.path.insert(0, _chirp_src)
 
