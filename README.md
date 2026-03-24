@@ -1,6 +1,8 @@
 <p align="center">
   <img src="docs/assets/radiodroid-logo.png" alt="RadioDroid Chirp Programmer logo — Android mascot with radio icons; supports 170+ radio drivers (USB OTG and Bluetooth LE)" width="360" />
-</p>[BuyMeACoffee](https://buymeacoffee.com/jnyer27)
+</p>
+
+[BuyMeACoffee](https://buymeacoffee.com/jnyer27)
 
 
 
