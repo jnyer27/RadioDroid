@@ -4,6 +4,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.json.JSONObject
 import java.io.IOException
 import java.util.Locale
@@ -80,24 +81,44 @@ object RepeaterBookDetailsTones {
         return TonePair(uplink, downlink)
     }
 
+    /**
+     * Parses GMRS `details.php` HTML. Tries **`th` + `td`** rows first (live site layout), then
+     * **`td` + `td`** (legacy). Uplink/downlink rows must include both **tone** and **uplink** or
+     * **downlink** so labels like "Travel Tone" are ignored. Last matching row wins.
+     */
     internal fun parseGmrsHtml(html: String): TonePair {
         val doc = Jsoup.parse(html, BASE_GMRS)
         var uplink: String? = null
         var downlink: String? = null
         for (tr in doc.select("tr")) {
-            val tds = tr.select("td")
-            if (tds.size < 2) continue
-            val label = tds[0].text().trim().lowercase(Locale.US)
+            val labelRaw: String
+            val valueEl: Element
+            val th = tr.selectFirst("th")
+            val tdFirst = tr.selectFirst("td")
+            if (th != null && tdFirst != null) {
+                labelRaw = th.text()
+                valueEl = tdFirst
+            } else {
+                val tds = tr.select("td")
+                if (tds.size < 2) continue
+                labelRaw = tds[0].text()
+                valueEl = tds[1]
+            }
+            val label = normalizeGmrsDetailLabel(labelRaw)
             if (!label.contains("tone")) continue
-            val raw = tds[1].text().trim()
+            val raw = valueEl.text().trim()
             val v = normalizeToneCell(raw) ?: continue
             when {
-                label.contains("uplink") -> uplink = v
-                label.contains("downlink") -> downlink = v
+                label.contains("uplink") && label.contains("tone") -> uplink = v
+                label.contains("downlink") && label.contains("tone") -> downlink = v
             }
         }
         return TonePair(uplink, downlink)
     }
+
+    /** Lowercase, trim, strip trailing punctuation (e.g. "Uplink Tone:"). */
+    internal fun normalizeGmrsDetailLabel(raw: String): String =
+        raw.trim().lowercase(Locale.US).trimEnd(':', '.')
 
     private const val DETAIL_FETCH_THREADS = 6
 
@@ -159,6 +180,8 @@ object RepeaterBookDetailsTones {
         if (u == "N/A" || u == "NA") return null
         if (u == "CSQ" || u.contains("CARRIER") && u.contains("SQUELCH")) return null
         if (u == "NONE" || u == "OPEN") return null
+        if (u.contains("LOG IN TO VIEW") || u.contains("LOGIN TO VIEW")) return null
+        if (u.contains("SUBSCRIBE") && u.contains("VIEW")) return null
         return t
     }
 }

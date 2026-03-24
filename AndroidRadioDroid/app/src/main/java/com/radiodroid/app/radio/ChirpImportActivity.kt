@@ -10,6 +10,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.radiodroid.app.ui.applyEdgeToEdgeInsets
 import androidx.lifecycle.lifecycleScope
 import com.radiodroid.app.bridge.ChirpBridge
@@ -17,6 +19,7 @@ import com.radiodroid.app.databinding.ActivityChirpImportBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.radiodroid.app.radio.Channel
 import com.radiodroid.app.radio.ChirpCsvImporter
 import com.radiodroid.app.radio.EepromConstants
 import com.radiodroid.app.radio.EepromParser
@@ -51,6 +54,12 @@ class ChirpImportActivity : AppCompatActivity() {
 
     /** Valid starting indices into [emptySlots] from which all entries fit. */
     private lateinit var validStartIndices: List<Int>
+
+    /**
+     * Driver power level strings (same source as channel editor / bulk TX power), or
+     * [EepromConstants.POWERLEVEL_LIST] when the driver has no discrete power list.
+     */
+    private var importPowerOptions: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -132,11 +141,13 @@ class ChirpImportActivity : AppCompatActivity() {
 
     /**
      * "From CSV" (position 0) preserves the power value parsed from each CSV row.
-     * Any other position selects a value from [EepromConstants.POWERLEVEL_LIST] and
-     * overrides the power on every imported channel uniformly.
+     * Other positions use [EepromHolder.radioFeatures.validPowerLevels] when non-empty
+     * (same as the channel editor and bulk TX power), else [EepromConstants.POWERLEVEL_LIST].
      */
     private fun setupPowerSpinner() {
-        val items = listOf("From CSV") + EepromConstants.POWERLEVEL_LIST
+        val driverLevels = EepromHolder.radioFeatures.validPowerLevels
+        importPowerOptions = driverLevels.ifEmpty { EepromConstants.POWERLEVEL_LIST }
+        val items = listOf("From CSV") + importPowerOptions
         binding.spinnerImportPower.adapter =
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, items)
         // Default to "From CSV" (index 0)
@@ -192,16 +203,11 @@ class ChirpImportActivity : AppCompatActivity() {
             row.findViewById<TextView>(R.id.importFreq).text =
                 "%.4f MHz".format(ch.freqRxHz / 1_000_000.0)
 
-            // Tone summary
-            val toneText = buildString {
-                val tx = ch.displayTxTone()
-                val rx = ch.displayRxTone()
-                if (tx.isNotEmpty()) append("T: $tx  ")
-                if (rx.isNotEmpty()) append("R: $rx")
-            }.trim()
-            val toneView = row.findViewById<TextView>(R.id.importTone)
-            if (toneText.isNotEmpty()) toneView.text = toneText
-            else toneView.visibility = View.GONE
+            val chipGroup = row.findViewById<ChipGroup>(R.id.importChips)
+            chipGroup.removeAllViews()
+            addPreviewChip(chipGroup, "TX: ${previewToneLabel(ch.displayTxTone())}")
+            addPreviewChip(chipGroup, "RX: ${previewToneLabel(ch.displayRxTone())}")
+            addPreviewChip(chipGroup, duplexChipLabel(ch))
 
             // Comment (CSV Location + optional comment column)
             val comment = comments.getOrNull(i)?.trim() ?: ""
@@ -227,16 +233,38 @@ class ChirpImportActivity : AppCompatActivity() {
         }
     }
 
+    private fun previewToneLabel(display: String): String =
+        display.trim().ifEmpty { "None" }
+
+    /** Duplex + offset for preview chip; simplex when no offset/split. Split shows TX MHz. */
+    private fun duplexChipLabel(ch: Channel): String {
+        if (ch.duplex == "split" && ch.freqTxHz > 0L) {
+            return "Split " + "%.4f MHz".format(ch.freqTxHz / 1_000_000.0)
+        }
+        val d = ch.displayDuplex().trim()
+        return if (d.isEmpty()) "Simplex" else d
+    }
+
+    private fun addPreviewChip(group: ChipGroup, label: String) {
+        val chip = Chip(this, null, com.google.android.material.R.attr.chipStyle).apply {
+            text = label
+            isClickable = false
+            isCheckable = false
+            isFocusable = false
+        }
+        group.addView(chip)
+    }
+
     // ── Import action ─────────────────────────────────────────────────────────
 
     private fun doImport(eep: ByteArray) {
         val slots     = currentSlots()
         val canImport = slots.size
 
-        // Position 0 = "From CSV" (no override); positions 1+ map to POWERLEVEL_LIST index 0+
+        // Position 0 = "From CSV" (no override); positions 1+ map into [importPowerOptions]
         val powerPos = binding.spinnerImportPower.selectedItemPosition
         val powerOverride: String? = if (powerPos > 0)
-            EepromConstants.POWERLEVEL_LIST.getOrNull(powerPos - 1)
+            importPowerOptions.getOrNull(powerPos - 1)
         else null
 
         for (i in 0 until canImport) {

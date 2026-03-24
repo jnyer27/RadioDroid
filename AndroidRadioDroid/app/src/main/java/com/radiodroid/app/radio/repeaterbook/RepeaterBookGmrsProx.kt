@@ -66,7 +66,13 @@ object RepeaterBookGmrsProx {
             if (!response.isSuccessful) {
                 throw IOException("GMRS prox HTTP ${response.code}: ${response.message}")
             }
-            return parseHtml(body)
+            val rows = parseHtml(body)
+            if (enrichFromDetails) {
+                RepeaterBookDetailsTones.enrichGmrsRows(client, rows)
+            } else {
+                rows.forEach { RepeaterBookDetailsTones.stripInternalKeys(it) }
+            }
+            return rows
         }
     }
 
