@@ -20,6 +20,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_search_repeaterbook"
+        android:title="@string/action_search_chirp_repeaterbook"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_select_radio"
         android:title="Select Radio Model…"
         app:showAsAction="never" />

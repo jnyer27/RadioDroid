@@ -7,6 +7,20 @@ plugins {
     id("com.chaquo.python")
 }
 
+// RepeaterBook API credentials (never commit secrets) — same keys as NICFW Android editor
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun String?.forBuildConfig(): String =
+    (this ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
+
+val repeaterBookToken = localProps.getProperty("REPEATERBOOK_APP_TOKEN", "").forBuildConfig()
+val repeaterBookEmail = localProps.getProperty("REPEATERBOOK_CONTACT_EMAIL", "").forBuildConfig()
+val repeaterBookUrl = localProps.getProperty("REPEATERBOOK_APP_URL", "").forBuildConfig()
+val repeaterBookAuthMode = localProps.getProperty("REPEATERBOOK_AUTH_MODE", "bearer").forBuildConfig()
+val repeaterBookUserAgent = localProps.getProperty("REPEATERBOOK_USER_AGENT", "").forBuildConfig()
+
 android {
     namespace = "com.radiodroid.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -34,6 +48,12 @@ android {
         versionCode = 19
         versionName = "4.3.0"
 
+        buildConfigField("String", "REPEATERBOOK_APP_TOKEN", "\"$repeaterBookToken\"")
+        buildConfigField("String", "REPEATERBOOK_CONTACT_EMAIL", "\"$repeaterBookEmail\"")
+        buildConfigField("String", "REPEATERBOOK_APP_URL", "\"$repeaterBookUrl\"")
+        buildConfigField("String", "REPEATERBOOK_AUTH_MODE", "\"$repeaterBookAuthMode\"")
+        buildConfigField("String", "REPEATERBOOK_USER_AGENT", "\"$repeaterBookUserAgent\"")
+
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -60,6 +80,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -137,4 +158,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     // USB OTG serial (Kotlin/Java side)
     implementation("com.github.mik3y:usb-serial-for-android:3.7.3")
+    implementation(libs.okhttp)
+    implementation(libs.jsoup)
 }

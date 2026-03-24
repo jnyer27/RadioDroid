@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Bluetooth permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- Lint CoarseFineLocation: declare both; maxSdk 30 = legacy BLE scan before BLUETOOTH_SCAN -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <!-- BLE scan on API ≤30; optional RepeaterBook “use my location” may prompt on newer APIs too -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- USB Host (OTG) -->
     <uses-feature android:name="android.hardware.usb.host" />
@@ -46,6 +48,7 @@
         </activity>
         <activity android:name=".ChannelEditActivity" android:exported="false" />
         <activity android:name=".ChirpImportActivity" android:exported="false" />
+        <activity android:name=".ChirpRepeaterBookSearchActivity" android:exported="false" />
         <activity android:name=".MainDisplayCustomizeActivity" android:exported="false" />
         <activity android:name=".RadioSettingsActivity" android:exported="false" />
 
