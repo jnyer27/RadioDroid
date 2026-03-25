@@ -616,8 +616,13 @@ def _channel_to_memory(memobj, number, mem):
     # Busy Lock is bit 7 of flags byte (matches MEM_FORMAT after MSB→LSB field order).
     busy_lock = bool(int(_mem.busyLock))
     mem.extra.append(RadioSetting("busyLock", "Busy Lock", RadioSettingValueBoolean(busy_lock)))
-    # Step is global in the radio (Settings only). Per-memory tuning_step is for display; default 12.5 kHz.
-    mem.tuning_step = next((s for s in VALID_TUNING_STEPS_HZ if mem.freq % s == 0), DEFAULT_TUNING_STEP_HZ)
+    # Step is global in the radio (Settings only). Memory.tuning_step is kHz
+    # (chirp_common); pick a grid step from nicFW Hz list or default 12.5 kHz.
+    _step_hz = next(
+        (s for s in VALID_TUNING_STEPS_HZ if mem.freq % s == 0),
+        DEFAULT_TUNING_STEP_HZ,
+    )
+    mem.tuning_step = _step_hz / 1000.0
     return mem
 
 
@@ -737,9 +742,10 @@ class TH3NicFw25(chirp_common.CloneModeRadio):
         rf.valid_power_levels = POWERLEVEL_LIST
         rf.memory_bounds = (1, 198)  # Radio shows "Channel Bank 1".."198"; CHIRP 1-198 = memory[0]..[197]
         rf.has_comment = True
-        # Tuning step: free entry in CHIRP (empty list); default 12.5 kHz when inferring from frequency
+        # nicFW steps in kHz; required for chirp_common.required_step (e.g. CI
+        # test_validate_all_steps at 462.5625 MHz on 6.25 kHz grid).
         rf.has_tuning_step = True
-        rf.valid_tuning_steps = []  # Free entry; no dropdown. Step still defaulted to 12.5 kHz in get_memory
+        rf.valid_tuning_steps = [hz / 1000.0 for hz in VALID_TUNING_STEPS_HZ]
         return rf
 
     def sync_in(self):
