@@ -336,6 +336,55 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#repeaterbook-search-chirp-style">
+<span class="md-ellipsis">
+      
+        RepeaterBook search (CHIRP-style)
+      
+    </span>
+</a>
+<nav aria-label="RepeaterBook search (CHIRP-style)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#searching">
+<span class="md-ellipsis">
+      
+        Searching
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#importing-into-memory">
+<span class="md-ellipsis">
+      
+        Importing into memory
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#network-and-location">
+<span class="md-ellipsis">
+      
+        Network and location
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#radio-backup-json">
 <span class="md-ellipsis">
       
@@ -409,6 +458,7 @@
 </p>
 <p>RadioDroid <strong>Chirp Programmer</strong> is an Android app that programs amateur and GMRS radios using the same Python drivers as the <a href="https://chirp.app">CHIRP</a> desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.</p>
 <p><strong>Current release: v4.5.0</strong> — See <a href="https://github.com/jnyer27/RadioDroid/releases">GitHub Releases</a> for APK downloads and release notes. This guide is also published at <strong><a href="https://jnyer27.github.io/RadioDroid/">jnyer27.github.io/RadioDroid</a></strong> (same content as the PDF attached to each release).</p>
+<p><strong>Recent shipped themes (v4.2–v4.5):</strong> <strong>RepeaterBook</strong> search in a CHIRP-like flow (amateur JSON API, US <strong>GMRS</strong> proximity via HTML with <strong>export</strong> fallback when tone fields are login-gated); <strong>BLE/USB</strong> reconnect hardening (no more stuck “address in use” after disconnect); <strong>Bluetooth off</strong> → prompt to enable before BLE scan; <strong>TSQL</strong> tones visible everywhere (list/editor/import/download); <strong>NICFW TD-H3</strong> and similar paths no longer show a bogus <strong>88.5 Hz</strong> TX PL when RX/TSQL holds the real CTCSS. Older release notes: <a href="https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.4.0.md">v4.4.0</a>, <a href="https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.5.0.md">v4.5.0</a>.</p>
 <hr/>
 <h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">¶</a></h2>
 <ol>
@@ -420,6 +470,7 @@
 <li><a href="#editing-channels">Editing channels</a></li>
 <li><a href="#radio-settings">Radio settings</a></li>
 <li><a href="#chirp-csv-import-and-export">CHIRP CSV import and export</a></li>
+<li><a href="#repeaterbook-search-chirp-style">RepeaterBook search (CHIRP-style)</a></li>
 <li><a href="#radio-backup-json">Radio backup (JSON)</a></li>
 <li><a href="#customize-main-screen">Customize main screen</a></li>
 <li><a href="#supported-radios">Supported radios</a></li>
@@ -477,6 +528,8 @@
 <li><strong>MTU and chunk size</strong> — Writes default to <strong>20-byte</strong> chunks (safe for all adapters). The app then negotiates a <strong>moderate</strong> MTU; if negotiation fails or never completes, operation continues at 20 bytes so flaky adapters are less likely to disconnect.</li>
 </ul>
 <p>If connection fails, try another USB cable path, ensure the dongle is powered and not paired exclusively to another app, and confirm the radio model is correct in <strong>Select Radio Model…</strong>.</p>
+<p><strong>v4.4+:</strong> If <strong>Bluetooth is turned off</strong>, starting a BLE scan opens a system-style prompt to <strong>enable Bluetooth</strong> first (instead of an empty device list).</p>
+<p><strong>v4.3:</strong> After <strong>link loss</strong> or switching adapters, reconnect should be more reliable (unique local sockets and proper close-before-open on BLE and USB serial).</p>
 <hr/>
 <h2 id="main-screen">Main screen<a class="headerlink" href="#main-screen" title="Permanent link">¶</a></h2>
 <ul>
@@ -493,6 +546,7 @@
 <li><strong>Search Channels</strong> — show a search bar to filter by name, group, or frequency.</li>
 <li><strong>Import CHIRP CSV from File…</strong> — load a <code>.csv</code> exported from desktop CHIRP.</li>
 <li><strong>Import CHIRP CSV from Clipboard…</strong> — paste and import CSV text.</li>
+<li><strong>Search RepeaterBook…</strong> — CHIRP-style country/state/service UI; fetches data from the official <a href="https://www.repeaterbook.com/api">RepeaterBook API</a> and merges selected repeaters into your channel list (see <a href="#repeaterbook-search-chirp-style">RepeaterBook search</a>).</li>
 <li><strong>Select Radio Model…</strong> — pick vendor and model for the connected radio.</li>
 <li><strong>Customize main screen</strong> — choose two extra values shown as <strong>badges</strong> on each channel row (when not redundant with power/mode/duplex/tones).</li>
 <li><strong>Radio settings…</strong> — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.</li>
@@ -632,6 +686,27 @@
 <li>Select one or more channels (long-press or use the selection UI), then use the export action (e.g. from the menu or toolbar). Name the file and share or save. Format is CHIRP CSV so you can open it in CHIRP on a PC or share with others.</li>
 </ul>
 <hr/>
+<h2 id="repeaterbook-search-chirp-style">RepeaterBook search (CHIRP-style)<a class="headerlink" href="#repeaterbook-search-chirp-style" title="Permanent link">¶</a></h2>
+<p><strong>⋮</strong> → <strong>Search RepeaterBook…</strong> opens a screen modeled on desktop CHIRP’s RepeaterBook flow. Data comes from <strong>RepeaterBook</strong>’s official export endpoints (<code>export.php</code> / <code>exportROW.php</code> JSON), with client-side filters similar to CHIRP’s <code>do_fetch</code>.</p>
+<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Load a memory image first</strong> — <strong>Load from radio</strong> or <strong>Import Radio Backup…</strong> so the app already has the radio’s channel / clone context in memory. Without that, the screen exits with a reminder to load from radio or import a backup.</li>
+<li><strong>API access in the APK</strong> — Official builds ship with <strong>RepeaterBook</strong> credentials in <code>BuildConfig</code> (token + contact email). If you <strong>build from source</strong> and both are empty, you’ll see a configuration toast: set <strong><code>REPEATERBOOK_APP_TOKEN</code></strong> and <strong><code>REPEATERBOOK_CONTACT_EMAIL</code></strong> in <code>local.properties</code> (see project README / developer notes) and rebuild. <strong>401 Unauthorized</strong> usually means RepeaterBook rejected the <strong>User-Agent</strong> or auth style — the app’s error hint lists <code>REPEATERBOOK_USER_AGENT</code> and <strong><code>REPEATERBOOK_AUTH_MODE</code></strong> options (<code>bearer</code>, <code>x_rb_app_token</code>, etc.) to match what your API approval email specifies.</li>
+</ol>
+<h3 id="searching">Searching<a class="headerlink" href="#searching" title="Permanent link">¶</a></h3>
+<ul>
+<li>Pick <strong>country</strong> and <strong>state</strong> (or “All” where supported), <strong>Amateur</strong> vs <strong>US GMRS</strong>, then run the search. <strong>GMRS</strong> is only available when the country is <strong>United States</strong>.</li>
+<li><strong>Proximity (lat / lon / miles)</strong> — Use <strong>Use my location</strong> (may request <strong>location permission</strong>) or type coordinates. US <strong>Amateur</strong> proximity uses RepeaterBook’s HTML <strong>Proximity 2.0</strong>-style request; the app then enriches rows with <strong>Uplink / Downlink tone</strong> from repeater <strong>detail</strong> HTML when needed. <strong>US GMRS</strong> proximity uses a GMRS HTML path; if tone cells are hidden behind login, <strong>v4.4+</strong> can fall back to authenticated JSON <strong><code>export.php</code></strong> (<code>stype=gmrs</code>) when your token is valid, so <strong>PL/TSQ</strong> still map into channels.</li>
+<li><strong>Filters</strong> — Band/mode chips and feature filters behave like the CHIRP source: e.g. for coordinate searches you must pick at least one <strong>band</strong> <strong>or</strong> enter a frequency (RepeaterBook rule). A quick text filter narrows the result list.</li>
+</ul>
+<h3 id="importing-into-memory">Importing into memory<a class="headerlink" href="#importing-into-memory" title="Permanent link">¶</a></h3>
+<ul>
+<li>Select repeaters (per-row checkboxes; menu <strong>Select all visible</strong> / <strong>Clear</strong>), then <strong>Import</strong>. RadioDroid maps each row to a <strong>CHIRP-style channel</strong> (frequencies, duplex, tones including DCS strings) and merges into the current list by slot, similar in spirit to importing CSV.</li>
+<li>Downstream you can <strong>Save to radio</strong> or <strong>Export Radio Backup…</strong> as usual.</li>
+</ul>
+<h3 id="network-and-location">Network and location<a class="headerlink" href="#network-and-location" title="Permanent link">¶</a></h3>
+<p>Using this feature contacts <strong>repeaterbook.com</strong> (and related pages) over HTTPS. <strong>Coarse/fine location</strong> is optional and only used when you ask for <strong>Use my location</strong> for proximity searches — RadioDroid does not upload your channel list to RepeaterBook.</p>
+<hr/>
 <h2 id="radio-backup-json">Radio backup (JSON)<a class="headerlink" href="#radio-backup-json" title="Permanent link">¶</a></h2>
 <p><strong>⋮</strong> → <strong>Export Radio Backup…</strong> saves a JSON file with vendor/model, all <strong>channels</strong>, optional <strong><code>eeprom_base64</code></strong> (clone radios), and <strong>radio settings</strong> as stored in the app.</p>
 <ul>
@@ -665,7 +740,8 @@
 <p>Select <strong>Select Radio Model…</strong> from the menu to see the full list for your build. For driver-specific behavior (e.g. radio-specific settings or channel extras), the app builds the UI from the driver; see the <a href="https://github.com/jnyer27/RadioDroid/blob/main/docs/DYNAMIC_DRIVER_UI.md">Dynamic driver-based UI</a> doc in the repository for technical details.</p>
 <hr/>
 <h2 id="privacy-policy">Privacy policy<a class="headerlink" href="#privacy-policy" title="Permanent link">¶</a></h2>
-<p>RadioDroid is <strong>local-first</strong>: channel memories, EEPROM images, and backups stay on your device unless <strong>you</strong> export or share them. The official app does <strong>not</strong> include analytics SDKs or a general <strong>INTERNET</strong> permission for programming; Bluetooth and USB are used to talk to <strong>your radio</strong> (or adapter), not to RadioDroid servers.</p>
+<p>RadioDroid is <strong>local-first</strong>: channel memories, EEPROM images, and backups stay on your device unless <strong>you</strong> export or share them. The app does <strong>not</strong> include third-party analytics SDKs for programming workflows. <strong>Bluetooth</strong> and <strong>USB</strong> are used to talk to <strong>your radio</strong> (or adapter), not to servers operated by the RadioDroid project.</p>
+<p><strong>Network:</strong> The app declares <strong><code>INTERNET</code></strong> so <strong>RepeaterBook search</strong> can reach <strong>repeaterbook.com</strong> when you open that screen and run a query. Ordinary <strong>programming-only</strong> use (download/save channels without RepeaterBook) does not require you to use that feature. Optional <strong>location</strong> access applies only if you use <strong>Use my location</strong> in RepeaterBook proximity mode.</p>
 <p><strong>Full policy (kept in sync with the app architecture):</strong></p>
 <ul>
 <li><strong>Online (MkDocs):</strong> <a href="https://jnyer27.github.io/RadioDroid/privacy-policy/">jnyer27.github.io/RadioDroid/privacy-policy/</a></li>
@@ -678,6 +754,7 @@
 <li><strong>Clone radios:</strong> For radios that use a full EEPROM clone, <strong>Radio settings</strong> and channel edits apply to the in-memory image. Use <strong>Save to radio</strong> to write everything back in one go.</li>
 <li><strong>Search:</strong> Use <strong>Search Channels</strong> to quickly find channels by name, group, or frequency.</li>
 <li><strong>Backup:</strong> Use <strong>Export Radio Backup…</strong> for a portable JSON snapshot (channels + settings + EEPROM when available), or <strong>Save EEPROM dump…</strong> / <strong>Export Raw EEPROM…</strong> for a raw clone image before big changes.</li>
+<li><strong>RepeaterBook:</strong> Load from radio (or restore backup) first, then <strong>⋮</strong> → <strong>Search RepeaterBook…</strong>; pick repeaters and import, then review tones and <strong>Save to radio</strong> when ready.</li>
 </ul>
 <hr/>
 <p><em>RadioDroid uses <a href="https://github.com/kk7ds/chirp">CHIRP</a> drivers and <a href="https://chaquo.com/chaquopy/">Chaquopy</a> to run them on Android.</em></p>
