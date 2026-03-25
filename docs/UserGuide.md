@@ -21,7 +21,7 @@ RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS
 5. [Downloading and uploading](#downloading-and-uploading)
 6. [Editing channels](#editing-channels)
 7. [Radio settings](#radio-settings)
-8. [TIDRADIO TD-H3 (nicFW 2.5) — Group labels and channel groups](#tidradio-td-h3-nicfw-25--group-labels-and-channel-groups)
+8. [TIDRADIO TD-H3 (nicFW 2.5) — Group labels and channel groups](#tidradio-td-h3-nicfw-25-group-labels-and-channel-groups)
 9. [CHIRP CSV import and export](#chirp-csv-import-and-export)
 10. [RepeaterBook search (CHIRP-style)](#repeaterbook-search-chirp-style)
 11. [Radio backup (JSON)](#radio-backup-json)
