@@ -25,7 +25,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v4.3.0**
+### What’s new in **v4.4.0**
+
+- **RepeaterBook search & import** — CHIRP-style RepeaterBook flow; **GMRS** tones can fall back to **export** when HTML is login-gated (with API token). **BLE** prompts to **turn on Bluetooth** if off. Lint/build hygiene and **usb-serial** in version catalog. See [release notes](release_notes_v4.4.0.md).
+
+### Earlier: **v4.3.0**
 
 - **BLE & USB reconnect** — Clean teardown on **link loss** for Bluetooth LE; **unique LocalSocket** names and **close-before-open** for BLE and USB serial so reconnects no longer fail with **address already in use** / **port in use**. See [release notes](release_notes_v4.3.0.md).
 
