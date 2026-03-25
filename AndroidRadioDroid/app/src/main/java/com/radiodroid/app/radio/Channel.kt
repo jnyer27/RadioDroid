@@ -47,7 +47,8 @@ data class Channel(
     fun displayRxTone(): String = formatTone(rxToneMode, rxToneVal, rxTonePolarity)
 
     private fun formatTone(mode: String?, value: Double?, polarity: String?): String = when (mode) {
-        "Tone" -> "%.1f Hz".format(value ?: 0.0)
+        // CHIRP "TSQL" is tone squelch (rtone/ctone); same Hz formatting as "Tone"
+        "Tone", "TSQL" -> "%.1f Hz".format(value ?: 0.0)
         "DTCS" -> "%03d %s".format((value ?: 0.0).toInt(), polarity ?: "N")
         else   -> ""
     }

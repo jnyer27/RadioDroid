@@ -18,6 +18,30 @@ import logging
 
 LOG = logging.getLogger(__name__)
 
+# CHIRP Memory() factory defaults (chirp_common.Memory.rtone / ctone).
+_CHIRP_DEFAULT_CTCSS_HZ = 88.5
+
+
+def _coerce_tx_ctcss_when_rx_programmed(tx_val, rx_val):
+    """
+    Baofeng-class EEPROM often decodes as Cross Tone->Tone with rtone stuck at
+    CHIRP's default 88.5 Hz while the real programmed CTCSS is only in ctone
+    (matches keypad “one tone” / TSQL UX).  Use RX for TX in that case so the
+    app does not show a bogus 88.5 Hz transmit PL.
+    """
+    try:
+        tx = float(tx_val)
+        rx = float(rx_val)
+    except (TypeError, ValueError):
+        return tx_val
+    if (
+        abs(tx - _CHIRP_DEFAULT_CTCSS_HZ) < 0.05
+        and abs(rx - _CHIRP_DEFAULT_CTCSS_HZ) > 0.05
+    ):
+        return rx
+    return tx_val
+
+
 # ── sys.path setup ──────────────────────────────────────────────────────────────
 # The vendored CHIRP tree is at python/chirp/ (next to this file).
 # The actual Python package is at python/chirp/chirp/__init__.py.
@@ -188,8 +212,9 @@ def _memory_to_dict(mem) -> dict:
     rx_pol   = dtcs_pol[1:2] if len(dtcs_pol) > 1 else "N"
 
     # Resolve per-side tone mode/value, handling CHIRP's "Cross" tmode.
-    # Drivers like nicFW use split_tone_decode() which sets tmode="Cross" whenever
-    # TX and RX tones differ (e.g. DTCS->DTCS repeater with different codes).
+    # Drivers like nicFW H3 use split_tone_decode(): unequal tones → Cross; equal
+    # Tone+Tone → TSQL with only mem.ctone set (mem.rtone stays CHIRP default 88.5).
+    # split_tone_encode() uses ctone for both EEPROM sides in TSQL — see _memory_to_dict TSQL branch.
     if tmode == "Cross":
         _tx_type, _, _rx_type = cross_mode.partition("->")
         tx_tone_mode = _tx_type if _tx_type in ("Tone", "DTCS") else ""
@@ -198,14 +223,34 @@ def _memory_to_dict(mem) -> dict:
                         else getattr(mem, "dtcs",    0)   if _tx_type == "DTCS" else 0.0)
         rx_tone_val  = (getattr(mem, "ctone",   0.0) if _rx_type == "Tone"
                         else getattr(mem, "rx_dtcs", 0)   if _rx_type == "DTCS" else 0.0)
+        if _tx_type == "Tone" and _rx_type == "Tone":
+            tx_tone_val = _coerce_tx_ctcss_when_rx_programmed(tx_tone_val, rx_tone_val)
     else:
         tx_tone_mode = tmode if tmode in ("Tone", "TSQL", "DTCS") else ""
-        tx_tone_val  = (getattr(mem, "rtone", 0.0) if tmode in ("Tone", "TSQL")
-                        else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0)
         rx_tone_mode = ("TSQL" if tmode == "TSQL" else
                         "DTCS" if tmode == "DTCS" else "")
-        rx_tone_val  = (getattr(mem, "ctone", 0.0) if tmode == "TSQL"
-                        else getattr(mem, "dtcs", 0) if tmode == "DTCS" else 0.0)
+        if tmode == "TSQL":
+            # nicFW H3: split_tone_decode() sets only mem.ctone for matching Tone+Tone;
+            # mem.rtone stays CHIRP default 88.5. Other drivers set both rtone/ctone from EEPROM.
+            cr = float(getattr(mem, "ctone", 0.0))
+            tr = float(getattr(mem, "rtone", 0.0))
+            if (
+                abs(tr - _CHIRP_DEFAULT_CTCSS_HZ) < 0.05
+                and abs(cr - _CHIRP_DEFAULT_CTCSS_HZ) > 0.05
+            ):
+                tx_tone_val = cr
+            else:
+                tx_tone_val = tr
+            rx_tone_val = cr
+        elif tmode == "Tone":
+            tx_tone_val = float(getattr(mem, "rtone", 0.0))
+            rx_tone_val = 0.0
+        elif tmode == "DTCS":
+            tx_tone_val = getattr(mem, "dtcs", 0)
+            rx_tone_val = getattr(mem, "dtcs", 0)
+        else:
+            tx_tone_val = 0.0
+            rx_tone_val = 0.0
 
     out = {
         "number":            mem.number,
@@ -1230,6 +1275,15 @@ def _apply_tones_to_memory(mem, ch, features):
         mem.dtcs_polarity = tx_pol + rx_pol
         if tx_tmode == "Tone":
             mem.rtone = float(tx_val or 88.5)
+    elif (
+        tx_tmode in ("Tone", "TSQL")
+        and rx_tmode in ("Tone", "TSQL")
+        and _supports("TSQL")
+    ):
+        # Two CTCSS spinners (or legacy TSQL strings from download/backup) → CHIRP TSQL
+        mem.tmode = "TSQL"
+        mem.rtone = float(tx_val if tx_val is not None else 88.5)
+        mem.ctone = float(rx_val if rx_val is not None else 88.5)
     elif tx_tmode == "TSQL":
         mem.tmode = "TSQL"
         mem.rtone = float(tx_val or 88.5)

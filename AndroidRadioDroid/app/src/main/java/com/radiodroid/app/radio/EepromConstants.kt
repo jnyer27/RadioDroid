@@ -102,7 +102,7 @@ object EepromConstants {
     fun toneToIndex(mode: String?, value: Double?, polarity: String?): Int {
         if (mode == null || value == null) return 0
         val label = when (mode) {
-            "Tone" -> "%.1f Hz".format(value)
+            "Tone", "TSQL" -> "%.1f Hz".format(value)
             "DTCS" -> {
                 val pol = if (polarity == "R" || polarity == "I") "R" else "N"
                 "DCS %03d %s".format(value.toInt(), pol)
