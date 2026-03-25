@@ -534,6 +534,25 @@ def _get_channel_info(memobj, index):
     raise errors.InvalidValueError("Channel index out of range")
 
 
+def _build_groups_display(memobj):
+    """Return a group-slot spinner list that decorates each letter with its EEPROM label.
+
+    Index 0 → "None", index 1 → "A" or "A: <label>", …, index 15 → "O" or "O: <label>".
+    Positions are stable so the numeric EEPROM value equals the list index.
+    Falls back to bare letter when no custom label is stored or memobj is unavailable.
+    """
+    display = ["None"]
+    for i, letter in enumerate(GROUP_LETTERS):
+        try:
+            gl = memobj.groupLabels[i]
+            raw = gl.get_raw()
+            lbl = raw.decode("ascii", "replace").rstrip("\x00 \xff").strip() if raw and len(raw) >= 6 else ""
+        except Exception:
+            lbl = ""
+        display.append("%s: %s" % (letter, lbl) if lbl else letter)
+    return display
+
+
 def _channel_to_memory(memobj, number, mem):
     """Populate chirp_common.Memory from channelInfo (V2.5 big-endian)."""
     _mem = _get_channel_info(memobj, number)
@@ -587,8 +606,9 @@ def _channel_to_memory(memobj, number, mem):
     g = int(_mem.groups)
     g0, g1, g2, g3 = (g >> 0) & 0xF, (g >> 4) & 0xF, (g >> 8) & 0xF, (g >> 12) & 0xF
     mem.comment = ""
+    groups_display = _build_groups_display(memobj)
     for slot, val in [("group1", g0), ("group2", g1), ("group3", g2), ("group4", g3)]:
-        rs = RadioSetting(slot, "Groups slot %s (letter)" % slot[-1], RadioSettingValueList(GROUPS_LIST, GROUPS_LIST[val]))
+        rs = RadioSetting(slot, "Groups slot %s (letter)" % slot[-1], RadioSettingValueList(groups_display, groups_display[val]))
         mem.extra.append(rs)
     # Bandwidth is bit 0 of flags byte. 0=Wide, 1=Narrow — extra mirrors mem.mode (NFM/NAM ↔ Narrow).
     bw = "Narrow" if is_narrow else "Wide"
@@ -647,10 +667,16 @@ def _memory_to_channel(memobj, number, mem):
     _mem.rxSubTone = _encode_tone(rxmode, rxval, rxpol)
     if mem.extra:
         g0 = g1 = g2 = g3 = 0
+        groups_display = _build_groups_display(memobj)
         for e in mem.extra:
             n = e.get_name()
             v = e.value.get_value() if hasattr(e.value, "get_value") else str(e.value)
-            idx = GROUPS_LIST.index(v) if v in GROUPS_LIST else 0
+            if v in groups_display:
+                idx = groups_display.index(v)
+            elif v in GROUPS_LIST:
+                idx = GROUPS_LIST.index(v)  # fallback: bare letter from old image
+            else:
+                idx = 0
             if n == "group1":
                 g0 = idx
             elif n == "group2":
