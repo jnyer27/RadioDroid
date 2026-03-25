@@ -25,7 +25,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v4.4.0**
+### What’s new in **v4.5.0**
+
+- **Tone / TSQL** — Correct **TX and RX CTCSS** after download, import, and backup (**TSQL** no longer blank; **NICFW H3** no longer shows bogus **88.5 Hz** TX when both tones match). See [release notes](release_notes_v4.5.0.md).
+
+### Earlier: **v4.4.0**
 
 - **RepeaterBook search & import** — CHIRP-style RepeaterBook flow; **GMRS** tones can fall back to **export** when HTML is login-gated (with API token). **BLE** prompts to **turn on Bluetooth** if off. Lint/build hygiene and **usb-serial** in version catalog. See [release notes](release_notes_v4.4.0.md).
 
