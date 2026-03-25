@@ -32,7 +32,9 @@ object RepeaterBookGmrsProx {
      * @param distance value interpreted per [miles] (miles if true, else kilometres — matches `Dunit=m` / `k` on the site).
      */
     /**
-     * @param enrichFromDetails when true, one GET per repeater to [gmrs/details.php] fills **PL** / **TSQ**.
+     * @param enrichFromDetails when true, one GET per repeater to [gmrs/details.php] fills **PL** / **TSQ**;
+     * if tones are login-gated in HTML, [RepeaterBookDetailsTones] falls back to JSON **export.php**
+     * when [com.radiodroid.app.BuildConfig.REPEATERBOOK_APP_TOKEN] is configured.
      */
     @Throws(IOException::class)
     fun fetchRepeaters(

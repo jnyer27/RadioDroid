@@ -89,4 +89,21 @@ class RepeaterBookDetailsTonesTest {
             RepeaterBookDetailsTones.normalizeGmrsDetailLabel("Uplink Tone:"),
         )
     }
+
+    @Test
+    fun normalizeRbNumericIdSegment_stripsLeadingZeros() {
+        assertEquals("6", RepeaterBookDetailsTones.normalizeRbNumericIdSegment("06"))
+        assertEquals("48", RepeaterBookDetailsTones.normalizeRbNumericIdSegment("048"))
+        assertEquals("123", RepeaterBookDetailsTones.normalizeRbNumericIdSegment("0123"))
+    }
+
+    @Test
+    fun gmrsCompoundRepeaterKey_normalizesNumericParts() {
+        assertEquals("48-5", RepeaterBookDetailsTones.gmrsCompoundRepeaterKey("048", "005"))
+    }
+
+    @Test
+    fun normalizeRbNumericIdSegment_leavesAlphanumericState() {
+        assertEquals("CA01", RepeaterBookDetailsTones.normalizeRbNumericIdSegment("CA01"))
+    }
 }

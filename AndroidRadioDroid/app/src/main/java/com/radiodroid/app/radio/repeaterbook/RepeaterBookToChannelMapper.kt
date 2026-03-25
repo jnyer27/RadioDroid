@@ -2,6 +2,7 @@ package com.radiodroid.app.radio.repeaterbook
 
 import com.radiodroid.app.radio.Channel
 import org.json.JSONObject
+import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -80,20 +81,45 @@ object RepeaterBookToChannelMapper {
         pl: String?,
         tsq: String?,
     ): ToneTuple {
-        val plHz = parseCtcssHz(pl)
-        val tsqHz = parseCtcssHz(tsq)
+        val plD = dcsCode(pl)
+        val tsqD = dcsCode(tsq)
+        val plHz = if (plD == null) parseCtcssHz(pl) else null
+        val tsqHz = if (tsqD == null) parseCtcssHz(tsq) else null
+        // DCS branches before CTCSS-only `tsqHz` so PL like `DCS 023` is not skipped when TSQ is CTCSS.
         return when {
+            plD != null && tsqD != null ->
+                ToneTuple("DTCS", plD.toDouble(), "N", "DTCS", tsqD.toDouble(), "N")
             plHz != null && tsqHz != null && abs(plHz - tsqHz) < 0.05 ->
                 ToneTuple("Tone", plHz, null, "Tone", plHz, null)
             plHz != null && tsqHz != null ->
                 ToneTuple("Tone", plHz, null, null, null, null)
             plHz != null ->
                 ToneTuple("Tone", plHz, null, null, null, null)
+            plD != null ->
+                ToneTuple("DTCS", plD.toDouble(), "N", "DTCS", plD.toDouble(), "N")
             tsqHz != null ->
                 ToneTuple("Tone", tsqHz, null, "Tone", tsqHz, null)
+            tsqD != null ->
+                ToneTuple("DTCS", tsqD.toDouble(), "N", "DTCS", tsqD.toDouble(), "N")
             else ->
                 ToneTuple(null, null, null, null, null, null)
         }
+    }
+
+    /**
+     * RepeaterBook / CHIRP-style DCS: `D023`, `DCS 023`, `DTCS 023`. Must run before [parseCtcssHz] so
+     * numeric codes are not mistaken for CTCSS Hz.
+     */
+    private fun dcsCode(raw: String?): Int? {
+        if (raw.isNullOrBlank()) return null
+        val s = raw.trim()
+        Regex("^D(\\d{2,3})$", RegexOption.IGNORE_CASE).matchEntire(s)?.let { m ->
+            return m.groupValues[1].toIntOrNull()?.takeIf { it in 1..999 }
+        }
+        val u = s.uppercase(Locale.US)
+        if (!u.contains("DCS") && !u.contains("DTCS")) return null
+        return Regex("(\\d{2,3})").findAll(s).lastOrNull()
+            ?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it in 1..999 }
     }
 
     private data class ToneTuple(
