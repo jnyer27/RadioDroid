@@ -197,26 +197,46 @@ class ChirpImportActivity : AppCompatActivity() {
 
             val row = layoutInflater.inflate(R.layout.item_import_preview, container, false)
 
-            row.findViewById<TextView>(R.id.importSlot).text = "→ Ch $slot"
+            row.findViewById<TextView>(R.id.importSlot).text =
+                getString(R.string.import_preview_slot_arrow, slot)
             row.findViewById<TextView>(R.id.importName).text =
-                ch.name.ifBlank { "(no name)" }
+                ch.name.ifBlank { getString(R.string.import_preview_no_name) }
             row.findViewById<TextView>(R.id.importFreq).text =
-                "%.4f MHz".format(ch.freqRxHz / 1_000_000.0)
+                getString(
+                    R.string.import_preview_mhz,
+                    ch.freqRxHz / 1_000_000.0,
+                )
 
             val chipGroup = row.findViewById<ChipGroup>(R.id.importChips)
             chipGroup.removeAllViews()
-            addPreviewChip(chipGroup, "TX: ${previewToneLabel(ch.displayTxTone())}")
-            addPreviewChip(chipGroup, "RX: ${previewToneLabel(ch.displayRxTone())}")
+            addPreviewChip(
+                chipGroup,
+                getString(
+                    R.string.import_preview_tx_tone,
+                    previewToneLabel(ch.displayTxTone()),
+                ),
+            )
+            addPreviewChip(
+                chipGroup,
+                getString(
+                    R.string.import_preview_rx_tone,
+                    previewToneLabel(ch.displayRxTone()),
+                ),
+            )
             addPreviewChip(chipGroup, duplexChipLabel(ch))
 
             // Comment (CSV Location + optional comment column)
             val comment = comments.getOrNull(i)?.trim() ?: ""
             val commentView = row.findViewById<TextView>(R.id.importComment)
-            val commentText = buildString {
-                append("CSV #${entry.csvLocation}")
-                if (comment.isNotEmpty()) append(" · $comment")
+            commentView.text = if (comment.isEmpty()) {
+                getString(R.string.import_preview_csv_only, entry.csvLocation)
+            } else {
+                getString(
+                    R.string.import_preview_csv_with_comment,
+                    entry.csvLocation,
+                    comment,
+                )
             }
-            commentView.text = commentText
 
             container.addView(row)
         }
@@ -225,7 +245,11 @@ class ChirpImportActivity : AppCompatActivity() {
         if (entries.size > emptySlots.size) {
             val skipped = entries.size - emptySlots.size
             val warn = TextView(this)
-            warn.text = "($skipped channel(s) skipped — not enough empty slots)"
+            warn.text = resources.getQuantityString(
+                R.plurals.import_preview_skipped_channels,
+                skipped,
+                skipped,
+            )
             @Suppress("DEPRECATION")
             warn.setTextColor(resources.getColor(android.R.color.holo_orange_dark))
             warn.setPadding(8, 12, 8, 4)
@@ -234,15 +258,22 @@ class ChirpImportActivity : AppCompatActivity() {
     }
 
     private fun previewToneLabel(display: String): String =
-        display.trim().ifEmpty { "None" }
+        display.trim().ifEmpty { getString(R.string.import_preview_tone_none) }
 
     /** Duplex + offset for preview chip; simplex when no offset/split. Split shows TX MHz. */
     private fun duplexChipLabel(ch: Channel): String {
         if (ch.duplex == "split" && ch.freqTxHz > 0L) {
-            return "Split " + "%.4f MHz".format(ch.freqTxHz / 1_000_000.0)
+            return getString(
+                R.string.import_preview_split_mhz,
+                ch.freqTxHz / 1_000_000.0,
+            )
         }
         val d = ch.displayDuplex().trim()
-        return if (d.isEmpty()) "Simplex" else d
+        return if (d.isEmpty()) {
+            getString(R.string.import_preview_simplex)
+        } else {
+            d
+        }
     }
 
     private fun addPreviewChip(group: ChipGroup, label: String) {

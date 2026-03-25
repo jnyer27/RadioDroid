@@ -149,12 +149,22 @@ class ChannelEditActivity : AppCompatActivity() {
                 binding.spinnerPower.setSelection(0)
                 binding.spinnerMode.setSelection(0)
             } else {
-                binding.editFreqRx.setText("%.4f".format(c.freqRxHz / 1_000_000.0))
-                binding.editOffset.setText(when (c.duplex) {
-                    "+", "-" -> (c.offsetHz / 1000).toString()
-                    "split"  -> (c.freqTxHz / 1_000_000.0).toString()
-                    else     -> ""
-                })
+                binding.editFreqRx.setText(
+                    getString(R.string.format_frequency_mhz_four, c.freqRxHz / 1_000_000.0),
+                )
+                binding.editOffset.setText(
+                    when (c.duplex) {
+                        "+", "-" -> getString(
+                            R.string.format_offset_khz_string,
+                            (c.offsetHz / 1000).toInt(),
+                        )
+                        "split" -> getString(
+                            R.string.format_frequency_mhz_four,
+                            c.freqTxHz / 1_000_000.0,
+                        )
+                        else -> ""
+                    },
+                )
                 binding.editName.setText(c.name)
                 binding.spinnerDuplex.setSelection(
                     duplexValues.indexOf(c.duplex).coerceAtLeast(0))
@@ -353,8 +363,12 @@ class ChannelEditActivity : AppCompatActivity() {
 
         if (rawPower > 0 && rawPower > cap) {
             val capWatts = EepromConstants.powerToWatts(cap.toString())
-            binding.textPowerCapWarning.text =
-                "⚠ Exceeds $bandLabel cap ($cap ≈ $capWatts) — radio will clamp to cap at TX time"
+            binding.textPowerCapWarning.text = getString(
+                R.string.channel_edit_power_cap_warning,
+                bandLabel,
+                cap,
+                capWatts,
+            )
             binding.textPowerCapWarning.visibility = View.VISIBLE
         } else {
             binding.textPowerCapWarning.visibility = View.GONE
@@ -407,7 +421,7 @@ class ChannelEditActivity : AppCompatActivity() {
             }
             extraParamEditTexts[key]?.let { edit ->
                 if (hasOffset) {
-                    edit.setText("False")
+                    edit.setText(getString(R.string.chirp_bool_false))
                     edit.isEnabled = false
                 } else {
                     edit.isEnabled = true

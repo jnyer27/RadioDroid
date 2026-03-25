@@ -8,8 +8,10 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingVertical="12dp"
+    android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:background="?attr/selectableItemBackground"
+    android:background="@android:color/transparent"
+    android:foreground="?attr/selectableItemBackground"
     android:minHeight="48dp"
     >
 

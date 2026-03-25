@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.NumberFormat
+import java.util.Locale
 
 /**
  * Dynamic radio settings screen built from the CHIRP driver's get_settings() tree.
@@ -218,13 +220,22 @@ class RadioSettingsActivity : AppCompatActivity() {
                         "int" -> {
                             rowBinding.wrapEdit.visibility = View.VISIBLE
                             rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
-                            rowBinding.editValue.setText(obj.optInt("value", 0).toString())
+                            rowBinding.editValue.setText(
+                                String.format(
+                                    Locale.getDefault(),
+                                    "%d",
+                                    obj.optInt("value", 0),
+                                ),
+                            )
                             rowBinding.editValue.isEnabled = !readOnly
                         }
                         "float" -> {
                             rowBinding.wrapEdit.visibility = View.VISIBLE
                             rowBinding.editValue.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-                            rowBinding.editValue.setText(obj.optDouble("value", 0.0).toString())
+                            rowBinding.editValue.setText(
+                                NumberFormat.getInstance(Locale.getDefault())
+                                    .format(obj.optDouble("value", 0.0)),
+                            )
                             rowBinding.editValue.isEnabled = !readOnly
                         }
                         "bool" -> {

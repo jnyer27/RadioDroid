@@ -97,7 +97,11 @@ class RadioSelectActivity : AppCompatActivity() {
         val lastModel  = prefs.getString(PREF_MODEL,  null) ?: return
         val lastBaud   = prefs.getInt(PREF_BAUD, 9600)
 
-        binding.btnLastRadio.text = "Continue with: $lastVendor $lastModel"
+        binding.btnLastRadio.text = getString(
+            R.string.radio_select_continue_last,
+            lastVendor,
+            lastModel,
+        )
         binding.btnLastRadio.visibility = View.VISIBLE
         binding.btnLastRadio.setOnClickListener {
             deliverResult(RadioInfo(lastVendor, lastModel, lastBaud))
@@ -158,7 +162,7 @@ class RadioSelectActivity : AppCompatActivity() {
     private fun loadRadioList() {
         binding.progressBar.visibility    = View.VISIBLE
         binding.emptyText.visibility      = View.VISIBLE
-        binding.emptyText.text            = "Loading radio list…"
+        binding.emptyText.text            = getString(R.string.radio_select_loading_list)
         binding.recyclerRadios.visibility = View.GONE
 
         lifecycleScope.launch {
@@ -178,12 +182,15 @@ class RadioSelectActivity : AppCompatActivity() {
                     showList()
                 },
                 onFailure = { e ->
-                    binding.emptyText.text       = "Failed to load radio list:\n${e.message}"
+                    binding.emptyText.text = getString(
+                        R.string.radio_select_failed_load,
+                        e.message ?: "",
+                    )
                     binding.emptyText.visibility = View.VISIBLE
                     Toast.makeText(
                         this@RadioSelectActivity,
-                        "Failed to load radio list: ${e.message}",
-                        Toast.LENGTH_LONG
+                        getString(R.string.radio_select_failed_toast, e.message ?: ""),
+                        Toast.LENGTH_LONG,
                     ).show()
                 }
             )
@@ -207,8 +214,12 @@ class RadioSelectActivity : AppCompatActivity() {
                 }.onFailure { e ->
                     Toast.makeText(
                         this@RadioSelectActivity,
-                        "Warning: could not reload ${file.name}: ${e.message}",
-                        Toast.LENGTH_SHORT
+                        getString(
+                            R.string.radio_select_warn_reload_driver,
+                            file.name,
+                            e.message ?: "",
+                        ),
+                        Toast.LENGTH_SHORT,
                     ).show()
                 }
             }
@@ -237,17 +248,20 @@ class RadioSelectActivity : AppCompatActivity() {
                     if (newRadios.isEmpty()) {
                         Toast.makeText(
                             this@RadioSelectActivity,
-                            "$fileName loaded — no new radios registered.\n" +
-                            "Check that the file uses @directory.register.",
-                            Toast.LENGTH_LONG
+                            getString(R.string.radio_select_driver_no_new, fileName),
+                            Toast.LENGTH_LONG,
                         ).show()
                     } else {
                         mergeRadios(newRadios)
                         showList()
                         Toast.makeText(
                             this@RadioSelectActivity,
-                            "$fileName: added ${newRadios.size} radio model(s)",
-                            Toast.LENGTH_SHORT
+                            getString(
+                                R.string.radio_select_driver_added,
+                                fileName,
+                                newRadios.size,
+                            ),
+                            Toast.LENGTH_SHORT,
                         ).show()
                     }
                 },
@@ -255,8 +269,8 @@ class RadioSelectActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.GONE
                     Toast.makeText(
                         this@RadioSelectActivity,
-                        "Failed to load driver: ${e.message}",
-                        Toast.LENGTH_LONG
+                        getString(R.string.radio_select_failed_driver, e.message ?: ""),
+                        Toast.LENGTH_LONG,
                     ).show()
                 }
             )
@@ -281,7 +295,7 @@ class RadioSelectActivity : AppCompatActivity() {
 
     private fun showList() {
         if (allRadios.isEmpty()) {
-            binding.emptyText.text           = "No radios found — check that CHIRP drivers are bundled."
+            binding.emptyText.text           = getString(R.string.radio_select_empty_list)
             binding.emptyText.visibility      = View.VISIBLE
             binding.recyclerRadios.visibility = View.GONE
         } else {
@@ -307,7 +321,7 @@ class RadioSelectActivity : AppCompatActivity() {
                 r.vendor.contains(q, ignoreCase = true) || r.model.contains(q, ignoreCase = true)
             }
             if (filtered.isEmpty()) {
-                binding.emptyText.text            = "No results for \"$q\""
+                binding.emptyText.text            = getString(R.string.radio_select_no_results, q)
                 binding.emptyText.visibility      = View.VISIBLE
                 binding.recyclerRadios.visibility = View.GONE
             } else {

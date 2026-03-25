@@ -61,7 +61,7 @@ class ChannelAdapter(
         isSelectionMode = true
         selectedNumbers.clear()
         selectedNumbers.add(number)
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
         onSelectionChanged(selectedNumbers.size)
     }
 
@@ -72,7 +72,7 @@ class ChannelAdapter(
     fun exitSelectionMode() {
         isSelectionMode = false
         selectedNumbers.clear()
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
         onSelectionChanged(0)
     }
 
@@ -101,7 +101,7 @@ class ChannelAdapter(
         isSelectionMode = true
         selectedNumbers.clear()
         selectedNumbers.addAll(targets.map { it.number })
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
         onSelectionChanged(selectedNumbers.size)
     }
 
@@ -112,7 +112,7 @@ class ChannelAdapter(
     fun updateSelection(numbers: Set<Int>) {
         selectedNumbers.clear()
         selectedNumbers.addAll(numbers)
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
         onSelectionChanged(selectedNumbers.size)
     }
 

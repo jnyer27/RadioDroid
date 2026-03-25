@@ -54,8 +54,14 @@ class RadioListAdapter(
                 built += Item.Radio(r, showVendor = false)
             }
         }
+        val oldSize = items.size
         items = built
-        notifyDataSetChanged()
+        if (oldSize == built.size) {
+            notifyItemRangeChanged(0, oldSize)
+        } else {
+            notifyItemRangeRemoved(0, oldSize)
+            notifyItemRangeInserted(0, built.size)
+        }
     }
 
     // ── ViewHolder types ──────────────────────────────────────────────────────

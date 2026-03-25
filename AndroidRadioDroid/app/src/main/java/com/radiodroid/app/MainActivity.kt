@@ -2,6 +2,7 @@ package com.radiodroid.app
 
 import android.Manifest
 import android.app.PendingIntent
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.ClipboardManager
@@ -170,6 +171,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** System Bluetooth enable sheet; on success we continue into [beginBleScan]. */
+    private val enableBluetoothLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            beginBleScan()
+        }
+    }
+
     // ─── Radio select launcher ────────────────────────────────────────────────
     /**
      * Receives the radio model chosen in [RadioSelectActivity].
@@ -207,7 +217,9 @@ class MainActivity : AppCompatActivity() {
     private val customizeMainScreenLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) adapter.notifyDataSetChanged()
+        if (result.resultCode == RESULT_OK) {
+            adapter.notifyItemRangeChanged(0, adapter.itemCount)
+        }
     }
 
     // ─── CHIRP CSV import ─────────────────────────────────────────────────────
@@ -955,11 +967,13 @@ class MainActivity : AppCompatActivity() {
             type = "text/csv"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, "CHIRP CSV — $fileName")
-            putExtra(Intent.EXTRA_TEXT,
-                "CHIRP CSV export: $fileName.csv (${channels.size} channels)")
+            putExtra(
+                Intent.EXTRA_TEXT,
+                getString(R.string.share_csv_extra_text, fileName, channels.size),
+            )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(shareIntent, "Share CHIRP CSV"))
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.share_csv_chooser_title)))
     }
 
     /**
@@ -971,7 +985,7 @@ class MainActivity : AppCompatActivity() {
             binding.selectionBar.visibility = View.GONE
         } else {
             binding.selectionBar.visibility = View.VISIBLE
-            binding.selectionCount.text = "$count selected"
+            binding.selectionCount.text = getString(R.string.selection_count, count)
         }
     }
 
@@ -1211,9 +1225,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
         usbPermissionReceiver = receiver
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-            PendingIntent.FLAG_IMMUTABLE else 0
-        val permIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), flags)
+        val permIntent = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(ACTION_USB_PERMISSION),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
         // API 34+ requires RECEIVER_EXPORTED or RECEIVER_NOT_EXPORTED.
         // USB permission results come from the system, so NOT_EXPORTED is correct.
         ContextCompat.registerReceiver(
@@ -1253,6 +1270,25 @@ class MainActivity : AppCompatActivity() {
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun startBleScan() {
+        if (!bleManager.isBluetoothHardwarePresent()) {
+            Toast.makeText(this, R.string.ble_no_bluetooth_hardware, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!bleManager.isBluetoothEnabled()) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.ble_bluetooth_off_title)
+                .setMessage(R.string.ble_bluetooth_off_message)
+                .setPositiveButton(R.string.ble_turn_on_bluetooth) { _, _ ->
+                    enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return
+        }
+        beginBleScan()
+    }
+
+    private fun beginBleScan() {
         scanDevices.clear()
         scanDeviceRssi.clear()
 
@@ -1324,6 +1360,10 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("MissingPermission")
     private fun connectBleDevice(device: BluetoothDevice) {
+        if (!bleManager.isBluetoothEnabled()) {
+            Toast.makeText(this, R.string.ble_bluetooth_off_message, Toast.LENGTH_LONG).show()
+            return
+        }
         val label = device.name?.takeIf { it.isNotBlank() } ?: device.address
         Toast.makeText(this, "Connecting to $label…", Toast.LENGTH_SHORT).show()
 
@@ -1544,15 +1584,25 @@ class MainActivity : AppCompatActivity() {
         val stayingChannels = channels.filter { it.number !in selected }
 
         if (stayingChannels.isEmpty()) {
-            Toast.makeText(this, "All channels selected — nothing to move relative to",
-                Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                R.string.move_all_selected_nothing,
+                Toast.LENGTH_SHORT,
+            ).show()
             return
         }
 
         // Spinner labels: "Ch N" for empty slots, "Ch N – Name" for named channels
         val slotLabels: List<String> = channels.map { ch ->
-            if (ch.empty) "Ch ${ch.number}"
-            else "Ch ${ch.number} – ${ch.name.ifBlank { "…" }}"
+            if (ch.empty) {
+                getString(R.string.move_slot_label_empty, ch.number)
+            } else {
+                getString(
+                    R.string.move_slot_label_named,
+                    ch.number,
+                    ch.name.ifBlank { getString(R.string.move_slot_unnamed_placeholder) },
+                )
+            }
         }
 
         // Default: first selected slot (no-op — "start at X" where X is already where they are)
@@ -1573,7 +1623,13 @@ class MainActivity : AppCompatActivity() {
             val insertIdx = (pos).coerceAtMost(stayingChannels.size)
             val landingSlot = insertIdx + 1
             val endSlot     = insertIdx + selected.size
-            hintText.text   = "${selected.size} channel(s) will occupy slot(s) $landingSlot–$endSlot"
+            hintText.text = resources.getQuantityString(
+                R.plurals.move_hint_occupy_slots,
+                selected.size,
+                selected.size,
+                landingSlot,
+                endSlot,
+            )
         }
         refreshHint(defaultIndex)
 
@@ -1586,9 +1642,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Move ${selected.size} Channel(s) to Slot")
+            .setTitle(getString(R.string.move_dialog_title, selected.size))
             .setView(dialogView)
-            .setPositiveButton("Move") { _, _ ->
+            .setPositiveButton(R.string.action_move) { _, _ ->
                 val targetSlot = spinner.selectedItemPosition + 1
                 val movingChannels = channels
                     .filter { it.number in selected }
@@ -1808,7 +1864,13 @@ class MainActivity : AppCompatActivity() {
         }
         val labels = writable.map { it.name }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.bulk_extra_pick_param, selected.size))
+            .setTitle(
+                resources.getQuantityString(
+                    R.plurals.bulk_extra_pick_param,
+                    selected.size,
+                    selected.size,
+                ),
+            )
             .setItems(labels) { dialog, which ->
                 dialog.dismiss()
                 showBulkExtraValueDialog(writable[which], eep, selected)
@@ -1987,12 +2049,12 @@ class MainActivity : AppCompatActivity() {
                             ChirpBridge.validateChannel(radio, b64, merged)
                         }
                         msgs.filter { it.kind == "error" }.forEach { m ->
-                            lines.add("Channel ${ch.number}: ${m.text}")
+                            lines.add(getString(R.string.bulk_bandwidth_channel_error, ch.number, m.text))
                         }
                     }
                     if (lines.isNotEmpty()) {
                         AlertDialog.Builder(this@MainActivity)
-                            .setTitle("Cannot apply bandwidth")
+                            .setTitle(R.string.bulk_bandwidth_error_title)
                             .setMessage(lines.joinToString("\n\n"))
                             .setPositiveButton(android.R.string.ok, null)
                             .show()
@@ -2023,7 +2085,13 @@ class MainActivity : AppCompatActivity() {
         adapter.submitList(channelList)
         Toast.makeText(
             this,
-            getString(R.string.bulk_extra_applied, paramName, value, count),
+            resources.getQuantityString(
+                R.plurals.bulk_extra_applied,
+                count,
+                paramName,
+                value,
+                count,
+            ),
             Toast.LENGTH_SHORT,
         ).show()
         syncCloneMmapAfterChannelListEdits()

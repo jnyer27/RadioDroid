@@ -199,7 +199,7 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
             }
             R.id.repeaterbook_menu_clear -> {
                 allRows.forEach { it.selected = false }
-                adapter.notifyDataSetChanged()
+                adapter.notifyItemRangeChanged(0, adapter.itemCount)
                 updateImportButton()
                 return true
             }
@@ -666,7 +666,7 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
 
     private fun selectAllVisible() {
         visibleRows.forEach { it.selected = true }
-        adapter.notifyDataSetChanged()
+        adapter.notifyItemRangeChanged(0, adapter.itemCount)
         updateImportButton()
     }
 
@@ -680,13 +680,20 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
 
     private fun applyQuickFilter() {
         val q = binding.editFilter.text?.toString()?.trim()?.lowercase().orEmpty()
+        val oldCount = adapter.itemCount
         visibleRows.clear()
         if (q.isEmpty()) {
             visibleRows.addAll(allRows)
         } else {
             allRows.filterTo(visibleRows) { it.matchesQuickFilter(q) }
         }
-        adapter.notifyDataSetChanged()
+        val newCount = visibleRows.size
+        if (oldCount == newCount) {
+            if (newCount > 0) adapter.notifyItemRangeChanged(0, newCount)
+        } else {
+            adapter.notifyItemRangeRemoved(0, oldCount)
+            if (newCount > 0) adapter.notifyItemRangeInserted(0, newCount)
+        }
         binding.textEmptyResults.isVisible = visibleRows.isEmpty() && allRows.isNotEmpty()
         binding.recyclerResults.isVisible = visibleRows.isNotEmpty()
     }

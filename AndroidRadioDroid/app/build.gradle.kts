@@ -157,7 +157,7 @@ dependencies {
     implementation(libs.recyclerview)
     implementation(libs.kotlinx.coroutines.android)
     // USB OTG serial (Kotlin/Java side)
-    implementation("com.github.mik3y:usb-serial-for-android:3.7.3")
+    implementation(libs.usb.serial.android)
     implementation(libs.okhttp)
     implementation(libs.jsoup)
 }

@@ -5,6 +5,5 @@
     <color name="on_primary">#FFFFFF</color>
     <color name="secondary">#FF9800</color>
     <color name="on_secondary">#000000</color>
-    <color name="empty_channel_bg">#E0E0E0</color>
     <color name="channel_badge_bg">#E8EAED</color>
 </resources>

@@ -69,6 +69,12 @@ class BleManager(private val context: Context) {
     /** Invoked on the main thread when an established link drops unexpectedly (not replaced by a newer [connect]). */
     var onLinkLost: (() -> Unit)? = null
 
+    /** `true` if the device has a default Bluetooth adapter. */
+    fun isBluetoothHardwarePresent(): Boolean = adapter != null
+
+    /** `true` if [adapter] exists and is powered on (LE scan and GATT require this). */
+    fun isBluetoothEnabled(): Boolean = adapter?.isEnabled == true
+
     // ─────────────────────────────────────────────────────────────────────────
     // Scanning
     // ─────────────────────────────────────────────────────────────────────────
@@ -168,14 +174,7 @@ class BleManager(private val context: Context) {
                         }
                         mtuFallbackRef.set(fallback)
                         mainHandler.postDelayed(fallback, MTU_FALLBACK_DELAY_MS)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            g.requestMtu(PREFERRED_MTU_BYTES)
-                        } else {
-                            cancelMtuFallback()
-                            if (discoverLock.compareAndSet(false, true)) {
-                                g.discoverServices()
-                            }
-                        }
+                        g.requestMtu(PREFERRED_MTU_BYTES)
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
                         cancelMtuFallback()
