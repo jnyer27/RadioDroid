@@ -8,6 +8,8 @@ RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS
 
 **Current release: v4.5.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
 
+**Recent shipped themes (v4.2–v4.5):** **RepeaterBook** search in a CHIRP-like flow (amateur JSON API, US **GMRS** proximity via HTML with **export** fallback when tone fields are login-gated); **BLE/USB** reconnect hardening (no more stuck “address in use” after disconnect); **Bluetooth off** → prompt to enable before BLE scan; **TSQL** tones visible everywhere (list/editor/import/download); **NICFW TD-H3** and similar paths no longer show a bogus **88.5 Hz** TX PL when RX/TSQL holds the real CTCSS. Older release notes: [v4.4.0](https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.4.0.md), [v4.5.0](https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.5.0.md).
+
 ---
 
 ## Table of contents
@@ -20,10 +22,11 @@ RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS
 6. [Editing channels](#editing-channels)
 7. [Radio settings](#radio-settings)
 8. [CHIRP CSV import and export](#chirp-csv-import-and-export)
-9. [Radio backup (JSON)](#radio-backup-json)
-10. [Customize main screen](#customize-main-screen)
-11. [Supported radios](#supported-radios)
-12. [Privacy policy](#privacy-policy)
+9. [RepeaterBook search (CHIRP-style)](#repeaterbook-search-chirp-style)
+10. [Radio backup (JSON)](#radio-backup-json)
+11. [Customize main screen](#customize-main-screen)
+12. [Supported radios](#supported-radios)
+13. [Privacy policy](#privacy-policy)
 
 ---
 
@@ -87,6 +90,10 @@ After a successful download, the main screen shows the channel list and you can 
 
 If connection fails, try another USB cable path, ensure the dongle is powered and not paired exclusively to another app, and confirm the radio model is correct in **Select Radio Model…**.
 
+**v4.4+:** If **Bluetooth is turned off**, starting a BLE scan opens a system-style prompt to **enable Bluetooth** first (instead of an empty device list).
+
+**v4.3:** After **link loss** or switching adapters, reconnect should be more reliable (unique local sockets and proper close-before-open on BLE and USB serial).
+
 ---
 
 ## Main screen
@@ -104,6 +111,7 @@ If connection fails, try another USB cable path, ensure the dongle is powered an
   - **Search Channels** — show a search bar to filter by name, group, or frequency.
   - **Import CHIRP CSV from File…** — load a `.csv` exported from desktop CHIRP.
   - **Import CHIRP CSV from Clipboard…** — paste and import CSV text.
+  - **Search RepeaterBook…** — CHIRP-style country/state/service UI; fetches data from the official [RepeaterBook API](https://www.repeaterbook.com/api) and merges selected repeaters into your channel list (see [RepeaterBook search](#repeaterbook-search-chirp-style)).
   - **Select Radio Model…** — pick vendor and model for the connected radio.
   - **Customize main screen** — choose two extra values shown as **badges** on each channel row (when not redundant with power/mode/duplex/tones).
   - **Radio settings…** — open the driver’s global settings (backlight, beeps, etc.); only shown when the radio supports it and a memory image is loaded.
@@ -265,6 +273,32 @@ Radio settings are available only when:
 
 ---
 
+## RepeaterBook search (CHIRP-style)
+
+**⋮** → **Search RepeaterBook…** opens a screen modeled on desktop CHIRP’s RepeaterBook flow. Data comes from **RepeaterBook**’s official export endpoints (`export.php` / `exportROW.php` JSON), with client-side filters similar to CHIRP’s `do_fetch`.
+
+### Prerequisites
+
+1. **Load a memory image first** — **Load from radio** or **Import Radio Backup…** so the app already has the radio’s channel / clone context in memory. Without that, the screen exits with a reminder to load from radio or import a backup.
+2. **API access in the APK** — Official builds ship with **RepeaterBook** credentials in `BuildConfig` (token + contact email). If you **build from source** and both are empty, you’ll see a configuration toast: set **`REPEATERBOOK_APP_TOKEN`** and **`REPEATERBOOK_CONTACT_EMAIL`** in `local.properties` (see project README / developer notes) and rebuild. **401 Unauthorized** usually means RepeaterBook rejected the **User-Agent** or auth style — the app’s error hint lists `REPEATERBOOK_USER_AGENT` and **`REPEATERBOOK_AUTH_MODE`** options (`bearer`, `x_rb_app_token`, etc.) to match what your API approval email specifies.
+
+### Searching
+
+- Pick **country** and **state** (or “All” where supported), **Amateur** vs **US GMRS**, then run the search. **GMRS** is only available when the country is **United States**.
+- **Proximity (lat / lon / miles)** — Use **Use my location** (may request **location permission**) or type coordinates. US **Amateur** proximity uses RepeaterBook’s HTML **Proximity 2.0**-style request; the app then enriches rows with **Uplink / Downlink tone** from repeater **detail** HTML when needed. **US GMRS** proximity uses a GMRS HTML path; if tone cells are hidden behind login, **v4.4+** can fall back to authenticated JSON **`export.php`** (`stype=gmrs`) when your token is valid, so **PL/TSQ** still map into channels.
+- **Filters** — Band/mode chips and feature filters behave like the CHIRP source: e.g. for coordinate searches you must pick at least one **band** **or** enter a frequency (RepeaterBook rule). A quick text filter narrows the result list.
+
+### Importing into memory
+
+- Select repeaters (per-row checkboxes; menu **Select all visible** / **Clear**), then **Import**. RadioDroid maps each row to a **CHIRP-style channel** (frequencies, duplex, tones including DCS strings) and merges into the current list by slot, similar in spirit to importing CSV.
+- Downstream you can **Save to radio** or **Export Radio Backup…** as usual.
+
+### Network and location
+
+Using this feature contacts **repeaterbook.com** (and related pages) over HTTPS. **Coarse/fine location** is optional and only used when you ask for **Use my location** for proximity searches — RadioDroid does not upload your channel list to RepeaterBook.
+
+---
+
 ## Radio backup (JSON)
 
 **⋮** → **Export Radio Backup…** saves a JSON file with vendor/model, all **channels**, optional **`eeprom_base64`** (clone radios), and **radio settings** as stored in the app.
@@ -306,7 +340,9 @@ Select **Select Radio Model…** from the menu to see the full list for your bui
 
 ## Privacy policy
 
-RadioDroid is **local-first**: channel memories, EEPROM images, and backups stay on your device unless **you** export or share them. The official app does **not** include analytics SDKs or a general **INTERNET** permission for programming; Bluetooth and USB are used to talk to **your radio** (or adapter), not to RadioDroid servers.
+RadioDroid is **local-first**: channel memories, EEPROM images, and backups stay on your device unless **you** export or share them. The app does **not** include third-party analytics SDKs for programming workflows. **Bluetooth** and **USB** are used to talk to **your radio** (or adapter), not to servers operated by the RadioDroid project.
+
+**Network:** The app declares **`INTERNET`** so **RepeaterBook search** can reach **repeaterbook.com** when you open that screen and run a query. Ordinary **programming-only** use (download/save channels without RepeaterBook) does not require you to use that feature. Optional **location** access applies only if you use **Use my location** in RepeaterBook proximity mode.
 
 **Full policy (kept in sync with the app architecture):**
 
@@ -321,6 +357,7 @@ RadioDroid is **local-first**: channel memories, EEPROM images, and backups stay
 - **Clone radios:** For radios that use a full EEPROM clone, **Radio settings** and channel edits apply to the in-memory image. Use **Save to radio** to write everything back in one go.
 - **Search:** Use **Search Channels** to quickly find channels by name, group, or frequency.
 - **Backup:** Use **Export Radio Backup…** for a portable JSON snapshot (channels + settings + EEPROM when available), or **Save EEPROM dump…** / **Export Raw EEPROM…** for a raw clone image before big changes.
+- **RepeaterBook:** Load from radio (or restore backup) first, then **⋮** → **Search RepeaterBook…**; pick repeaters and import, then review tones and **Save to radio** when ready.
 
 ---
 
