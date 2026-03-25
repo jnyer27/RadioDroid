@@ -21,12 +21,13 @@ RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS
 5. [Downloading and uploading](#downloading-and-uploading)
 6. [Editing channels](#editing-channels)
 7. [Radio settings](#radio-settings)
-8. [CHIRP CSV import and export](#chirp-csv-import-and-export)
-9. [RepeaterBook search (CHIRP-style)](#repeaterbook-search-chirp-style)
-10. [Radio backup (JSON)](#radio-backup-json)
-11. [Customize main screen](#customize-main-screen)
-12. [Supported radios](#supported-radios)
-13. [Privacy policy](#privacy-policy)
+8. [TIDRADIO TD-H3 (nicFW 2.5) — Group labels and channel groups](#tidradio-td-h3-nicfw-25--group-labels-and-channel-groups)
+9. [CHIRP CSV import and export](#chirp-csv-import-and-export)
+10. [RepeaterBook search (CHIRP-style)](#repeaterbook-search-chirp-style)
+11. [Radio backup (JSON)](#radio-backup-json)
+12. [Customize main screen](#customize-main-screen)
+13. [Supported radios](#supported-radios)
+14. [Privacy policy](#privacy-policy)
 
 ---
 
@@ -257,6 +258,104 @@ Tap **Done** to save the channel and return to the list, or **Cancel** to discar
 Radio settings are available only when:
 - The radio driver supports settings, and  
 - The app has a connection to the radio **or** a clone image already loaded (for clone radios, settings are applied to the in-memory image).
+
+---
+
+## TIDRADIO TD-H3 (nicFW 2.5) — Group labels and channel groups
+
+The **TD-H3 nicFW 2.5** driver exposes two interconnected features: **Group Labels** (custom short names for groups A–O, stored in the radio's EEPROM at 0x1C90) and **per-channel group slots** (up to four groups per channel, packed into the channel's 16-bit `groups` field as four 4-bit nibbles). Together they replace the old fixed group letter display with a labeled, searchable grouping system.
+
+### Group labels
+
+Open **⋮ → Radio settings… → Group Labels** to assign a custom name (up to 6 characters) to each of the 15 group letters A–O. Labels are written to the radio's EEPROM when you tap **Update settings**. After that, every group spinner in the app shows the decorated form — **"A: GMRS"** instead of bare **"A"**.
+
+Leaving a label blank keeps the spinner showing just the letter. Labels are reset to empty if you load a fresh codeplug that has no labels stored.
+
+#### Schematic: Group Labels (Radio settings)
+
+```
+┌─────────────────────────────────────────────┐
+│ ← Radio settings                            │
+├─────────────────────────────────────────────┤
+│  [ Filter by name or value… ]               │
+├─────────────────────────────────────────────┤
+│  ▼ Group Labels                             │
+│     Group A  │ GMRS                         │
+│     Group B  │ MURS                         │
+│     Group C  │ (empty)                      │
+│     Group D  │ Repeater                     │
+│     …                                       │
+│     Group O  │ (empty)                      │
+├─────────────────────────────────────────────┤
+│           [Update settings]                 │
+└─────────────────────────────────────────────┘
+```
+
+*Schematic. Up to 6 ASCII characters per label. After saving, the spinners in the channel editor show "A: GMRS", "B: MURS", etc.*
+
+### Channel group slots
+
+Each memory channel can belong to up to **four groups simultaneously** via slots **group1 – group4** in the **Radio-specific** section of the channel editor. Each slot is an independent spinner: **None**, **A** (or **A: GMRS** when labeled), **B**, … **O**. Setting all four to **None** clears the channel from all groups.
+
+The four nibbles are packed into a single 16-bit field in EEPROM (`g0 | g1<<4 | g2<<8 | g3<<12`), matching the nicFW V2.5 channel block layout exactly.
+
+#### Schematic: channel editor — Radio-specific group slots
+
+```
+┌─────────────────────────────────────────────┐
+│ ← Channel 5                                 │
+├──────────────┬──────────────────────────────┤
+│ RX frequency │ 462.5625                     │
+│ Name         │ GMRS CH1                     │
+│ Power        │ [High]                       │
+│ Mode         │ [FM]                         │
+├──────────────┴──────────────────────────────┤
+│  ▼ Radio-specific                           │
+│  Groups slot 1  │ [A: GMRS]                 │
+│  Groups slot 2  │ [G]                       │
+│  Groups slot 3  │ [None]                    │
+│  Groups slot 4  │ [None]                    │
+│  Bandwidth      │ [Wide]                    │
+│  Busy lock      │ [Off]                     │
+├─────────────────────────────────────────────┤
+│ [Cancel]                         [Done]     │
+└─────────────────────────────────────────────┘
+```
+
+*Schematic. Group labels (set in Radio settings → Group Labels) decorate the spinner items. Up to four groups per channel; "None" slots are not stored.*
+
+The merged group summary on the **main list** (e.g. **`Groups: A, G · BW: Wide`**) is built from these four slots — "None" entries are omitted so the line stays compact.
+
+### Searching and bulk-editing by group
+
+- **Search by group** — **⋮ → Search Channels**, then type a group letter (`A`) or its label (`GMRS`). The filter matches against the merged group string shown in the channel row extras, so either the letter or the label text will surface matching channels.
+- **Bulk group change** — Long-press to enter selection mode, then tap the **radio-specific field** action (tag/group icon in the selection bar) → choose **Groups slot 1** (or 2, 3, 4) → pick a value from the labeled spinner. The chosen slot is updated on every selected non-empty channel in one operation.
+
+#### Schematic: bulk group change
+
+```
+┌─────────────────────────────────────────────┐
+│ RadioDroid                               ⋮  │
+├─────────────────────────────────────────────┤
+│  ✓  1 │ GMRS CH1  [High] [FM]              │
+│  ✓  2 │ GMRS CH2  [High] [FM]              │
+│     3 │ MURS 1    [Low]  [FM]              │
+│  ✓  4 │ GMRS CH3  [High] [FM]              │
+├─────────────────────────────────────────────┤
+│ 3 selected  [↑] [↓] [⇥] [⚡] [🏷] [CSV] [✕] │
+└─────────────────────────────────────────────┘
+         ↓ tap [🏷] radio-specific field
+┌─────────────────────────────────────────────┐
+│ Set field for 3 channels                    │
+├─────────────────────────────────────────────┤
+│  Field:  [Groups slot 1 ▼]                  │
+│  Value:  [A: GMRS ▼]                        │
+├─────────────────────────────────────────────┤
+│ [Cancel]                        [Apply]     │
+└─────────────────────────────────────────────┘
+```
+
+*Schematic. Select channels, tap the radio-specific field action, choose the group slot and value, then Apply.*
 
 ---
 
