@@ -25,7 +25,11 @@ RadioDroid brings the full [CHIRP](https://chirp.app) radio programming ecosyste
 - 🔍 **Channel search** — filter by name, group, or frequency
 - 📖 **[Online user guide](https://jnyer27.github.io/RadioDroid/)** — MkDocs site + PDF on [Releases](https://github.com/jnyer27/RadioDroid/releases)
 
-### What’s new in **v4.5.0**
+### What’s new in **v4.6.0**
+
+- **RepeaterBook proximity** — HTML **GMRS** and **amateur** proximity searches load the list without requesting every repeater’s detail page; **PL** / **TSQ** are fetched **only for rows you import** when you tap **Import selected** (faster search, fewer API/HTML hits). See [release notes](release_notes_v4.6.0.md).
+
+### Earlier: **v4.5.0**
 
 - **Tone / TSQL** — Correct **TX and RX CTCSS** after download, import, and backup (**TSQL** no longer blank; **NICFW H3** no longer shows bogus **88.5 Hz** TX when both tones match). See [release notes](release_notes_v4.5.0.md).
 
@@ -119,7 +123,7 @@ UI (Kotlin) → ChirpBridge.kt → chirp_bridge.py → CHIRP driver → AndroidS
 - Android 7.0+ (API 24)
 - USB OTG cable **or** BLE-capable Android device
 
-**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v4.3.0).
+**Release builds:** signed APKs are attached to [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) (e.g. `app-release.apk` for v4.6.0).
 
 ## Related
 

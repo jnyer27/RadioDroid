@@ -6,7 +6,7 @@
 
 RadioDroid **Chirp Programmer** is an Android app that programs amateur and GMRS radios using the same Python drivers as the [CHIRP](https://chirp.app) desktop application. No PC is required: connect via USB OTG or Bluetooth LE and edit channels directly on your phone or tablet.
 
-**Current release: v4.5.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
+**Current release: v4.6.0** — See [GitHub Releases](https://github.com/jnyer27/RadioDroid/releases) for APK downloads and release notes. This guide is also published at **[jnyer27.github.io/RadioDroid](https://jnyer27.github.io/RadioDroid/)** (same content as the PDF attached to each release).
 
 **Recent shipped themes (v4.2–v4.5):** **RepeaterBook** search in a CHIRP-like flow (amateur JSON API, US **GMRS** proximity via HTML with **export** fallback when tone fields are login-gated); **BLE/USB** reconnect hardening (no more stuck “address in use” after disconnect); **Bluetooth off** → prompt to enable before BLE scan; **TSQL** tones visible everywhere (list/editor/import/download); **NICFW TD-H3** and similar paths no longer show a bogus **88.5 Hz** TX PL when RX/TSQL holds the real CTCSS. Older release notes: [v4.4.0](https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.4.0.md), [v4.5.0](https://github.com/jnyer27/RadioDroid/blob/main/release_notes_v4.5.0.md).
 
