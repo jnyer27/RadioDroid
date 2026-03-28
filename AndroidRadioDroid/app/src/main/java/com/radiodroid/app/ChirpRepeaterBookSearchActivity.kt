@@ -41,6 +41,7 @@ import com.radiodroid.app.BuildConfig
 import com.radiodroid.app.databinding.ActivityChirpRepeaterbookSearchBinding
 import com.radiodroid.app.radio.ChirpCsvExporter
 import com.radiodroid.app.radio.repeaterbook.RepeaterBookApiException
+import com.radiodroid.app.radio.repeaterbook.RepeaterBookDetailsTones
 import com.radiodroid.app.radio.repeaterbook.RepeaterBookGmrsProx
 import com.radiodroid.app.radio.repeaterbook.RepeaterBookHttp
 import com.radiodroid.app.radio.repeaterbook.RepeaterBookProx2
@@ -68,12 +69,21 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * Uses [RepeaterBookHttp] (same User-Agent and token as [RepeaterBookSearchActivity]): JSON export for
  * most queries; **US GMRS + lat/lon + distance** uses [RepeaterBookGmrsProx] (HTML proximity page).
+ *
+ * **Proximity tone enrichment:** HTML proximity lists load without per-repeater detail requests (fast).
+ * When you **Import selected**, PL/TSQ are fetched only for the selected rows via
+ * [RepeaterBookDetailsTones.enrichGmrsRows] / [RepeaterBookDetailsTones.enrichAmateurRows].
  */
 class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
 
     private companion object {
         const val DEFAULT_LOCATION_DISTANCE_MI = 30.0
     }
+
+    /** Last successful HTML proximity search; used to pick GMRS vs amateur detail enrichment at import. */
+    private enum class HtmlProximityKind { GMRS, AMATEUR }
+
+    private var htmlProximityKind: HtmlProximityKind? = null
 
     private lateinit var binding: ActivityChirpRepeaterbookSearchBinding
 
@@ -532,6 +542,7 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
 
         binding.btnSearch.isEnabled = false
         binding.progressSearch.visibility = View.VISIBLE
+        htmlProximityKind = null
 
         val chirpFilter = binding.editFilterChirp.text?.toString().orEmpty()
         val openOnly = binding.checkOpenOnly.isChecked
@@ -618,6 +629,11 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
             binding.btnSearch.isEnabled = true
 
             result.onSuccess { rows ->
+                htmlProximityKind = when {
+                    useGmrsProx -> HtmlProximityKind.GMRS
+                    useAmateurProx2 -> HtmlProximityKind.AMATEUR
+                    else -> null
+                }
                 allRows.clear()
                 allRows.addAll(rows)
                 binding.layoutFilter.isVisible = rows.isNotEmpty()
@@ -715,26 +731,64 @@ class ChirpRepeaterBookSearchActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.repeaterbook_select_one, Toast.LENGTH_SHORT).show()
             return
         }
-        val pairs = selected.mapNotNull { row ->
-            val ch = RepeaterBookToChannelMapper.fromJson(row.json) ?: return@mapNotNull null
-            val analog = row.json.optString("FM Analog", "").equals("Yes", ignoreCase = true)
-            val chOut = if (fmConv && analog) ch.copy(mode = "FM") else ch
-            row to chOut
+
+        binding.btnImport.isEnabled = false
+        binding.progressSearch.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            val kind = htmlProximityKind
+            try {
+                if (kind != null) {
+                    withContext(Dispatchers.IO) {
+                        val client = RepeaterBookHttp.httpClient()
+                        val jsonObjs = selected.map { it.json }
+                        when (kind) {
+                            HtmlProximityKind.GMRS ->
+                                RepeaterBookDetailsTones.enrichGmrsRows(client, jsonObjs)
+                            HtmlProximityKind.AMATEUR ->
+                                RepeaterBookDetailsTones.enrichAmateurRows(client, jsonObjs)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                binding.progressSearch.visibility = View.GONE
+                binding.btnImport.isEnabled = true
+                Toast.makeText(
+                    this@ChirpRepeaterBookSearchActivity,
+                    getString(R.string.repeaterbook_search_failed, e.message ?: e.toString()),
+                    Toast.LENGTH_LONG,
+                ).show()
+                return@launch
+            }
+
+            binding.progressSearch.visibility = View.GONE
+
+            val pairs = selected.mapNotNull { row ->
+                val ch = RepeaterBookToChannelMapper.fromJson(row.json) ?: return@mapNotNull null
+                val analog = row.json.optString("FM Analog", "").equals("Yes", ignoreCase = true)
+                val chOut = if (fmConv && analog) ch.copy(mode = "FM") else ch
+                row to chOut
+            }
+            if (pairs.isEmpty()) {
+                binding.btnImport.isEnabled = true
+                Toast.makeText(
+                    this@ChirpRepeaterBookSearchActivity,
+                    R.string.repeaterbook_no_results,
+                    Toast.LENGTH_LONG,
+                ).show()
+                return@launch
+            }
+            val channels = pairs.map { it.second }
+            val comments = pairs.map { RepeaterBookToChannelMapper.commentLine(it.first.json) }
+            val csv = ChirpCsvExporter.export(channels)
+            startActivity(
+                Intent(this@ChirpRepeaterBookSearchActivity, ChirpImportActivity::class.java).apply {
+                    putExtra(ChirpImportActivity.EXTRA_CSV_TEXT, csv)
+                    putExtra(ChirpImportActivity.EXTRA_COMMENTS, ArrayList(comments))
+                },
+            )
+            finish()
         }
-        if (pairs.isEmpty()) {
-            Toast.makeText(this, R.string.repeaterbook_no_results, Toast.LENGTH_LONG).show()
-            return
-        }
-        val channels = pairs.map { it.second }
-        val comments = pairs.map { RepeaterBookToChannelMapper.commentLine(it.first.json) }
-        val csv = ChirpCsvExporter.export(channels)
-        startActivity(
-            Intent(this, ChirpImportActivity::class.java).apply {
-                putExtra(ChirpImportActivity.EXTRA_CSV_TEXT, csv)
-                putExtra(ChirpImportActivity.EXTRA_COMMENTS, ArrayList(comments))
-            },
-        )
-        finish()
     }
 }
 

@@ -74,6 +74,8 @@ object RepeaterBookProx2 {
      * @param includeSimplex when true, adds `include_simplex=1` (same-frequency simplex nodes).
      * @param enrichFromDetails when true, one HTTP GET per repeater to [details.php] fills **PL** / **TSQ**
      * from Uplink / Downlink tone rows (slower but matches the site’s full technical data).
+     * When false, internal `_rb_state_id` / `_rb_repeater_id` are kept so the caller can enrich only
+     * selected rows later (e.g. at import time).
      */
     @Throws(IOException::class)
     fun fetchRepeaters(
@@ -117,9 +119,8 @@ object RepeaterBookProx2 {
             val rows = parseHtml(body)
             if (enrichFromDetails) {
                 RepeaterBookDetailsTones.enrichAmateurRows(client, rows)
-            } else {
-                rows.forEach { RepeaterBookDetailsTones.stripInternalKeys(it) }
             }
+            // If false: keep KEY_STATE_ID / KEY_REPEATER_ID for deferred per-row enrichment.
             return rows
         }
     }

@@ -35,6 +35,7 @@ object RepeaterBookGmrsProx {
      * @param enrichFromDetails when true, one GET per repeater to [gmrs/details.php] fills **PL** / **TSQ**;
      * if tones are login-gated in HTML, [RepeaterBookDetailsTones] falls back to JSON **export.php**
      * when [com.radiodroid.app.BuildConfig.REPEATERBOOK_APP_TOKEN] is configured.
+     * When false, internal `_rb_state_id` / `_rb_repeater_id` are kept for deferred enrichment.
      */
     @Throws(IOException::class)
     fun fetchRepeaters(
@@ -71,9 +72,8 @@ object RepeaterBookGmrsProx {
             val rows = parseHtml(body)
             if (enrichFromDetails) {
                 RepeaterBookDetailsTones.enrichGmrsRows(client, rows)
-            } else {
-                rows.forEach { RepeaterBookDetailsTones.stripInternalKeys(it) }
             }
+            // If false: keep KEY_STATE_ID / KEY_REPEATER_ID for deferred per-row enrichment.
             return rows
         }
     }
